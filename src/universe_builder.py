@@ -1,8 +1,14 @@
+import time
+
 import yfinance as yf
 
 from src import get_logger
 
 logger = get_logger(__name__)
+
+# Yahoo Finance rate-limits rapid sequential info lookups; this keeps the
+# market-cap filtering loop under that threshold.
+MARKET_CAP_REQUEST_DELAY_SECONDS = 0.5
 
 # Maps GICS sector codes to yfinance's sector domain keys, used for the
 # (unstable) primary lookup path before falling back to the hardcoded list.
@@ -44,7 +50,10 @@ def _sector_tickers_from_yfinance(gics_sector: str) -> list[str]:
 
 def _filter_by_market_cap(tickers: list[str]) -> list[str]:
     filtered = []
-    for ticker in tickers:
+    for i, ticker in enumerate(tickers):
+        if i > 0:
+            time.sleep(MARKET_CAP_REQUEST_DELAY_SECONDS)
+
         try:
             market_cap = yf.Ticker(ticker).info.get("marketCap")
         except Exception as e:
