@@ -1,0 +1,32 @@
+target_company:
+  name: "Example Manufacturing Co."
+  description: >
+    Mid-market industrial parts manufacturer serving automotive OEMs
+    in North America. Primarily B2B with long-term supply contracts.
+    Approximately 70% of revenue is recurring. Asset-heavy operations
+    with significant manufacturing facilities.
+  gics_sector: "20"
+  gics_industry: "2010"
+  revenue_usd_mm: 150
+  ebitda_margin_estimate: 0.18
+  geography: "north_america"
+
+universe:
+  max_candidates: 50        # Phase 1: small number for testing
+  min_revenue_usd_mm: 30
+  max_revenue_usd_mm: 800
+  min_ebitda_margin: 0.05
+
+llm:
+  extraction_model: "gpt-4.1"
+  judge_model: "gpt-4.1-mini"
+  temperature: 0
+  max_tokens: 500
+  batch_size: 20
+  judge_threshold: 3
+
+output:
+  top_n_comps: 15
+  report_formats:
+    - csv
+    - html

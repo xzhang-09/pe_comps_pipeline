@@ -1,0 +1,128 @@
+2026-06-16 13:52:46,951 | INFO     | src.fetcher | Processing 1/1: AAA
+2026-06-16 13:52:46,951 | INFO     | src.fetcher | AAA — loaded from cache
+2026-06-16 13:52:46,972 | INFO     | src.fetcher | Processing 1/1: BBB
+2026-06-16 13:52:46,974 | WARNING  | src.fetcher | BBB — EDGAR description failed: no network in tests
+2026-06-16 13:52:46,974 | WARNING  | src.fetcher | BBB — ev_ebitda outlier (12000000.0), setting None
+2026-06-16 13:52:46,977 | WARNING  | src.fetcher | CCC — attempt 1 failed: boom. Retrying...
+2026-06-16 13:52:46,977 | WARNING  | src.fetcher | CCC — attempt 2 failed: boom. Retrying...
+2026-06-16 13:52:46,979 | INFO     | src.fetcher | Processing 1/1: DDD
+2026-06-16 13:52:46,979 | WARNING  | src.fetcher | DDD — attempt 1 failed: boom. Retrying...
+2026-06-16 13:52:46,979 | WARNING  | src.fetcher | DDD — attempt 2 failed: boom. Retrying...
+2026-06-16 13:52:46,979 | ERROR    | src.fetcher | DDD — failed after 3 retries: boom
+2026-06-16 13:52:46,980 | WARNING  | src.fetcher | EEE — ev_ebitda outlier (150), setting None
+2026-06-16 13:52:46,981 | WARNING  | src.fetcher | FFF — ev_ebitda outlier (-3), setting None
+2026-06-16 13:53:10,155 | WARNING  | src.universe_builder | yfinance sector screener failed: yfinance sector 'industrials' returned no companies. Falling back to hardcoded list.
+2026-06-16 13:53:10,156 | INFO     | src.universe_builder | Found 104 candidate tickers before filtering
+2026-06-16 13:53:11,320 | WARNING  | src.universe_builder | MMM — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:53:12,315 | WARNING  | src.universe_builder | HON — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:53:13,303 | WARNING  | src.universe_builder | GE — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:53:14,276 | WARNING  | src.universe_builder | EMR — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:53:15,123 | WARNING  | src.universe_builder | ITW — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:53:15,989 | WARNING  | src.universe_builder | PH — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:53:16,998 | WARNING  | src.universe_builder | ROK — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:53:17,996 | WARNING  | src.universe_builder | AME — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:53:18,905 | WARNING  | src.universe_builder | IEX — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:53:20,087 | WARNING  | src.universe_builder | GNRC — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:53:20,937 | WARNING  | src.universe_builder | SWK — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:53:21,936 | WARNING  | src.universe_builder | PNR — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:53:23,101 | WARNING  | src.universe_builder | RRX — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:53:24,242 | WARNING  | src.universe_builder | XYL — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:53:25,156 | WARNING  | src.universe_builder | FELE — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:53:26,473 | WARNING  | src.universe_builder | TT — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:53:27,534 | WARNING  | src.universe_builder | IR — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:53:28,617 | WARNING  | src.universe_builder | CARR — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:53:29,658 | WARNING  | src.universe_builder | OTIS — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:53:31,401 | WARNING  | src.universe_builder | LMT — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:53:32,628 | WARNING  | src.universe_builder | RTX — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:53:33,510 | WARNING  | src.universe_builder | GD — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:53:34,772 | WARNING  | src.universe_builder | NOC — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:53:35,585 | WARNING  | src.universe_builder | LHX — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:53:36,693 | WARNING  | src.universe_builder | TDG — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:53:37,600 | WARNING  | src.universe_builder | HII — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:53:38,641 | WARNING  | src.universe_builder | MOG.A — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:53:39,565 | WARNING  | src.universe_builder | HEI — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:53:40,651 | WARNING  | src.universe_builder | ESAB — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:53:41,443 | WARNING  | src.universe_builder | ITT — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:53:42,480 | WARNING  | src.universe_builder | WTS — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:53:43,442 | WARNING  | src.universe_builder | RXN — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:53:44,401 | WARNING  | src.universe_builder | ACCO — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:53:45,436 | WARNING  | src.universe_builder | LYTS — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:53:46,337 | WARNING  | src.universe_builder | KBAL — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:53:47,508 | WARNING  | src.universe_builder | GFF — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:53:48,552 | WARNING  | src.universe_builder | ASTE — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:53:49,480 | WARNING  | src.universe_builder | HCSG — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:53:50,459 | WARNING  | src.universe_builder | HI — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:53:51,577 | WARNING  | src.universe_builder | CSWI — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:53:52,807 | WARNING  | src.universe_builder | NVT — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:53:53,709 | WARNING  | src.universe_builder | TRMK — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:53:54,846 | WARNING  | src.universe_builder | DXPE — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:53:55,895 | WARNING  | src.universe_builder | CAT — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:53:57,308 | WARNING  | src.universe_builder | DE — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:53:58,154 | WARNING  | src.universe_builder | PCAR — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:53:59,257 | WARNING  | src.universe_builder | CMI — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:54:00,216 | WARNING  | src.universe_builder | DOV — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:54:01,300 | WARNING  | src.universe_builder | AOS — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:54:02,231 | WARNING  | src.universe_builder | ALLE — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:54:03,234 | WARNING  | src.universe_builder | MAS — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:54:04,524 | WARNING  | src.universe_builder | JCI — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:54:05,666 | WARNING  | src.universe_builder | LII — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:54:06,907 | WARNING  | src.universe_builder | PWR — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:54:08,056 | WARNING  | src.universe_builder | FAST — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:54:09,160 | WARNING  | src.universe_builder | GWW — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:54:10,224 | WARNING  | src.universe_builder | WSO — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:54:11,137 | WARNING  | src.universe_builder | AIT — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:54:12,005 | WARNING  | src.universe_builder | MSM — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:54:13,381 | WARNING  | src.universe_builder | SITE — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:54:14,844 | WARNING  | src.universe_builder | BLDR — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:54:15,922 | WARNING  | src.universe_builder | EXP — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:54:16,910 | WARNING  | src.universe_builder | VMC — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:54:18,031 | WARNING  | src.universe_builder | MLM — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:54:19,045 | WARNING  | src.universe_builder | NUE — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:54:20,209 | WARNING  | src.universe_builder | STLD — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:54:21,204 | WARNING  | src.universe_builder | X — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:54:22,250 | WARNING  | src.universe_builder | CLF — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:54:23,370 | WARNING  | src.universe_builder | RS — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:54:24,380 | WARNING  | src.universe_builder | ATI — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:54:25,664 | WARNING  | src.universe_builder | CRS — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:54:27,252 | WARNING  | src.universe_builder | KMT — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:54:28,295 | WARNING  | src.universe_builder | FLS — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:54:29,488 | WARNING  | src.universe_builder | CR — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:54:30,663 | WARNING  | src.universe_builder | DCI — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:54:31,935 | WARNING  | src.universe_builder | GTLS — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:54:33,033 | WARNING  | src.universe_builder | CFX — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:54:34,203 | WARNING  | src.universe_builder | HEES — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:54:35,265 | WARNING  | src.universe_builder | TKR — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:54:36,340 | WARNING  | src.universe_builder | ROLL — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:54:37,421 | WARNING  | src.universe_builder | B — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:54:38,366 | WARNING  | src.universe_builder | WCC — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:54:39,510 | WARNING  | src.universe_builder | AYI — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:54:40,501 | WARNING  | src.universe_builder | HUBB — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:54:41,546 | WARNING  | src.universe_builder | POWL — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:54:42,429 | WARNING  | src.universe_builder | THR — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:54:43,280 | WARNING  | src.universe_builder | MWA — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:54:44,280 | WARNING  | src.universe_builder | AWI — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:54:45,388 | WARNING  | src.universe_builder | JBT — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:54:46,413 | WARNING  | src.universe_builder | GGG — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:54:47,357 | WARNING  | src.universe_builder | SPXC — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:54:48,525 | WARNING  | src.universe_builder | CIR — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:54:49,707 | WARNING  | src.universe_builder | CSL — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:54:50,642 | WARNING  | src.universe_builder | EME — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:54:51,679 | WARNING  | src.universe_builder | MTZ — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:54:52,896 | WARNING  | src.universe_builder | BMI — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:54:53,726 | WARNING  | src.universe_builder | NDSN — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:54:55,174 | WARNING  | src.universe_builder | AAON — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:54:56,159 | WARNING  | src.universe_builder | LECO — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:54:56,952 | WARNING  | src.universe_builder | KAMN — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:54:58,138 | WARNING  | src.universe_builder | CW — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:54:58,933 | WARNING  | src.universe_builder | HXL — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:54:59,812 | WARNING  | src.universe_builder | TXT — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:55:00,855 | WARNING  | src.universe_builder | SPR — failed to fetch market cap: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:55:00,855 | INFO     | src.universe_builder | 0 candidates remain after market cap filter
+2026-06-16 13:55:42,725 | INFO     | src.fetcher | Processing 1/2: MMM
+2026-06-16 13:55:44,277 | WARNING  | src.fetcher | MMM — attempt 1 failed: Too Many Requests. Rate limited. Try after a while.. Retrying...
+2026-06-16 13:55:46,372 | WARNING  | src.fetcher | MMM — attempt 2 failed: Too Many Requests. Rate limited. Try after a while.. Retrying...
+2026-06-16 13:55:49,344 | ERROR    | src.fetcher | MMM — failed after 3 retries: Too Many Requests. Rate limited. Try after a while.
+2026-06-16 13:55:49,345 | INFO     | src.fetcher | Processing 2/2: HON
+2026-06-16 13:55:50,709 | WARNING  | src.fetcher | HON — attempt 1 failed: Too Many Requests. Rate limited. Try after a while.. Retrying...
+2026-06-16 13:55:52,531 | WARNING  | src.fetcher | HON — attempt 2 failed: Too Many Requests. Rate limited. Try after a while.. Retrying...
+2026-06-16 13:55:55,457 | ERROR    | src.fetcher | HON — failed after 3 retries: Too Many Requests. Rate limited. Try after a while.
