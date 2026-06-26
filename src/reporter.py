@@ -554,13 +554,17 @@ def _relative_dispersion(company_scores: pd.DataFrame, eligible_tickers: list[st
 
 TUKEY_FENCE_MULTIPLIER = 1.5
 
-# A dispersion ratio (Top-N EV/EBITDA IQR ÷ eligible-pool IQR) only counts
-# as the selection meaningfully narrowing the multiple spread when it's
-# comfortably below 1.0. A ratio of, say, 0.99 is technically "<1.0" but
-# means the Top-N is essentially as scattered as the pool it was drawn from
-# — claiming that "narrowed the spread" overstates what happened, so the
-# 0.9–1.0 band gets its own "barely narrowed" wording.
-MEANINGFUL_NARROWING_RATIO = 0.9
+# A dispersion ratio (Top-N EV/EBITDA IQR ÷ eligible-pool IQR) is graded in
+# bands so Section 6's verdict can't contradict Section 4's absolute-spread
+# caveat. The ratio is RELATIVE (narrowed vs. the pool the Top-N was drawn
+# from); a low ratio doesn't guarantee the resulting band is absolutely tight,
+# so only a comfortably large reduction earns "meaningfully narrowed":
+#   < 0.60  meaningfully narrowed (>40% tighter than the pool)
+#   0.60–0.85 modestly narrowed (still a wide band — defer to §4's range caveat)
+#   0.85–1.0  barely narrowed (about as scattered as the pool)
+#   >= 1.0    did not narrow
+MEANINGFUL_NARROWING_RATIO = 0.60
+MODEST_NARROWING_RATIO = 0.85
 
 # When the Top-N's own EV/EBITDA P75÷P25 exceeds this, the multiple spread
 # is wide enough that the headline P25–P75 range is more "noise" than
@@ -1230,8 +1234,22 @@ def _executive_summary(
     # the adjusted low/high stay on the same EV/EBITDA-or-EV/Revenue footing
     # as the raw headline rather than mixing bases.
     discounted_range = None
+    discount_fraction = discounted_valuation.get("discount") if discounted_valuation else None
     if discounted_valuation:
         discounted_range = discounted_valuation.get("by_ebitda") or discounted_valuation.get("by_revenue")
+
+    # The size anchor is a comp-implied (public, undiscounted) figure; for a
+    # small private target the same private-company haircut that applies to the
+    # full-set range applies to it too. Carry a discounted anchor so the
+    # headline can lead with the decision-relevant (post-discount) number and
+    # cite the pre-discount anchor for transparency, rather than presenting the
+    # undiscounted figure as the bottom line.
+    size_anchor_ev = size_anchor.get("implied_ev") if size_anchor else None
+    size_anchor_ev_discounted = (
+        size_anchor_ev * (1 - discount_fraction)
+        if (size_anchor_ev is not None and discount_fraction is not None)
+        else None
+    )
 
     return {
         "n_comps": top_n,
@@ -1244,7 +1262,8 @@ def _executive_summary(
         "discount_pct": discounted_valuation.get("discount") * 100 if discounted_valuation else None,
         "adjusted_ev_low": discounted_range["p25"] if discounted_range else None,
         "adjusted_ev_high": discounted_range["p75"] if discounted_range else None,
-        "size_anchor_ev": size_anchor.get("implied_ev") if size_anchor else None,
+        "size_anchor_ev": size_anchor_ev,
+        "size_anchor_ev_discounted": size_anchor_ev_discounted,
         "size_anchor_n": size_anchor.get("n") if size_anchor else None,
         "size_anchor_multiple": size_anchor.get("median_ev_ebitda") if size_anchor else None,
         "fit_score": comp_fit_review.get("overall_score") if fit_available else None,
@@ -1688,6 +1707,7 @@ def generate(
         "n_comps": len(top15_rows),
         "tukey_fence_multiplier": TUKEY_FENCE_MULTIPLIER,
         "meaningful_narrowing_ratio": MEANINGFUL_NARROWING_RATIO,
+        "modest_narrowing_ratio": MODEST_NARROWING_RATIO,
         "wide_multiple_spread_ratio": WIDE_MULTIPLE_SPREAD_RATIO,
         "SIZE_BAND_MULTIPLE": SIZE_BAND_MULTIPLE,
         "STRICT_SIZE_BAND_LOWER_MULTIPLE": STRICT_SIZE_BAND_LOWER_MULTIPLE,
