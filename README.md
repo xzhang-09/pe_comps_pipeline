@@ -352,20 +352,46 @@ This repository does not publish an audited ground-truth Precision@K benchmark.
   filed 10-Ks under the configured `primary_sic_codes`/`adjacent_sic_codes` —
   not the full market. The data layer could be extended with Capital IQ or
   PitchBook for private-company coverage and a larger universe.
-- **Financial data quality**: a large fraction of companies are missing a
-  valid `ev_ebitda` label even after fetching. This pipeline deliberately
-  only calls FMP's free-tier `/profile` endpoint and derives EV/EBITDA from
-  that market cap plus EDGAR XBRL fundamentals (see "Using a paid FMP plan"
-  below) — that derivation needs several EDGAR fields to all be present
-  simultaneously (revenue, EBITDA, net debt) on top of FMP's market cap, a
-  stricter requirement than FMP's own key-metrics/enterprise-values
-  endpoints would impose. In one measured run, 182 SIC-based candidates
-  yielded only 45 with a usable label (~75% missing); XBRL tagging gaps and
-  outlier filtering also contribute. Outliers (e.g. EV/EBITDA > 100x or
-  negative) are automatically set to `None` rather than included; many of
-  these come from genuinely thin/negative-EBITDA companies in the adjacent
-  bucket, for which EV/EBITDA isn't a meaningful multiple in the first
-  place.
+- **Financial data quality and EBITDA coverage**: roughly 54% of SIC-based
+  candidates end up with a usable `ev_ebitda` label in a typical run. Three
+  distinct causes account for most of the missing coverage:
+
+  1. *Legitimately negative EBITDA* (~30% of candidates). Pre-revenue or
+     turnaround companies — common in adjacent SIC buckets used to widen the
+     pool — have negative operating income. EV/EBITDA is not a meaningful
+     multiple for these companies; they are correctly excluded from scoring
+     but still appear in the raw candidate count.
+
+  2. *Operating income not tagged as `OperatingIncomeLoss` in XBRL* (~10%
+     of candidates). Large diversified industrials and automotive OEMs —
+     including companies like Deere, Parker Hannifin, Johnson Controls,
+     Baker Hughes, and most major Tier-1 auto suppliers — structure their
+     income statements so that the EBIT subtotal is absorbed into or
+     presented below `PretaxIncomeLoss` without a separate XBRL tag for
+     operating income. `edgartools` normalises XBRL filings to a fixed
+     concept vocabulary; when a company omits the `OperatingIncomeLoss`
+     subtotal, `_ebitda()` in `fetcher.py` returns `None` and no EV/EBITDA
+     multiple can be derived. A fallback approximation
+     (`PretaxIncomeLoss + InterestExpense`) is intentionally *not*
+     implemented: for companies with material financial-services subsidiaries
+     or large non-operating items the gap from true operating income can run
+     to billions, and mixing two different EBIT definitions in the same comp
+     table would corrupt the multiple distribution without any visible
+     warning. The right fix is a data source that normalises this
+     consistently — see "Using a paid FMP plan" and "Upgrading the data
+     layer" below.
+
+  3. *D&A not reported as a distinct cash-flow line item* (~3–5% of
+     candidates). Some large manufacturers (e.g. BorgWarner) file a
+     condensed indirect-method cash-flow statement in XBRL that shows only
+     the section subtotals. `edgartools` cannot extract a standalone D&A
+     figure from these filings, so EBITDA cannot be computed even when
+     operating income is present. This is a filing-presentation choice, not
+     an edgartools bug, and is not reliably fixable from EDGAR alone.
+
+  Outliers (EV/EBITDA > 100× or negative) are automatically set to `None`
+  rather than included; these are typically loss-making companies whose
+  multiple would be arithmetically valid but economically meaningless.
 - **Comp pool scale & heterogeneity**: the comp pool is well under 100
   companies in a typical run, so the financial-feature distance used for
   ranking is computed against a small, possibly heterogeneous reference set
@@ -406,6 +432,45 @@ likely more complete multiples by adding calls to them in
 `src/fmp_client.py` and wiring the response into `record["ev_ebitda"]` /
 `record["ev_revenue"]` / `record["enterprise_value_usd_mm"]` in
 `fetcher._enrich_with_fmp_data`.
+
+## Upgrading the data layer
+
+The free-tier stack (SEC EDGAR + FMP `/profile`) is sufficient for a first
+pass but has real coverage limits — notably the EBITDA gaps described in
+"Known Limitations" above. The fetcher is designed so data-source upgrades
+are localised: `_fetch_single()` handles EDGAR fundamentals and
+`_enrich_with_fmp_data()` handles market data; swapping either one out
+doesn't require touching LLM extraction, scoring, or reporting.
+
+**Paid FMP (Starter / Professional plan)**
+FMP's `/key-metrics` and `/enterprise-values` endpoints return
+provider-normalised EV/EBITDA and EV/Revenue directly, bypassing the
+EDGAR-derivation chain entirely. This resolves the operating-income and
+D&A tagging gaps: FMP normalises EBITDA consistently across filers,
+including the large-cap industrials and automotive OEMs that EDGAR XBRL
+cannot cover with the current logic. To wire this in, add calls to those
+endpoints in `src/fmp_client.py` and write the result directly into
+`record["ev_ebitda"]`, `record["ev_ebitda_source_value"]`, and
+`record["enterprise_value_usd_mm"]` in `_enrich_with_fmp_data()` —
+the rest of the pipeline reads those fields without caring how they were
+populated.
+
+**CapIQ / Refinitiv / Bloomberg**
+Terminal-grade providers normalise EBITDA, EBIT, and all EV bridge
+components consistently across global filers and fiscal-year conventions.
+The cleanest integration point is to write a `_fetch_from_premium_source()`
+function that mirrors the output schema of `_fetch_single()` (see the
+`dict` it returns), then call it from `pipeline.py` before the EDGAR fetch
+so its results take priority for any ticker the premium source covers.
+Fields not supplied by the premium source fall back to EDGAR as before.
+
+**Coverage expectations by data source**
+
+| Source | ev_ebitda coverage (typical run) | Notes |
+|---|---|---|
+| EDGAR XBRL + FMP free | ~54% | Current default |
+| EDGAR XBRL + FMP paid key-metrics | ~75–80% | Adds normalised multiples for the XBRL-gap companies |
+| CapIQ / Bloomberg | ~90%+ | Handles non-standard filers, foreign companies, fiscal-year edge cases |
 
 ## Cost Estimate
 
