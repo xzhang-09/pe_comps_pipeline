@@ -76,26 +76,32 @@ class OutputConfig(BaseModel):
 class RankingPenaltiesConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    # Soft penalties added to a candidate's rank (not exclusions) in
-    # reporter.py's Top-N selection — see reporter._penalty_breakdown().
-    # eval/evaluator.py's _select_top_k reads the same values (passed
-    # through from this config) so the evaluation harness and the
-    # production report can't drift apart the way two independently
-    # hardcoded copies could.
-    business_model_penalty: float = 10.0
-    customer_type_penalty: float = 10.0
+    # Soft penalties added to a candidate's financial-distance score (not
+    # exclusions) in reporter.py's Top-N selection — see
+    # reporter._penalty_breakdown(). These are in the SAME units as residual_abs
+    # (the standardized financial-feature distance to the target), because
+    # they're added to that distance, not to an ordinal rank. residual_abs
+    # typically spans ~0.3-2.0 across a comp pool, so a penalty of ~0.4-0.6 is a
+    # "moderate financial gap" worth of demotion — enough to drop a categorically
+    # mismatched comp below a comparably-close peer, without letting one flag
+    # leapfrog a much closer comp the way the old rank-unit penalties (~10-15)
+    # did. eval/evaluator.py's _select_top_k reads the same values (passed
+    # through from this config) so the evaluation harness and the production
+    # report can't drift apart the way two independently hardcoded copies could.
+    business_model_penalty: float = 0.6
+    customer_type_penalty: float = 0.5
     # Below this cosine similarity between the target's and a candidate's
     # sub_sector_description, the sub-sector mismatch penalty applies.
     # Uncalibrated judgment call — no labeled "good"/"bad" pairs exist yet
     # to tune it against; revisit if it's excluding/including obviously
     # wrong companies in practice.
     subsector_similarity_threshold: float = 0.5
-    subsector_mismatch_penalty: float = 10.0
+    subsector_mismatch_penalty: float = 0.4
     # Companies within 10x of the target's revenue (either direction) get
     # no size penalty; each further order of magnitude adds
-    # size_penalty_per_extra_log10.
+    # size_penalty_per_extra_log10 (in residual-distance units).
     size_penalty_free_log10_range: float = 1.0
-    size_penalty_per_extra_log10: float = 10.0
+    size_penalty_per_extra_log10: float = 1.0
 
 
 class ScorerConfig(BaseModel):

@@ -111,25 +111,29 @@ def _select_top_k(
     )
     subsector_threshold = penalties["subsector_similarity_threshold"]
 
-    def adjusted_rank(ticker: str) -> float:
-        rank = float(base_rank[ticker])
+    def adjusted_score(ticker: str) -> float:
+        # Penalties are added to the continuous financial distance (residual_abs),
+        # not the ordinal base_rank — must stay in lockstep with
+        # reporter._penalty_breakdown so the eval harness ranks the same way the
+        # report does. See that function's comment for why distance-unit penalties.
+        score = float(company_scores.loc[ticker, "residual_abs"])
         llm = llm_features[ticker]
 
         if apply_business_model_penalty and llm.get("business_model") != target_business_model:
-            rank += penalties["business_model_penalty"]
+            score += penalties["business_model_penalty"]
         if apply_customer_type_penalty and llm.get("customer_type") != target_customer_type:
-            rank += penalties["customer_type_penalty"]
+            score += penalties["customer_type_penalty"]
 
         candidate_revenue = companies_by_ticker.get(ticker, {}).get("revenue_ttm_usd_mm")
-        rank += _size_mismatch_penalty(candidate_revenue, target_revenue, penalties)
+        score += _size_mismatch_penalty(candidate_revenue, target_revenue, penalties)
 
         subsector_similarity = subsector_similarities.get(ticker)
         if subsector_similarity is not None and subsector_similarity < subsector_threshold:
-            rank += penalties["subsector_mismatch_penalty"]
+            score += penalties["subsector_mismatch_penalty"]
 
-        return rank
+        return score
 
-    ordered = sorted(candidates, key=lambda t: (adjusted_rank(t), base_rank[t]))
+    ordered = sorted(candidates, key=lambda t: (adjusted_score(t), base_rank[t]))
     return ordered[:k]
 
 

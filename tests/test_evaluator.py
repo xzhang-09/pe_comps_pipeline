@@ -38,13 +38,15 @@ def _company_scores(tickers_and_residuals: dict) -> pd.DataFrame:
     return pd.DataFrame({"residual_abs": tickers_and_residuals})
 
 
+# Distance-unit penalties (added to residual_abs, not an ordinal rank) — must
+# match the scale used in reporter/evaluator. See _select_top_k.
 DEFAULT_PENALTIES = {
-    "business_model_penalty": 10,
-    "customer_type_penalty": 10,
+    "business_model_penalty": 0.6,
+    "customer_type_penalty": 0.5,
     "subsector_similarity_threshold": 0.5,
-    "subsector_mismatch_penalty": 10,
+    "subsector_mismatch_penalty": 0.4,
     "size_penalty_free_log10_range": 1.0,
-    "size_penalty_per_extra_log10": 10.0,
+    "size_penalty_per_extra_log10": 1.0,
 }
 EMBEDDING_MODEL = "text-embedding-3-small"
 
@@ -124,9 +126,10 @@ def test_size_mismatch_excludes_oversized_company():
 
 def test_subsector_mismatch_excludes_low_similarity_candidate(mocker):
     # FAR has the best residual fit but its sub_sector_description is
-    # orthogonal (cosine similarity 0) to the target's; CLOSE is a worse
-    # financial fit but matches sub-sector closely.
-    company_scores = _company_scores({"AAA": 0.5, "CLOSE": 0.5, "FAR": 0.05})
+    # orthogonal (cosine similarity 0) to the target's; CLOSE is a slightly
+    # worse financial fit but matches sub-sector closely. Gap (0.20 vs 0.05) is
+    # within one subsector penalty (0.4) so the mismatch flips the order.
+    company_scores = _company_scores({"AAA": 0.5, "CLOSE": 0.20, "FAR": 0.05})
     llm_features = {
         "AAA": _llm(),
         "CLOSE": {**_llm(), "sub_sector_description": "automotive OEM parts manufacturer"},

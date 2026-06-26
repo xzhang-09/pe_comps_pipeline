@@ -213,7 +213,7 @@
 
 <!-- Section 2: Top 15 Comparable Companies -->
 <h2 id="sec2">2. Top {{ n_comps }} Comparable Companies</h2>
-{% if top15 and top15[0].business_model %}<p class="note">All Top {{ n_comps }} comps share the target's business model ({{ top15[0].business_model }}). <strong>Tier:</strong> <span class="tier-core">Core</span> = endorsed by the fit review (§3); <span class="tier-review_exclude">Review</span> = weaker fit and/or a statistical EV/EBITDA outlier (†, Tukey {{ tukey_fence_multiplier }}× IQR); <span class="tier-secondary">Secondary</span> = neither. Row outlined green/red = strongest/weaker fit per §3. <strong>Fin. Dist.</strong> = standardized distance to the target's financial profile (lower = closer); §8 defines how Rank combines it with business-model/scale/end-market fit.</p>{% endif %}
+{% if top15 and top15[0].business_model %}<p class="note">All Top {{ n_comps }} comps share the target's business model ({{ top15[0].business_model }}). <strong>Rank</strong> = financial distance plus business-model/customer/scale/end-market penalties (§8); <strong>Fin. Dist.</strong> is the financial component alone (lower = closer). <strong>Tier</strong> (<span class="tier-core">Core</span> / <span class="tier-secondary">Secondary</span> / <span class="tier-review_exclude">Review</span>) is a separate fit-quality flag, not the rank — see §3. † marks a statistical EV/EBITDA outlier (Tukey {{ tukey_fence_multiplier }}× IQR).</p>{% endif %}
 <div class="tier-summary-grid">
   {% for t in tier_summary %}
   <div class="tier-summary-item">
@@ -628,7 +628,8 @@
 <!-- Section 8: Methodology Notes -->
 <h2 id="sec8">8. Methodology Notes</h2>
 <div class="summary-box">
-  <p>Rank (Section 2) reflects overall comparability to the target, combining financial profile with business model, customer type, revenue scale, and end-market alignment — the table is ranked by fit, not by EV/EBITDA multiple.</p>
+  <p>Rank (Section 2) reflects overall comparability to the target: the standardized financial distance plus soft penalties (in the same distance units) for business-model, customer-type, revenue-scale, and end-market mismatch — not the EV/EBITDA multiple.</p>
+  <p>The <strong>Tier</strong> column is an independent fit-quality flag (from the Comparable Fit Review and the statistical outlier check), not a function of Rank. They usually agree, but a comp can be the closest financial fit (high Rank) and still be flagged for a second look (e.g. a different customer base) — the two are separate signals shown side by side on purpose.</p>
   <p>The Comparable Fit Review (Section 3) is a directional qualitative review; it is not a substitute for transaction-team judgment, banker input, or confirmatory diligence.</p>
   <p>Target Percentile (Section 4) shows where the target falls within the selected comp set. It is calculated directly from company-level data, so it may not match a simple interpolation from the rounded quartiles shown in the same table.</p>
   <p>"Relative influence" (Section 6) values are standardized, weighted squared distances — comparable only to each other within that table (to show which financial attribute drove the ranking most), not an absolute or standalone valuation metric.</p>

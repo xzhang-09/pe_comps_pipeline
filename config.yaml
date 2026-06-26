@@ -130,20 +130,26 @@ scorer:
       net_debt_ebitda: 1.0
       capex_revenue: 1.0
 
-  # Soft penalties added to a candidate's rank (not exclusions) in the
-  # Top-N selection. See src/config_schema.py's RankingPenaltiesConfig for
-  # what each one does; defaults below match the values this project's
-  # real runs have been tuned against so far.
+  # Soft penalties added to a candidate's financial-distance score (not
+  # exclusions) in the Top-N selection. See src/config_schema.py's
+  # RankingPenaltiesConfig for what each one does.
+  #
+  # Penalties are in residual-distance units (added to the financial-distance
+  # score, not an ordinal rank). Ordering reflects comp-selection priorities
+  # for an auto-OEM target: a different business model (0.6) is the most
+  # fundamental mismatch; a different customer base (0.5, e.g. B2C aftermarket
+  # vs B2B OEM) is penalized more than end-market drift (0.4, e.g. an industrial
+  # supplier in an adjacent vertical) — a B2C company in the right end-market is
+  # a worse valuation comp than a B2B company one vertical over.
   ranking_penalties:
-    business_model_penalty: 10
-    customer_type_penalty: 10
-    # Tightened end-market filter: 0.6 (was 0.5) penalizes comps whose
-    # sub-sector drifts from the target's auto-OEM end market (HVAC, water,
-    # filtration), and 15 (was 10) gives that mismatch more weight relative
-    # to pure financial distance.
+    business_model_penalty: 0.6
+    customer_type_penalty: 0.5
+    # Tightened end-market filter: similarity threshold 0.6 penalizes comps
+    # whose sub-sector drifts from the target's auto-OEM end market.
     subsector_similarity_threshold: 0.6
-    subsector_mismatch_penalty: 15
-    # Tighter size band: 0.7 log10 (~±5x, was ±10x) so much-larger comps
-    # start taking a rank penalty sooner.
+    subsector_mismatch_penalty: 0.4
+    # Tighter size band: 0.7 log10 (~±5x) free; each further decade of revenue
+    # gap adds 1.0 of financial distance, so a ~50x comp is demoted by ~1.0 (a
+    # large gap relative to the ~0.3-2.0 residual spread).
     size_penalty_free_log10_range: 0.7
-    size_penalty_per_extra_log10: 10.0
+    size_penalty_per_extra_log10: 1.0

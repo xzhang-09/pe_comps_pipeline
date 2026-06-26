@@ -291,6 +291,7 @@ def _subsector_similarities(
 def _penalty_breakdown(
     ticker: str,
     base_rank: int,
+    residual: float,
     llm_features: dict,
     companies_by_ticker: dict,
     target_business_model: str | None,
@@ -335,10 +336,19 @@ def _penalty_breakdown(
     if subsector_penalty:
         reasons.append(f"end-market similarity below threshold ({subsector_similarity:.2f} vs. {subsector_threshold} required)")
 
+    # Penalties are added to the *continuous* financial distance (residual_abs),
+    # not to the ordinal base_rank. Adding to an ordinal rank threw away how much
+    # closer one comp was than another — the gap between residual 0.40 and 0.42
+    # counted the same single rank-step as the gap between 0.40 and 1.33 — so a
+    # fixed penalty leapfrogged a company across the whole list regardless of how
+    # strong its financial fit actually was. In distance units a penalty demotes
+    # a comp by a comparable amount of financial distance, so a much closer comp
+    # can't be unseated by one categorical flag. base_rank is retained purely for
+    # the audit trail's "financial-only rank" display.
     return {
         "ticker": ticker,
         "base_rank": base_rank,
-        "adjusted_rank": base_rank + business_model_penalty + customer_type_penalty + size_penalty + subsector_penalty,
+        "adjusted_score": residual + business_model_penalty + customer_type_penalty + size_penalty + subsector_penalty,
         "business_model_penalty": business_model_penalty,
         "customer_type_penalty": customer_type_penalty,
         "size_penalty": size_penalty,
@@ -376,7 +386,8 @@ def _ranked_candidates(
 ) -> list[dict]:
     """
     Every candidate that survives the hard low-confidence/training filter,
-    with its full penalty breakdown, sorted best-to-worst by adjusted rank.
+    with its full penalty breakdown, sorted best-to-worst by adjusted score
+    (financial distance + penalties, all in distance units).
     Shared by _select_top_15 (which just takes the head) and the report's
     audit trail (which looks at what fell just outside the cutoff and why).
     """
@@ -394,14 +405,15 @@ def _ranked_candidates(
 
     breakdowns = [
         _penalty_breakdown(
-            ticker, base_rank[ticker], llm_features, companies_by_ticker,
+            ticker, base_rank[ticker], float(company_scores.loc[ticker, "residual_abs"]),
+            llm_features, companies_by_ticker,
             target_business_model, target_customer_type, target_revenue,
             apply_business_model_penalty, apply_customer_type_penalty,
             subsector_similarities, penalties,
         )
         for ticker in candidates
     ]
-    breakdowns.sort(key=lambda b: (b["adjusted_rank"], b["base_rank"]))
+    breakdowns.sort(key=lambda b: (b["adjusted_score"], b["base_rank"]))
     return breakdowns
 
 

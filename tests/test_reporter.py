@@ -23,13 +23,17 @@ def no_real_embedding_calls(mocker):
     })
 
 
+# Penalties are in residual-distance units (added to residual_abs, not an
+# ordinal rank) — see reporter._penalty_breakdown. Fixtures below pair these
+# with residual gaps small enough that a penalty can override a modest
+# financial edge, the behavior these tests assert.
 DEFAULT_PENALTIES = {
-    "business_model_penalty": 10,
-    "customer_type_penalty": 10,
+    "business_model_penalty": 0.6,
+    "customer_type_penalty": 0.5,
     "subsector_similarity_threshold": 0.5,
-    "subsector_mismatch_penalty": 10,
+    "subsector_mismatch_penalty": 0.4,
     "size_penalty_free_log10_range": 1.0,
-    "size_penalty_per_extra_log10": 10.0,
+    "size_penalty_per_extra_log10": 1.0,
 }
 
 
@@ -240,14 +244,16 @@ def test_training_only_candidates_are_excluded_from_top_comps():
 
 def test_subsector_mismatch_excludes_low_similarity_candidate(mocker):
     # FAR has the best residual fit but its sub_sector_description is
-    # orthogonal (cosine similarity 0) to the target's; CLOSE is a worse
-    # financial fit but matches sub-sector closely (similarity ~0.98).
+    # orthogonal (cosine similarity 0) to the target's; CLOSE is a slightly
+    # worse financial fit but matches sub-sector closely (similarity ~0.98).
+    # Gap (0.20 vs 0.05) is within one subsector penalty (0.4) so the mismatch
+    # flips the order — see DEFAULT_PENALTIES note on distance-unit penalties.
     companies = [_company("CLOSE"), _company("FAR")]
     llm_features = {
         "CLOSE": _llm(sub_sector_description="automotive OEM parts manufacturer"),
         "FAR": _llm(sub_sector_description="semiconductor process equipment maker"),
     }
-    company_scores = pd.DataFrame({"residual_abs": {"CLOSE": 0.5, "FAR": 0.05}})
+    company_scores = pd.DataFrame({"residual_abs": {"CLOSE": 0.20, "FAR": 0.05}})
     # target vector [1, 0]; CLOSE [0.99, 0.14] (~similarity 0.99); FAR [0, 1] (similarity 0)
     mocker.patch(
         "src.reporter.llm_analyzer.embed_texts",
