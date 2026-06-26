@@ -21,14 +21,19 @@ target_company:
   geography: "north_america"
   # Most directly relevant to "automotive OEM parts manufacturer": motor
   # vehicle parts plus general industrial machinery/fabricated metal.
-  primary_sic_codes: ["3714", "3559", "3569", "3490"]
-  # Broader industrial machinery/equipment/building-products SIC codes —
-  # not central to the target's actual business, but close enough to widen
-  # the comp pool's recall/diversity without any hardcoded ticker list.
+  primary_sic_codes: ["3714", "3569", "3490", "3562", "3592"]
+  # Broader industrial machinery/equipment SIC codes. 3559 (Special Industry
+  # Machinery) moved here from primary — it is too broad to reliably deliver
+  # auto-OEM-adjacent comps at the primary allocation; it consistently pulls in
+  # semiconductor equipment (ACLS), consumer hardware (CRCT), and energy-tech
+  # (ERII) that distort the multiple distribution. 3823 removed entirely —
+  # Industrial Instruments captures machine-vision / AI names (e.g. CGNX) whose
+  # 50-60x EV/EBITDA multiples are not comparable to asset-heavy OEM suppliers.
   # Explicitly excludes aerospace/defense SIC codes (3760/3721/3724/3812/etc).
   adjacent_sic_codes: [
+    "3559",
     "3612", "3613", "3621", "3640",
-    "3531", "3523", "3533", "3541", "3564", "3585", "3823", "3442", "3448", "5084",
+    "3531", "3523", "3533", "3541", "3564", "3585", "3442", "3448", "5084",
   ]
 
 universe:
@@ -39,6 +44,8 @@ universe:
   min_ebitda_margin: 0.05
   sic_clusters:
     "3714": "auto_parts"
+    "3562": "bearings_and_drivetrain_components"
+    "3592": "auto_parts"
     "3559": "industrial_machinery"
     "3569": "general_industrial_equipment"
     "3490": "fabricated_metal_products"
@@ -106,7 +113,9 @@ scorer:
   # Euclidean distance.
   feature_weights:
     manufacturing:
+      revenue_ttm_log: 1.5    # tighter size discipline for OEM supply-chain comps
       ebitda_margin: 2.0
+      capex_revenue: 1.5      # capital intensity distinguishes OEM suppliers from asset-light peers
       net_debt_ebitda: 1.5
       revenue_cagr_3yr: 0.75
     SaaS:

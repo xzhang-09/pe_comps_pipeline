@@ -632,7 +632,7 @@
   <p>The Comparable Fit Review (Section 3) is a directional qualitative review; it is not a substitute for transaction-team judgment, banker input, or confirmatory diligence.</p>
   <p>Target Percentile (Section 4) shows where the target falls within the selected comp set. It is calculated directly from company-level data, so it may not match a simple interpolation from the rounded quartiles shown in the same table.</p>
   <p>"Relative influence" (Section 6) values are standardized, weighted squared distances — comparable only to each other within that table (to show which financial attribute drove the ranking most), not an absolute or standalone valuation metric.</p>
-  <p><strong>Geography is not a hard filter.</strong> The comp universe is built from SIC codes and financials; a comp's primary region is not screened, so the set can include companies outside the target's stated geography. Confirm regional comparability separately before relying on any comp.</p>
+  <p><strong>Geography filter.</strong> By default the pipeline restricts candidates to US-domiciled companies (per the FMP company profile's country field). Companies with no country data in FMP are kept rather than discarded. Non-US comps are excluded upstream and will not appear in this report.</p>
   <p><strong>End-market scarcity.</strong> For a niche target, comps that match on <em>both</em> size and exact end-market are often scarce, so the set leans on broader same-industry names. Where the closest end-market match falls just outside the Top {{ n_comps }}, it is surfaced in the near-miss list (Section 5) and the fit review's substitution suggestions (Section 3) rather than silently dropped.</p>
 </div>
 

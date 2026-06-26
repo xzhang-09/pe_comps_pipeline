@@ -35,6 +35,30 @@ def filter_by_market_cap(companies: list[dict]) -> list[dict]:
     return filtered
 
 
+def filter_by_domicile(companies: list[dict], allowed_countries: set[str] | None = None) -> list[dict]:
+    """Drop companies domiciled outside the allowed set (default: US only).
+    Country comes from FMP's raw_fmp_profile.country field populated during
+    enrichment. Companies with no FMP profile (country unknown) are kept so a
+    data gap doesn't silently discard legitimate candidates — the analyst can
+    spot them in the failed-tickers report."""
+    if allowed_countries is None:
+        allowed_countries = {"US"}
+    filtered = []
+    for company in companies:
+        profile = company.get("raw_fmp_profile") or {}
+        country = profile.get("country")
+        if country is None:
+            filtered.append(company)
+        elif country in allowed_countries:
+            filtered.append(company)
+        else:
+            logger.info(
+                f"{company.get('ticker')} — domicile '{country}' not in "
+                f"{allowed_countries}, filtering out"
+            )
+    return filtered
+
+
 def _dedup(tickers: list[str]) -> list[str]:
     seen = set()
     out = []

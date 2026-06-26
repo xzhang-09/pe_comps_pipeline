@@ -56,6 +56,10 @@ def run_pipeline(
         companies = universe_builder.filter_by_market_cap(companies)
         if len(companies) != before_market_cap_filter:
             logger.info(f"Market cap filter: kept {len(companies)}/{before_market_cap_filter} companies")
+        before_domicile_filter = len(companies)
+        companies = universe_builder.filter_by_domicile(companies)
+        if len(companies) != before_domicile_filter:
+            logger.info(f"Domicile filter: kept {len(companies)}/{before_domicile_filter} companies (US only)")
         n_valid = sum(1 for c in companies if c.get("ev_ebitda") is not None)
         logger.info(f"Fetched: {n_valid}/{len(companies)} companies with valid data")
 
