@@ -386,6 +386,43 @@ def test_pe_ratio_none_when_net_income_negative(mocker, sample_config):
     assert record["ev_ebit"] == pytest.approx(440.0 / 30.0)
 
 
+def test_interest_coverage_uses_magnitude_when_xbrl_sign_negative(mocker, sample_config):
+    # edgartools tags InterestExpense with an inconsistent sign across filers;
+    # a negative-tagged interest line must still yield positive coverage for a
+    # profitable comp, not a nonsensical negative.
+    mocker.patch("src.fetcher.edgar.Company", return_value=_healthy_company(
+        mocker, revenue=200_000_000.0, operating_income=30_000_000.0, depreciation_amortization=10_000_000.0,
+        cash=10_000_000.0, long_term_debt=50_000_000.0,
+        interest_expense=-6_000_000.0,
+    ))
+    mocker.patch("src.fetcher.fmp_client.get_profile", return_value={
+        "marketCap": 400_000_000, "sector": "Industrials",
+    })
+
+    record = fetcher.fetch_batch(["IC1"], sample_config)[0]
+
+    # EBIT 30 / |interest 6| = 5.0, regardless of the tagged sign.
+    assert record["interest_coverage"] == pytest.approx(5.0)
+
+
+def test_interest_coverage_dropped_when_implausibly_high(mocker, sample_config):
+    # A company carrying real debt but tagging only a tiny/partial interest
+    # line ($0.1mm) would show ~300x coverage — a data artifact, not negligible
+    # leverage. _validate drops it above 100x.
+    mocker.patch("src.fetcher.edgar.Company", return_value=_healthy_company(
+        mocker, revenue=200_000_000.0, operating_income=30_000_000.0, depreciation_amortization=10_000_000.0,
+        cash=10_000_000.0, long_term_debt=50_000_000.0,
+        interest_expense=100_000.0,
+    ))
+    mocker.patch("src.fetcher.fmp_client.get_profile", return_value={
+        "marketCap": 400_000_000, "sector": "Industrials",
+    })
+
+    record = fetcher.fetch_batch(["IC2"], sample_config)[0]
+
+    assert record["interest_coverage"] is None
+
+
 def test_new_metrics_none_when_source_lines_absent(mocker, sample_config):
     # No interest expense, no operating cash flow, no equity tagged -> the
     # dependent ratios stay None rather than dividing by a missing value.

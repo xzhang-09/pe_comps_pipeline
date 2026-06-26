@@ -444,7 +444,14 @@ def _fetch_single(ticker: str) -> dict:
     free_cash_flow = _free_cash_flow(cashflow_df, capex)
 
     fcf_conversion = free_cash_flow / ebitda if (free_cash_flow is not None and ebitda) else None
-    interest_coverage = ebit / interest_expense if (ebit is not None and interest_expense) else None
+    # Interest coverage uses the *magnitude* of interest expense: edgartools'
+    # InterestExpense concept comes through with an inconsistent sign across
+    # filers (some tag it as a positive cost, others as a negative/net figure),
+    # so dividing by the raw value produced negative "coverage" for healthy,
+    # profitable comps — nonsensical as a leverage metric. EBIT keeps its sign:
+    # a genuinely loss-making company (negative EBIT) still yields negative
+    # coverage, which correctly flags that it can't cover interest.
+    interest_coverage = ebit / abs(interest_expense) if (ebit is not None and interest_expense) else None
     debt_to_equity = total_debt / total_equity if (total_debt is not None and total_equity) else None
 
     business_description, description_source = _fetch_business_description(ticker)
@@ -631,6 +638,17 @@ def _validate(record: dict, ticker: str) -> dict:
         if value is not None and (value > hi or value < 0):
             logger.warning(f"{ticker} — {field} outlier ({value}), setting None")
             record[field] = None
+
+    # Interest coverage above ~100x almost always means the interest-expense
+    # line was tagged with only a partial/immaterial figure (e.g. a company
+    # carrying real debt showing $0.1mm interest), not genuinely negligible
+    # leverage — drop it rather than let a tiny denominator distort the
+    # leverage benchmark. Negative values (loss-making, EBIT < 0) are kept:
+    # they're a real signal, not a data artifact.
+    interest_coverage = record.get("interest_coverage")
+    if interest_coverage is not None and interest_coverage > 100.0:
+        logger.warning(f"{ticker} — interest_coverage outlier ({interest_coverage}), setting None")
+        record["interest_coverage"] = None
 
     record["missing_flags"] = {
         field: record.get(field) is None
