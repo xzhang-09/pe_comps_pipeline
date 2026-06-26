@@ -48,7 +48,10 @@ EMPTY_FIELDS = (
     "description_source", "enterprise_value_usd_mm", "ebitda_usd_mm",
     "valuation_source", "ev_ebitda_source_value", "ev_revenue_source_value",
     "net_debt_usd_mm", "minority_interest_usd_mm", "preferred_equity_usd_mm",
-    "operating_lease_liability_usd_mm",
+    "operating_lease_liability_usd_mm", "ebit_usd_mm", "net_income_usd_mm",
+    "gross_profit_usd_mm", "free_cash_flow_usd_mm", "fcf_conversion",
+    "interest_coverage", "debt_to_equity", "ev_ebit", "ev_gross_profit",
+    "pe_ratio", "fcf_yield",
 )
 
 # Enterprise-value bridge items beyond debt/cash. Each is looked up by trying
@@ -59,18 +62,35 @@ EMPTY_FIELDS = (
 # is correct for the many companies that simply have no minority interest or
 # preferred stock.
 MINORITY_INTEREST_CONCEPTS = (
-    "MinorityInterest",
+    "MinorityInterest",             # edgartools balance-sheet standard_concept (varies by company)
     "NoncontrollingInterest",
-    "MinorityInterestInNetAssetsOfConsolidatedSubsidiaries",
 )
 PREFERRED_EQUITY_CONCEPTS = (
-    "PreferredStockValue",
-    "PreferredStockValueOutstanding",
-    "PreferredStockIncludingAdditionalPaidInCapitalNetOfDiscount",
+    "PreferredStock",               # edgartools standard_concept (confirmed from HLLY)
+    "TemporaryAndMezzanineFinancing",
 )
-OPERATING_LEASE_LIABILITY_CONCEPTS = ("OperatingLeaseLiability",)
-OPERATING_LEASE_CURRENT_CONCEPTS = ("OperatingLeaseLiabilityCurrent",)
-OPERATING_LEASE_NONCURRENT_CONCEPTS = ("OperatingLeaseLiabilityNoncurrent",)
+OPERATING_LEASE_LIABILITY_CONCEPTS = ("OperatingLeaseDebtEquivalent",)
+OPERATING_LEASE_CURRENT_CONCEPTS = ("OperatingLeaseCurrentDebtEquivalent",)    # confirmed
+OPERATING_LEASE_NONCURRENT_CONCEPTS = ("OperatingLeaseNonCurrentDebtEquivalent",)  # confirmed
+
+# Income-statement / cash-flow / balance-sheet concepts for the additional
+# PE metrics (EV/EBIT, EV/Gross Profit, P/E, FCF conversion, FCF yield,
+# interest coverage, debt/equity). Tried as candidate lists for the same
+# reason as the EV-bridge concepts above. EBIT reuses OperatingIncomeLoss
+# (the same line _ebitda already reads), so it has no separate list.
+NET_INCOME_CONCEPTS = (
+    "NetIncome",        # edgartools standard_concept (confirmed from PPIH)
+    "ProfitLoss",       # fallback: consolidated net income incl. minorities
+)
+INTEREST_EXPENSE_CONCEPTS = (
+    "InterestExpense",          # edgartools standard_concept (confirmed)
+)
+OPERATING_CASH_FLOW_CONCEPTS = (
+    "NetCashFromOperatingActivities",   # edgartools standard_concept (confirmed)
+)
+TOTAL_EQUITY_CONCEPTS = (
+    "AllEquityBalance",         # edgartools standard_concept for StockholdersEquity (confirmed)
+)
 
 
 def _cache_path(ticker: str) -> Path:
@@ -159,7 +179,20 @@ def _concept_series(df: pd.DataFrame, standard_concept: str) -> list[float]:
     if matches.empty:
         return []
 
-    row = matches.iloc[0]
+    # When multiple rows share the same standard_concept (edgartools labels
+    # sub-items with their parent's standard_concept), prefer the aggregate
+    # total row: non-breakdown, non-abstract, at the highest level in the
+    # statement hierarchy (lowest level number = outermost indentation).
+    candidates = matches
+    for col, false_val in (("is_breakdown", True), ("abstract", True), ("dimension", True)):
+        if col in candidates.columns:
+            filtered = candidates[candidates[col] != false_val]
+            if not filtered.empty:
+                candidates = filtered
+    if "level" in candidates.columns:
+        min_level = candidates["level"].min()
+        candidates = candidates[candidates["level"] == min_level]
+    row = candidates.iloc[0]
     values = []
     for col in _period_columns(df):
         val = row.get(col)
@@ -262,21 +295,47 @@ def _ebitda(ticker: str, income_df: pd.DataFrame, cashflow_df: pd.DataFrame) -> 
     return operating_income + depreciation_amortization
 
 
+def _total_debt(balance_sheet_df: pd.DataFrame) -> float | None:
+    """Interest-bearing debt = short-term + current-portion-LTD + long-term.
+    Returns None only when no debt line is tagged at all (vs. 0)."""
+    short_term_debt = _concept_value(balance_sheet_df, "ShortTermDebt")
+    current_portion_ltd = _concept_value(balance_sheet_df, "CurrentPortionOfLongTermDebt")
+    long_term_debt = _concept_value(balance_sheet_df, "LongTermDebt")
+
+    if short_term_debt is None and current_portion_ltd is None and long_term_debt is None:
+        return None
+    return (short_term_debt or 0.0) + (current_portion_ltd or 0.0) + (long_term_debt or 0.0)
+
+
 def _net_debt(ticker: str, balance_sheet_df: pd.DataFrame) -> float | None:
     """Net debt = interest-bearing debt - cash & marketable securities, all
     from the same EDGAR XBRL balance sheet used for everything else. Cross-
     checked against FMP's own totalDebt/cashAndCashEquivalents for AAPL."""
     cash = _concept_value(balance_sheet_df, "CashAndMarketableSecurities")
-    short_term_debt = _concept_value(balance_sheet_df, "ShortTermDebt")
-    current_portion_ltd = _concept_value(balance_sheet_df, "CurrentPortionOfLongTermDebt")
-    long_term_debt = _concept_value(balance_sheet_df, "LongTermDebt")
+    total_debt = _total_debt(balance_sheet_df)
 
-    if cash is None and short_term_debt is None and current_portion_ltd is None and long_term_debt is None:
+    if cash is None and total_debt is None:
         logger.warning(f"{ticker} — debt/cash not available from EDGAR XBRL, setting net_debt None")
         return None
 
-    total_debt = (short_term_debt or 0.0) + (current_portion_ltd or 0.0) + (long_term_debt or 0.0)
-    return total_debt - (cash or 0.0)
+    return (total_debt or 0.0) - (cash or 0.0)
+
+
+def _ebit(income_df: pd.DataFrame) -> float | None:
+    """EBIT = operating income — the same line _ebitda adds D&A back to."""
+    return _concept_value(income_df, "OperatingIncomeLoss")
+
+
+def _free_cash_flow(cashflow_df: pd.DataFrame, capex: float | None) -> float | None:
+    """Levered free cash flow = cash from operations - capex, both straight
+    from the cash flow statement. Deliberately the simple, robust definition
+    (it avoids reconstructing FCF from EBITDA via fragile working-capital and
+    cash-tax estimates) and is after interest and tax, which is the cash a PE
+    buyer actually has to service debt — the angle EBITDA alone misses."""
+    operating_cash_flow = _concept_value_any(cashflow_df, OPERATING_CASH_FLOW_CONCEPTS)
+    if operating_cash_flow is None or capex is None:
+        return None
+    return operating_cash_flow - capex
 
 
 def _capital_expenditures(ticker: str, financials) -> float | None:
@@ -373,6 +432,21 @@ def _fetch_single(ticker: str) -> dict:
     preferred_equity = _concept_value_any(balance_sheet_df, PREFERRED_EQUITY_CONCEPTS)
     operating_lease_liability = _operating_lease_liability(balance_sheet_df)
 
+    # Additional PE metrics. EV-denominated multiples (EV/EBIT, EV/Gross Profit,
+    # P/E, FCF yield) need market cap, so they're finished in
+    # _enrich_with_fmp_data; the operating/leverage ratios below are computed
+    # here since they don't depend on FMP at all (same as net_debt_ebitda).
+    ebit = _ebit(income_df)
+    net_income = _concept_value_any(income_df, NET_INCOME_CONCEPTS)
+    interest_expense = _concept_value_any(income_df, INTEREST_EXPENSE_CONCEPTS)
+    total_equity = _concept_value_any(balance_sheet_df, TOTAL_EQUITY_CONCEPTS)
+    total_debt = _total_debt(balance_sheet_df)
+    free_cash_flow = _free_cash_flow(cashflow_df, capex)
+
+    fcf_conversion = free_cash_flow / ebitda if (free_cash_flow is not None and ebitda) else None
+    interest_coverage = ebit / interest_expense if (ebit is not None and interest_expense) else None
+    debt_to_equity = total_debt / total_equity if (total_debt is not None and total_equity) else None
+
     business_description, description_source = _fetch_business_description(ticker)
 
     return {
@@ -393,8 +467,19 @@ def _fetch_single(ticker: str) -> dict:
         ),
         "enterprise_value_usd_mm": None,
         "ebitda_usd_mm": ebitda_usd_mm,
+        "ebit_usd_mm": ebit / 1e6 if ebit is not None else None,
+        "net_income_usd_mm": net_income / 1e6 if net_income is not None else None,
+        "gross_profit_usd_mm": gross_profit / 1e6 if gross_profit is not None else None,
+        "free_cash_flow_usd_mm": free_cash_flow / 1e6 if free_cash_flow is not None else None,
+        "fcf_conversion": fcf_conversion,
+        "interest_coverage": interest_coverage,
+        "debt_to_equity": debt_to_equity,
         "ev_ebitda": None,
         "ev_revenue": None,
+        "ev_ebit": None,
+        "ev_gross_profit": None,
+        "pe_ratio": None,
+        "fcf_yield": None,
         "valuation_source": None,
         "ev_ebitda_source_value": None,
         "ev_revenue_source_value": None,
@@ -497,6 +582,24 @@ def _enrich_with_fmp_data(record: dict, ticker: str, config: dict, sleep_before:
         record["ev_revenue"] = ev_usd_mm / revenue
         record["ev_revenue_source_value"] = record["ev_revenue"]
 
+    # EV-denominated and equity multiples that need market cap / EV. Each is
+    # left None unless its denominator is present and positive (a negative EBIT
+    # or net income makes the multiple meaningless, not informative — outlier
+    # filtering in _validate also drops absurd positives).
+    ebit_usd_mm = record.get("ebit_usd_mm")
+    if ebit_usd_mm and ebit_usd_mm > 0:
+        record["ev_ebit"] = ev_usd_mm / ebit_usd_mm
+    gross_profit_usd_mm = record.get("gross_profit_usd_mm")
+    if gross_profit_usd_mm and gross_profit_usd_mm > 0:
+        record["ev_gross_profit"] = ev_usd_mm / gross_profit_usd_mm
+    net_income_usd_mm = record.get("net_income_usd_mm")
+    if net_income_usd_mm and net_income_usd_mm > 0:
+        record["pe_ratio"] = market_cap_usd_mm / net_income_usd_mm
+    free_cash_flow_usd_mm = record.get("free_cash_flow_usd_mm")
+    if free_cash_flow_usd_mm is not None and ev_usd_mm:
+        # FCF yield can legitimately be negative (cash-burning comp); keep it.
+        record["fcf_yield"] = free_cash_flow_usd_mm / ev_usd_mm
+
 
 def _validate(record: dict, ticker: str) -> dict:
     ev_ebitda = record.get("ev_ebitda")
@@ -518,6 +621,16 @@ def _validate(record: dict, ticker: str) -> dict:
     if gross_margin is not None and (gross_margin > 1.0 or gross_margin < 0):
         logger.warning(f"{ticker} — gross_margin outlier ({gross_margin}), setting None")
         record["gross_margin"] = None
+
+    # Sanity bounds on the added multiples — broad bands to catch a
+    # unit/field-mapping bug, not to enforce an industry-normal range. EBIT and
+    # net income are smaller denominators than EBITDA, so their multiples run
+    # higher before they're implausible.
+    for field, hi in (("ev_ebit", 150.0), ("ev_gross_profit", 100.0), ("pe_ratio", 200.0)):
+        value = record.get(field)
+        if value is not None and (value > hi or value < 0):
+            logger.warning(f"{ticker} — {field} outlier ({value}), setting None")
+            record[field] = None
 
     record["missing_flags"] = {
         field: record.get(field) is None

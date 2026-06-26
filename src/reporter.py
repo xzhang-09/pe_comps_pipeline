@@ -223,7 +223,11 @@ BENCHMARK_METRICS = (
     ("EBITDA Margin", "ebitda_margin", "percent"),
     ("Revenue Growth", "revenue_cagr_3yr", "percent"),
     ("Gross Margin", "gross_margin", "percent"),
+    ("Capex/Revenue", "capex_revenue", "percent"),
+    ("FCF Conversion", "fcf_conversion", "percent"),
     ("Net Debt/EBITDA", "net_debt_ebitda", "multiple"),
+    ("Interest Coverage", "interest_coverage", "multiple"),
+    ("Debt/Equity", "debt_to_equity", "multiple"),
 )
 
 CSV_COLUMNS = (
@@ -730,6 +734,138 @@ def _revenue_multiple_scatter_svg(
     return {"svg": "".join(parts), "n_pool_clipped": n_pool_clipped}
 
 
+FOOTBALL_WIDTH = 720
+FOOTBALL_MARGIN = {"left": 185, "right": 110, "top": 22, "bottom": 44}
+FOOTBALL_ROW_HEIGHT = 34
+FOOTBALL_BAR_HEIGHT = 14
+
+
+def _football_field_rows(
+    implied_valuation: dict, revenue_screened_valuation: dict | None,
+    discounted_valuation: dict | None, size_adjusted_valuation: dict | None, size_anchor: dict | None,
+) -> list[dict]:
+    """Assembles the football-field rows, most decision-relevant first for a
+    small private target: the size anchor and the discounted ("working") range
+    lead, the raw Top-N comp ranges and the regression point follow. Each range
+    row carries low/mid/high (P25/median/P75); each point row a single value.
+    Ranges use whichever basis the rest of the report leads with (EV/EBITDA,
+    else EV/Revenue) so a bar isn't shown on a different footing than the
+    headline."""
+    def basis_range(block: dict | None) -> dict | None:
+        block = block or {}
+        return block.get("by_ebitda") or block.get("by_revenue")
+
+    rows: list[dict] = []
+    if size_anchor and size_anchor.get("implied_ev"):
+        rows.append({"label": f"Size anchor (n={size_anchor.get('n')})", "kind": "point",
+                     "value": size_anchor["implied_ev"], "color": "#b8860b", "emphasis": True})
+    discounted_range = basis_range(discounted_valuation)
+    if discounted_range:
+        pct = round((discounted_valuation.get("discount") or 0) * 100)
+        rows.append({"label": f"After {pct}% discount", "kind": "range", "color": "#2e7d32", "emphasis": True,
+                     "low": discounted_range["p25"], "mid": discounted_range["median"], "high": discounted_range["p75"]})
+    screened_range = basis_range(revenue_screened_valuation)
+    if screened_range:
+        rows.append({"label": f"Size-comparable (n={revenue_screened_valuation.get('n')})", "kind": "range",
+                     "color": "#1a3a5c", "low": screened_range["p25"], "mid": screened_range["median"], "high": screened_range["p75"]})
+    by_ebitda = implied_valuation.get("by_ebitda")
+    if by_ebitda:
+        rows.append({"label": "EV/EBITDA (Top-N)", "kind": "range", "color": "#1a3a5c",
+                     "low": by_ebitda["p25"], "mid": by_ebitda["median"], "high": by_ebitda["p75"]})
+    by_revenue = implied_valuation.get("by_revenue")
+    if by_revenue:
+        rows.append({"label": "EV/Revenue (Top-N)", "kind": "range", "color": "#1a3a5c",
+                     "low": by_revenue["p25"], "mid": by_revenue["median"], "high": by_revenue["p75"]})
+    if size_adjusted_valuation and size_adjusted_valuation.get("implied_ev"):
+        rows.append({"label": "Size-adjusted (regr.)", "kind": "point",
+                     "value": size_adjusted_valuation["implied_ev"], "color": "#888888"})
+    return rows
+
+
+def _football_field_svg(
+    implied_valuation: dict, revenue_screened_valuation: dict | None,
+    discounted_valuation: dict | None, size_adjusted_valuation: dict | None, size_anchor: dict | None,
+) -> str | None:
+    """Horizontal 'football field' of implied enterprise value by valuation
+    method — the canonical one-glance comps output. Returns None when no comp
+    range is available (target revenue/EBITDA missing), so the template can
+    skip it."""
+    rows = _football_field_rows(
+        implied_valuation, revenue_screened_valuation, discounted_valuation, size_adjusted_valuation, size_anchor,
+    )
+    if not any(r["kind"] == "range" for r in rows):
+        return None
+
+    values: list[float] = []
+    for r in rows:
+        values += [r["low"], r["high"]] if r["kind"] == "range" else [r["value"]]
+    x_min, x_max = min(values), max(values)
+    if x_max <= x_min:
+        x_max = x_min + 1.0
+    pad = (x_max - x_min) * 0.08 or 1.0
+    x_min, x_max = max(0.0, x_min - pad), x_max + pad
+
+    left = FOOTBALL_MARGIN["left"]
+    right = FOOTBALL_WIDTH - FOOTBALL_MARGIN["right"]
+    top = FOOTBALL_MARGIN["top"]
+    plot_bottom = top + len(rows) * FOOTBALL_ROW_HEIGHT
+    height = plot_bottom + FOOTBALL_MARGIN["bottom"]
+
+    def x_pos(v: float) -> float:
+        return left + (v - x_min) / (x_max - x_min) * (right - left)
+
+    parts = [
+        f'<svg viewBox="0 0 {FOOTBALL_WIDTH} {height}" xmlns="http://www.w3.org/2000/svg" '
+        f'font-family="Arial, Helvetica, sans-serif" font-size="11">',
+    ]
+
+    n_ticks = 5
+    for i in range(n_ticks + 1):
+        v = x_min + (x_max - x_min) * i / n_ticks
+        x = x_pos(v)
+        parts.append(f'<line x1="{x:.1f}" y1="{top}" x2="{x:.1f}" y2="{plot_bottom:.1f}" stroke="#eeeeee"/>')
+        parts.append(f'<text x="{x:.1f}" y="{plot_bottom + 16:.1f}" text-anchor="middle" fill="#555555">${v:.0f}mm</text>')
+
+    for idx, r in enumerate(rows):
+        cy = top + idx * FOOTBALL_ROW_HEIGHT + FOOTBALL_ROW_HEIGHT / 2
+        weight = "bold" if r.get("emphasis") else "normal"
+        parts.append(
+            f'<text x="{left - 10}" y="{cy + 4:.1f}" text-anchor="end" fill="#333333" font-weight="{weight}">{r["label"]}</text>',
+        )
+        if r["kind"] == "range":
+            x0, x1, xm = x_pos(r["low"]), x_pos(r["high"]), x_pos(r["mid"])
+            bar_top = cy - FOOTBALL_BAR_HEIGHT / 2
+            parts.append(
+                f'<rect x="{x0:.1f}" y="{bar_top:.1f}" width="{max(x1 - x0, 1):.1f}" height="{FOOTBALL_BAR_HEIGHT}" '
+                f'fill="{r["color"]}" opacity="0.30"/>',
+            )
+            parts.append(
+                f'<line x1="{xm:.1f}" y1="{bar_top:.1f}" x2="{xm:.1f}" y2="{bar_top + FOOTBALL_BAR_HEIGHT:.1f}" '
+                f'stroke="{r["color"]}" stroke-width="2"/>',
+            )
+            parts.append(
+                f'<text x="{right + 6}" y="{cy + 4:.1f}" text-anchor="start" fill="#333333">'
+                f'${r["low"]:.0f}–{r["high"]:.0f}mm</text>',
+            )
+        else:
+            x = x_pos(r["value"])
+            d = 5
+            parts.append(
+                f'<path d="M{x:.1f} {cy - d:.1f} L{x + d:.1f} {cy:.1f} L{x:.1f} {cy + d:.1f} L{x - d:.1f} {cy:.1f} Z" '
+                f'fill="{r["color"]}"/>',
+            )
+            parts.append(
+                f'<text x="{right + 6}" y="{cy + 4:.1f}" text-anchor="start" fill="#333333">${r["value"]:.0f}mm</text>',
+            )
+
+    parts.append(
+        f'<text x="{(left + right) / 2:.1f}" y="{height - 6}" text-anchor="middle" '
+        f'fill="#333333" font-weight="bold">Implied Enterprise Value ($mm) — bar = P25–P75, tick = median</text>',
+    )
+    parts.append("</svg>")
+    return "".join(parts)
+
+
 MIN_POOL_FOR_SIZE_REGRESSION = 10
 
 
@@ -855,16 +991,30 @@ def _strict_size_screen(
     }
 
 
+def _multiple_values(companies_by_ticker: dict, top15: list[str], field: str) -> list[float]:
+    return [
+        companies_by_ticker[t][field] for t in top15
+        if companies_by_ticker.get(t, {}).get(field) is not None
+    ]
+
+
 def _valuation_multiple_distribution(company_scores: pd.DataFrame, companies_by_ticker: dict, top15: list[str]) -> dict:
     ev_ebitda_values = [company_scores.loc[t, "ev_ebitda_actual"] for t in top15]
-    ev_revenue_values = [
-        companies_by_ticker[t]["ev_revenue"] for t in top15
-        if companies_by_ticker.get(t, {}).get("ev_revenue") is not None
-    ]
+
+    def dist(field: str) -> dict:
+        values = _multiple_values(companies_by_ticker, top15, field)
+        # Empty -> a zero-distribution placeholder so the template's fixed
+        # rows always have p25/median/p75/mean to format (matches how
+        # ev_revenue was already handled before more multiples were added).
+        return _distribution_stats(values) if values else _distribution_stats([0.0])
 
     return {
         "ev_ebitda": _distribution_stats(ev_ebitda_values),
-        "ev_revenue": _distribution_stats(ev_revenue_values) if ev_revenue_values else _distribution_stats([0.0]),
+        "ev_revenue": dist("ev_revenue"),
+        "ev_ebit": dist("ev_ebit"),
+        "ev_gross_profit": dist("ev_gross_profit"),
+        "pe_ratio": dist("pe_ratio"),
+        "fcf_yield": dist("fcf_yield"),
     }
 
 
@@ -1138,9 +1288,27 @@ def _top15_table(companies_by_ticker: dict, llm_features: dict, company_scores: 
             "ebitda_usd_mm": company.get("ebitda_usd_mm"),
             "enterprise_value_usd_mm": company.get("enterprise_value_usd_mm"),
             "ev_revenue": company.get("ev_revenue"),
+            "ev_ebit": company.get("ev_ebit"),
             "description_source": company.get("description_source"),
         })
     return rows
+
+
+# Numeric columns shown in the Section 2 comps matrix that also get a median
+# footer row — the standard "median" line at the bottom of a comps tearsheet,
+# so the analyst reads central tendency without eyeballing the column.
+TOP15_MEDIAN_FIELDS = (
+    "revenue_ttm_usd_mm", "ev_ebitda_actual", "ev_revenue", "ev_ebit",
+    "ebitda_margin", "gross_margin", "revenue_cagr_3yr", "net_debt_ebitda",
+)
+
+
+def _top15_medians(rows: list[dict]) -> dict:
+    medians = {}
+    for field in TOP15_MEDIAN_FIELDS:
+        values = [row[field] for row in rows if row.get(field) is not None]
+        medians[field] = float(np.median(values)) if values else None
+    return medians
 
 
 def _review_candidate_payload(row: dict, candidate_type: str, reasons: list[str] | None = None) -> dict:
@@ -1385,7 +1553,13 @@ def generate(
                 # a reader sees e.g. AAON in this group and goes looking
                 # for it in the qualitative Weaker Fits table, where it
                 # won't be if it only tripped the outlier check.
-                f"{row['ticker']} ({'weaker fit + outlier' if row['fit_flag'] == 'weak' and row['outlier_flag'] else 'weaker fit' if row['fit_flag'] == 'weak' else 'statistical outlier'})"
+                (
+                    f"{row['ticker']} ("
+                    + ("weaker fit + outlier" if row["fit_flag"] == "weak" and row["outlier_flag"]
+                       else "weaker fit" if row["fit_flag"] == "weak"
+                       else "statistical outlier")
+                    + ")"
+                )
                 if tier == "review_exclude" else row["ticker"]
                 for row in top15_rows if row["tier"] == tier
             ],
@@ -1435,6 +1609,9 @@ def generate(
         _discounted_valuation(implied_valuation_excl_flagged, discount) if implied_valuation_excl_flagged else None
     )
     size_anchor = _size_anchor(strict_size_screen, implied_valuation.get("target_ebitda"))
+    football_field = _football_field_svg(
+        implied_valuation, revenue_screened_valuation, discounted_valuation, size_adjusted_valuation, size_anchor,
+    )
 
     # Company-specific caution: Top-N comps whose depressed EBITDA margin
     # likely distorts their own multiple (see LOW_MARGIN_CAUTION_THRESHOLD),
@@ -1469,6 +1646,7 @@ def generate(
         "revenue_screened_valuation": revenue_screened_valuation,
         "strict_size_screen": strict_size_screen,
         "scatter_data": scatter_data,
+        "football_field": football_field,
         "scale_reconciliation_note": scale_reconciliation_note,
         "description_sources_vary": description_sources_vary,
         "description_source_common": description_source_common,
@@ -1488,6 +1666,7 @@ def generate(
             companies_by_ticker, top15, target_config, imputation_medians, target_business_model,
         ),
         "top15": top15_rows,
+        "top15_medians": _top15_medians(top15_rows),
         "audit_trail": audit_trail,
         "model_diagnostics": model_diagnostics,
         "data_notes": data_notes,

@@ -141,42 +141,25 @@
 <!-- Executive Summary -->
 {% set led_with_adjusted = executive_summary.size_anchor_ev is not none or executive_summary.adjusted_ev_low is not none %}
 <div class="summary-box">
-  {% if led_with_adjusted %}
-  <p><strong>Bottom line (directional):</strong>
-    {% if executive_summary.size_anchor_ev is not none %}
-    For a target this small, the most decision-relevant anchor is the {{ executive_summary.size_anchor_n }} comps genuinely close to its revenue, which imply roughly
-    <strong>${{ "%.0f"|format(executive_summary.size_anchor_ev) }}mm</strong> (median EV/EBITDA {{ "%.1f"|format(executive_summary.size_anchor_multiple) }}x × target EBITDA){% if executive_summary.adjusted_ev_low is not none %}; applying a {{ "%.0f"|format(executive_summary.discount_pct) }}% net private-company (size/marketability) discount to the full comp set gives <strong>${{ "%.0f"|format(executive_summary.adjusted_ev_low) }}mm–${{ "%.0f"|format(executive_summary.adjusted_ev_high) }}mm</strong>{% endif %}. Treat these, not the unadjusted full-set range below, as the working figures — the size-comparable sample is thin, so this is directional, not a precise pricing recommendation (see Section 4).
-    {% else %}
-    After a {{ "%.0f"|format(executive_summary.discount_pct) }}% net private-company (size/marketability) discount, the target's directional implied enterprise value is approximately
-    <strong>${{ "%.0f"|format(executive_summary.adjusted_ev_low) }}mm–${{ "%.0f"|format(executive_summary.adjusted_ev_high) }}mm</strong> — treat this, not the unadjusted range below, as the working figure (see Section 4).
-    {% endif %}
-  </p>
+  {% if executive_summary.size_anchor_ev is not none %}
+  <p><strong>Bottom line (directional):</strong> ≈ <strong>${{ "%.0f"|format(executive_summary.size_anchor_ev) }}mm</strong> — the size-comparable anchor ({{ executive_summary.size_anchor_n }} comps near the target's revenue, median EV/EBITDA {{ "%.1f"|format(executive_summary.size_anchor_multiple) }}× × target EBITDA).{% if executive_summary.adjusted_ev_low is not none %} Full comp set after a {{ "%.0f"|format(executive_summary.discount_pct) }}% net private-company discount: <strong>${{ "%.0f"|format(executive_summary.adjusted_ev_low) }}–{{ "%.0f"|format(executive_summary.adjusted_ev_high) }}mm</strong>.{% endif %} The size-comparable sample is thin — directional, not a pricing recommendation.</p>
+  {% elif executive_summary.adjusted_ev_low is not none %}
+  <p><strong>Bottom line (directional):</strong> ≈ <strong>${{ "%.0f"|format(executive_summary.adjusted_ev_low) }}–{{ "%.0f"|format(executive_summary.adjusted_ev_high) }}mm</strong> — the working figure, after a {{ "%.0f"|format(executive_summary.discount_pct) }}% net private-company discount on the comp-implied range.</p>
   {% elif executive_summary.implied_ev_low is not none %}
-  <p><strong>Bottom line (directional):</strong>
-    Based on {{ executive_summary.n_comps }} selected comps, the target's directional implied enterprise value is approximately
-    ${{ "%.0f"|format(executive_summary.implied_ev_low) }}mm–${{ "%.0f"|format(executive_summary.implied_ev_high) }}mm
-    (P25–P75, by {{ executive_summary.implied_basis }}) — a wide, comp-set-driven range, not a precise pricing recommendation.</p>
+  <p><strong>Bottom line (directional):</strong> ≈ <strong>${{ "%.0f"|format(executive_summary.implied_ev_low) }}–{{ "%.0f"|format(executive_summary.implied_ev_high) }}mm</strong> (P25–P75 by {{ executive_summary.implied_basis }}, {{ executive_summary.n_comps }} comps) — a wide, comp-driven range, not a pricing recommendation.</p>
   {% else %}
-  <p><strong>Bottom line (directional):</strong> Implied valuation range not available — target revenue/EBITDA inputs are incomplete.</p>
+  <p><strong>Bottom line:</strong> Implied valuation unavailable — target revenue/EBITDA inputs are incomplete.</p>
   {% endif %}
-  {% if executive_summary.fit_score is not none %}
-  <p><strong>Comparable Fit Review:</strong> {{ executive_summary.fit_score }} / 100 ({{ executive_summary.fit_label }}).</p>
-
-  {% endif %}
-  {% if executive_summary.top_caveat %}
-  <p><strong>Key caveat:</strong> {{ executive_summary.top_caveat }}</p>
-
-  {% endif %}
-  {% if led_with_adjusted and executive_summary.implied_ev_low is not none %}
-  <p class="note"><strong>For reference — unadjusted full comp set:</strong> all {{ executive_summary.n_comps }} comps imply
-    ${{ "%.0f"|format(executive_summary.implied_ev_low) }}mm–${{ "%.0f"|format(executive_summary.implied_ev_high) }}mm (P25–P75, by {{ executive_summary.implied_basis }}){% if executive_summary.excl_flagged_ev_low is not none %}; excluding weaker-fit/outlier comps {{ "narrows" if executive_summary.excl_flagged_is_narrower else "changes" }} this to ${{ "%.0f"|format(executive_summary.excl_flagged_ev_low) }}mm–${{ "%.0f"|format(executive_summary.excl_flagged_ev_high) }}mm{% endif %}. These are large-cap trading multiples applied to a small private target, so they read high relative to the adjusted figures above.</p>
-  {% elif executive_summary.excl_flagged_ev_low is not none %}
-  <p><strong>Refined range:</strong> excluding comps flagged as weaker fits or statistical outliers {{ "narrows" if executive_summary.excl_flagged_is_narrower else "changes" }} this to
-    ${{ "%.0f"|format(executive_summary.excl_flagged_ev_low) }}mm–${{ "%.0f"|format(executive_summary.excl_flagged_ev_high) }}mm{% if not executive_summary.excl_flagged_is_narrower %} (a different subset's range, not necessarily a tighter one — on a set this small, dropping a few comps can shift either end in either direction){% endif %} — treat this, not the wider headline range, as the more decision-relevant case (see Section 4 for this and other sensitivity cases).</p>
-
-  {% endif %}
-  <p class="note">See Section 4 for the full implied-valuation build, sensitivity cases, and a size-adjusted cross-check, and Section 3 for the qualitative fit review behind this score.</p>
+  {% if executive_summary.fit_score is not none %}<p><strong>Comp fit:</strong> {{ executive_summary.fit_score }} / 100 ({{ executive_summary.fit_label }}).{% if executive_summary.top_caveat %} <strong>Key caveat:</strong> {{ executive_summary.top_caveat }}{% endif %}</p>
+  {% elif executive_summary.top_caveat %}<p><strong>Key caveat:</strong> {{ executive_summary.top_caveat }}</p>{% endif %}
+  {% if led_with_adjusted and executive_summary.implied_ev_low is not none %}<p class="note">Unadjusted full comp set: ${{ "%.0f"|format(executive_summary.implied_ev_low) }}–{{ "%.0f"|format(executive_summary.implied_ev_high) }}mm (P25–P75 by {{ executive_summary.implied_basis }}) — large-cap trading multiples on a small private target, so high relative to the adjusted figure. Full build and sensitivities in §4.</p>{% else %}<p class="note">Full implied-valuation build, sensitivity cases, and the size-adjusted cross-check in §4.</p>{% endif %}
 </div>
+
+{% if football_field %}
+<h3>Implied EV by method</h3>
+{{ football_field }}
+<p class="note">Each bar is the P25–P75 implied enterprise value under one valuation method; the tick is the median, points are single estimates. The size anchor and post-discount range (highlighted) are the most decision-relevant for a target this size — see §4 for how each is built.</p>
+{% endif %}
 
 <nav class="toc">
   <strong>Contents</strong>
@@ -230,13 +213,7 @@
 
 <!-- Section 2: Top 15 Comparable Companies -->
 <h2 id="sec2">2. Top {{ n_comps }} Comparable Companies</h2>
-{% if top15 and top15[0].business_model %}<p class="note">All Top {{ n_comps }} comps share the target's business model ({{ top15[0].business_model }}).</p>{% endif %}
-<p class="note">Financial Distance: standardized distance to the target's financial profile (lower = more similar). Rank combines this with business-model, customer-type, revenue-scale, and end-market fit — see Section 8 for the full definition.</p>
-<p class="note">Rows outlined in green/red were flagged as a strongest/weaker fit by the Comparable Fit Review in Section 3. A dagger (†) next to EV/EBITDA marks a statistical outlier within this set's own distribution (Tukey fence, {{ tukey_fence_multiplier }}× IQR) — independent of the Section 3 judgment.</p>
-
-<h3>Comp Tiers</h3>
-<p class="note">Core = explicitly endorsed by the Comparable Fit Review; Review/Exclude = flagged as a weaker fit by that review, a statistical EV/EBITDA outlier, or both; Secondary = neither flag applies. Use Core comps as the most defensible anchor and treat Review/Exclude comps with caution.</p>
-<p class="note">Tier is the fit review's qualitative endorsement (business/customer-type/end-market) and does not account for revenue scale, so it can diverge from both scale and the table's Rank (standardized financial distance): a Core comp can be far larger than the target, and a comp ranked lower on financial distance can still be a Core qualitative match. See the revenue-screened sensitivity case in Section 4 for a scale-based view.</p>
+{% if top15 and top15[0].business_model %}<p class="note">All Top {{ n_comps }} comps share the target's business model ({{ top15[0].business_model }}). <strong>Tier:</strong> <span class="tier-core">Core</span> = endorsed by the fit review (§3); <span class="tier-review_exclude">Review</span> = weaker fit and/or a statistical EV/EBITDA outlier (†, Tukey {{ tukey_fence_multiplier }}× IQR); <span class="tier-secondary">Secondary</span> = neither. Row outlined green/red = strongest/weaker fit per §3. <strong>Fin. Dist.</strong> = standardized distance to the target's financial profile (lower = closer); §8 defines how Rank combines it with business-model/scale/end-market fit.</p>{% endif %}
 <div class="tier-summary-grid">
   {% for t in tier_summary %}
   <div class="tier-summary-item">
@@ -244,14 +221,12 @@
   </div>
   {% endfor %}
 </div>
-{% if low_margin_comps %}
-<p class="note"><strong>Company-specific caution:</strong> {% for c in low_margin_comps %}{{ c.ticker }} ({{ "%.1f"|format(c.ebitda_margin * 100) }}% EBITDA margin){% if not loop.last %}, {% endif %}{% endfor %} — a depressed margin typically drags a company's own EV/EBITDA and EV/Revenue down for company-specific reasons, so read {% if low_margin_comps|length == 1 %}its low multiple{% else %}their low multiples{% endif %} as a soft data point, not a clean market multiple.</p>
-{% endif %}
 
 <table>
   <tr>
-    <th>Rank</th><th>Ticker</th><th>Company</th><th>Tier</th><th>Financial Distance</th><th>EV/EBITDA</th><th>EBITDA Margin</th>
-    <th>Revenue ($M)</th><th>Rev Growth</th><th>Business Model</th><th>Business Description</th>
+    <th>Rank</th><th>Ticker</th><th>Company</th><th>Tier</th><th>Rev ($M)</th>
+    <th>EV/EBITDA</th><th>EV/Rev</th><th>EV/EBIT</th>
+    <th>EBITDA %</th><th>Gross %</th><th>Rev Gr</th><th>ND/EBITDA</th><th>Fin. Dist.</th>
   </tr>
   {% for c in top15 %}
   <tr class="{{ 'top-rank' if c.rank == 1 else ('row-odd' if loop.index is odd else 'row-even') }}{{ ' low-confidence' if c.low_confidence_flag else '' }}{{ ' fit-strong' if c.fit_flag == 'strong' else (' fit-weak' if c.fit_flag == 'weak' else '') }}">
@@ -259,23 +234,41 @@
     <td>{{ c.ticker }}</td>
     <td>{{ c.company_name }}</td>
     <td class="tier-{{ c.tier }}">{{ TIER_LABELS[c.tier] }}</td>
-    <td>{{ "%.2f"|format(c.residual_abs) }}</td>
-    <td>{{ "%.1f"|format(c.ev_ebitda_actual) if c.ev_ebitda_actual is not none else "N/A" }}x{{ "†" if c.outlier_flag else "" }}</td>
-    <td>{{ "%.1f"|format(c.ebitda_margin * 100) if c.ebitda_margin is not none else "N/A" }}%</td>
     <td>{{ "%.0f"|format(c.revenue_ttm_usd_mm) if c.revenue_ttm_usd_mm is not none else "N/A" }}</td>
+    <td>{{ "%.1f"|format(c.ev_ebitda_actual) if c.ev_ebitda_actual is not none else "N/A" }}x{{ "†" if c.outlier_flag else "" }}</td>
+    <td>{{ "%.1f"|format(c.ev_revenue) ~ "x" if c.ev_revenue is not none else "N/A" }}</td>
+    <td>{{ "%.1f"|format(c.ev_ebit) ~ "x" if c.ev_ebit is not none else "N/A" }}</td>
+    <td>{{ "%.1f"|format(c.ebitda_margin * 100) if c.ebitda_margin is not none else "N/A" }}%</td>
+    <td>{{ "%.1f"|format(c.gross_margin * 100) if c.gross_margin is not none else "N/A" }}%</td>
     <td>{{ "%.1f"|format(c.revenue_cagr_3yr * 100) if c.revenue_cagr_3yr is not none else "N/A" }}%</td>
-    <td>{{ c.business_model or "N/A" }}</td>
-    <td>{{ c.sub_sector_description or "N/A" }}</td>
+    <td>{{ "%.1f"|format(c.net_debt_ebitda) ~ "x" if c.net_debt_ebitda is not none else "N/A" }}</td>
+    <td>{{ "%.2f"|format(c.residual_abs) }}</td>
   </tr>
   {% endfor %}
+  <tr style="border-top:2px solid #888;font-weight:600;">
+    <td colspan="4">Median</td>
+    <td>{{ "%.0f"|format(top15_medians.revenue_ttm_usd_mm) if top15_medians.revenue_ttm_usd_mm is not none else "—" }}</td>
+    <td>{{ "%.1f"|format(top15_medians.ev_ebitda_actual) ~ "x" if top15_medians.ev_ebitda_actual is not none else "—" }}</td>
+    <td>{{ "%.1f"|format(top15_medians.ev_revenue) ~ "x" if top15_medians.ev_revenue is not none else "—" }}</td>
+    <td>{{ "%.1f"|format(top15_medians.ev_ebit) ~ "x" if top15_medians.ev_ebit is not none else "—" }}</td>
+    <td>{{ "%.1f"|format(top15_medians.ebitda_margin * 100) ~ "%" if top15_medians.ebitda_margin is not none else "—" }}</td>
+    <td>{{ "%.1f"|format(top15_medians.gross_margin * 100) ~ "%" if top15_medians.gross_margin is not none else "—" }}</td>
+    <td>{{ "%.1f"|format(top15_medians.revenue_cagr_3yr * 100) ~ "%" if top15_medians.revenue_cagr_3yr is not none else "—" }}</td>
+    <td>{{ "%.1f"|format(top15_medians.net_debt_ebitda) ~ "x" if top15_medians.net_debt_ebitda is not none else "—" }}</td>
+    <td></td>
+  </tr>
 </table>
+{% if low_margin_comps %}
+<p class="note"><strong>Caution:</strong> {% for c in low_margin_comps %}{{ c.ticker }} ({{ "%.1f"|format(c.ebitda_margin * 100) }}% EBITDA margin){% if not loop.last %}, {% endif %}{% endfor %} — a depressed margin drags a company's own multiples down, so read {% if low_margin_comps|length == 1 %}its low multiple{% else %}their low multiples{% endif %} as a soft data point, not a clean market multiple. Per-comp business descriptions are in the Data Appendix (§7).</p>
+{% else %}
+<p class="note">Per-comp business descriptions are in the Data Appendix (§7).</p>
+{% endif %}
 
 <!-- Section 3: Comparable Fit Review -->
 <h2 id="sec3">3. Comparable Fit Review</h2>
 <div class="summary-box">
 {% if comp_fit_review.status == "available" %}
-  <p><strong>Overall Top {{ n_comps }} Fit:</strong> {{ comp_fit_review.overall_score }} / 100{% if comp_fit_review.fit_label %} ({{ comp_fit_review.fit_label }}){% endif %} — this score is the comp-set confidence signal (business/customer-type/scale/end-market fit).</p>
-  <p><strong>Data confidence:</strong> {{ comp_fit_review.review_confidence | capitalize }} — reflects reliability of the extracted source data (no flagged extraction issues among selected comps), not comp-set fit; see the score above for that.</p>
+  <p><strong>Overall Top {{ n_comps }} Fit:</strong> {{ comp_fit_review.overall_score }} / 100{% if comp_fit_review.fit_label %} ({{ comp_fit_review.fit_label }}){% endif %} — comp-set fit (business/customer-type/scale/end-market). <strong>Data confidence:</strong> {{ comp_fit_review.review_confidence | capitalize }} — reliability of the extracted source data, a separate axis from fit.</p>
   <p>{{ comp_fit_review.summary }}</p>
   {% if scale_reconciliation_note %}
   <p class="note">{{ scale_reconciliation_note }}</p>
@@ -365,7 +358,36 @@
     <td>{{ "%.1f"|format(valuation_multiples.ev_revenue.p75) }}x</td>
     <td>{{ "%.1f"|format(valuation_multiples.ev_revenue.mean) }}x</td>
   </tr>
+  <tr class="row-odd">
+    <td>EV/EBIT</td>
+    <td>{{ "%.1f"|format(valuation_multiples.ev_ebit.p25) }}x</td>
+    <td class="median-row">{{ "%.1f"|format(valuation_multiples.ev_ebit.median) }}x</td>
+    <td>{{ "%.1f"|format(valuation_multiples.ev_ebit.p75) }}x</td>
+    <td>{{ "%.1f"|format(valuation_multiples.ev_ebit.mean) }}x</td>
+  </tr>
+  <tr class="row-even">
+    <td>EV/Gross Profit</td>
+    <td>{{ "%.1f"|format(valuation_multiples.ev_gross_profit.p25) }}x</td>
+    <td class="median-row">{{ "%.1f"|format(valuation_multiples.ev_gross_profit.median) }}x</td>
+    <td>{{ "%.1f"|format(valuation_multiples.ev_gross_profit.p75) }}x</td>
+    <td>{{ "%.1f"|format(valuation_multiples.ev_gross_profit.mean) }}x</td>
+  </tr>
+  <tr class="row-odd">
+    <td>P/E (equity)</td>
+    <td>{{ "%.1f"|format(valuation_multiples.pe_ratio.p25) }}x</td>
+    <td class="median-row">{{ "%.1f"|format(valuation_multiples.pe_ratio.median) }}x</td>
+    <td>{{ "%.1f"|format(valuation_multiples.pe_ratio.p75) }}x</td>
+    <td>{{ "%.1f"|format(valuation_multiples.pe_ratio.mean) }}x</td>
+  </tr>
+  <tr>
+    <td>FCF Yield (levered, over EV)</td>
+    <td>{{ "%.1f"|format(valuation_multiples.fcf_yield.p25 * 100) }}%</td>
+    <td class="median-row">{{ "%.1f"|format(valuation_multiples.fcf_yield.median * 100) }}%</td>
+    <td>{{ "%.1f"|format(valuation_multiples.fcf_yield.p75 * 100) }}%</td>
+    <td>{{ "%.1f"|format(valuation_multiples.fcf_yield.mean * 100) }}%</td>
+  </tr>
 </table>
+<p class="note">EV/EBIT suits this asset-heavy target (D&A is a real economic cost here, so EV/EBITDA flatters capital-intensive comps). P/E is equity-denominated, reflecting each comp's leverage and tax position rather than a capital-structure-neutral view. FCF Yield (operating cash flow − capex, over EV) is the cash-return lens a PE buyer underwrites to; a higher yield signals more cash generation per dollar of enterprise value paid.</p>
 {% if valuation_multiples.ev_ebitda.p25 > 0 and valuation_multiples.ev_ebitda.p75 > valuation_multiples.ev_ebitda.p25 * wide_multiple_spread_ratio %}
 <p class="note"><strong>Wide multiple spread:</strong> the Top {{ n_comps }} EV/EBITDA range ({{ "%.1f"|format(valuation_multiples.ev_ebitda.p25) }}x–{{ "%.1f"|format(valuation_multiples.ev_ebitda.p75) }}x, P75 over {{ "%.0f"|format(wide_multiple_spread_ratio) }}× P25) is too dispersed for the headline P25–P75 to read as a tight, usable band. The mean ({{ "%.1f"|format(valuation_multiples.ev_ebitda.mean) }}x) sits above the median ({{ "%.1f"|format(valuation_multiples.ev_ebitda.median) }}x), confirming a right skew from a few high-multiple names — weight the median, the size-comparable anchor, and the flagged-excluded case below over the raw range.</p>
 {% endif %}
@@ -494,19 +516,19 @@
 {% endif %}
 
 <h3>Financial Benchmarks</h3>
-<p class="note">EBITDA Margin's Target Est. (no asterisk) is a target-specific assumption from the deal model, not a peer figure. Target Est.<sup>*</sup> on the other three rows is not company-reported at all — those use peer medians, since the target does not disclose comparable metrics for them.</p>
+<p class="note">Target Est. without an asterisk is a target-specific input from the deal model (e.g. EBITDA Margin). Target Est.<sup>*</sup> is a peer median used as a stand-in, since the target does not disclose that metric. A dash (—) means no target figure applies — these rows (e.g. FCF Conversion, Interest Coverage, Debt/Equity) show the comp distribution only, as a market-typical operating/leverage profile for the selected set.</p>
 <table>
   <tr><th>Metric</th><th>Target Est.</th><th>P25</th><th>Median</th><th>P75</th><th>Target Percentile</th></tr>
   {% for row in financial_benchmarks %}
   <tr class="{{ 'row-odd' if loop.index is odd else 'row-even' }}">
     <td>{{ row.metric }}</td>
     {% if row.format == 'percent' %}
-    <td>{{ "%.1f"|format(row.target_est * 100) }}%{{ "*" if row.target_est_is_estimated else "" }}</td>
+    <td>{% if row.target_est is not none %}{{ "%.1f"|format(row.target_est * 100) }}%{{ "*" if row.target_est_is_estimated else "" }}{% else %}—{% endif %}</td>
     <td>{{ "%.1f"|format(row.p25 * 100) }}%</td>
     <td class="median-row">{{ "%.1f"|format(row.median * 100) }}%</td>
     <td>{{ "%.1f"|format(row.p75 * 100) }}%</td>
     {% else %}
-    <td>{{ "%.1f"|format(row.target_est) }}x{{ "*" if row.target_est_is_estimated else "" }}</td>
+    <td>{% if row.target_est is not none %}{{ "%.1f"|format(row.target_est) }}x{{ "*" if row.target_est_is_estimated else "" }}{% else %}—{% endif %}</td>
     <td>{{ "%.1f"|format(row.p25) }}x</td>
     <td class="median-row">{{ "%.1f"|format(row.median) }}x</td>
     <td>{{ "%.1f"|format(row.p75) }}x</td>
@@ -565,7 +587,7 @@
 </div>
 
 <h3>Data Appendix</h3>
-<p class="note">Underlying figures behind each Top {{ n_comps }} comp's EV/EBITDA and EV/Revenue (Section 2). Revenue, EBITDA, and net debt are derived from SEC EDGAR/XBRL filings; market cap is FMP-sourced. Enterprise Value = Market Cap + Net Debt; EV/EBITDA and EV/Revenue were computed from these fields for all {{ n_comps }} Top comps, not taken pre-calculated from a vendor. All figures are as of the pipeline run date in the footer below, not a fixed historical date.</p>
+<p class="note">Underlying figures behind each Top {{ n_comps }} comp's EV/EBITDA and EV/Revenue (Section 2). Revenue, EBITDA, and net debt are derived from SEC EDGAR/XBRL filings; market cap is FMP-sourced. Enterprise Value = Market Cap + Net Debt + Minority Interest + Preferred Equity (operating lease liabilities optionally included per config); EV/EBITDA and EV/Revenue were computed from these fields for all {{ n_comps }} Top comps, not taken pre-calculated from a vendor. All figures are as of the pipeline run date in the footer below, not a fixed historical date.</p>
 <p class="note"><strong>EBITDA basis:</strong> EBITDA is unadjusted and derived directly from XBRL filings — it is <em>not</em> normalized for stock-based compensation, operating-lease treatment (IFRS 16 / ASC 842), or one-time/non-recurring items, and the same definition is applied to the target's estimate and to every comp. A normalized "adjusted EBITDA" (the basis most PE deal models price on) could shift individual multiples materially; treat the multiples here as a like-for-like screen on a common reported basis, not as adjusted-EBITDA pricing multiples.</p>
 {% if description_sources_vary %}
 <table>

@@ -203,11 +203,18 @@ report has 7 sections:
    Top-N set, including strongest fits, questionable fits, and potential
    near-miss substitutions. This is not a substitute for transaction-team
    judgment, banker input, or confirmatory diligence.
-4. **Valuation and Financial Benchmarks** — EV/EBITDA and EV/Revenue
-   P25/median/P75/mean across the selected Top-N, plus financial benchmark
-   distributions for EBITDA margin, revenue growth, gross margin, and net
-   debt/EBITDA. Target percentile is computed empirically within the selected
-   comps, not by interpolating from rounded quartiles.
+4. **Valuation and Financial Benchmarks** — a P25/median/P75/mean
+   distribution across the selected Top-N for EV/EBITDA, EV/Revenue, EV/EBIT,
+   EV/Gross Profit, and P/E, plus the Top-N median FCF yield (cash from
+   operations − capex, over EV). EV/EBIT and FCF yield are included because an
+   asset-heavy target's D&A is a real economic cost that EV/EBITDA flatters,
+   and FCF is the cash a PE buyer actually underwrites to. Financial benchmark
+   distributions cover EBITDA margin, revenue growth, gross margin,
+   capex/revenue, FCF conversion, net debt/EBITDA, interest coverage, and
+   debt/equity; the leverage and FCF-conversion rows show the comp
+   distribution only (no target figure, since the private target doesn't
+   disclose them). Target percentile is computed empirically within the
+   selected comps, not by interpolating from rounded quartiles.
 5. **Near-Miss Candidates** — the `reporter.AUDIT_SIZE` (5 by default) candidates
    just outside the Top-N cutoff, sorted by financial-fit rank, with the specific
    reason each one didn't make it (business-model/customer-type/revenue-scale/

@@ -17,8 +17,15 @@ NUMERIC_FIELDS = [
     "revenue_cagr_3yr",
     "net_debt_ebitda",
     "capex_revenue",
+    "fcf_conversion",
+    "interest_coverage",
+    "debt_to_equity",
     "ev_ebitda",
     "ev_revenue",
+    "ev_ebit",
+    "ev_gross_profit",
+    "pe_ratio",
+    "fcf_yield",
 ]
 
 # A broad data-bug sanity check (catches e.g. a unit-conversion error or a

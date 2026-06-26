@@ -543,6 +543,103 @@ def test_discounted_valuation_none_when_no_ranges():
     assert reporter._discounted_valuation({"by_ebitda": None, "by_revenue": None}, 0.25) is None
 
 
+def test_football_field_rows_order_and_contents():
+    implied = {
+        "by_ebitda": {"p25": 200.0, "median": 260.0, "p75": 320.0},
+        "by_revenue": {"p25": 180.0, "median": 240.0, "p75": 300.0},
+    }
+    discounted = {"discount": 0.25, "by_ebitda": {"p25": 150.0, "median": 195.0, "p75": 240.0}, "by_revenue": None}
+    size_anchor = {"n": 4, "median_ev_ebitda": 9.0, "implied_ev": 180.0}
+    size_adjusted = {"implied_ev": 210.0}
+
+    rows = reporter._football_field_rows(implied, None, discounted, size_adjusted, size_anchor)
+    labels = [r["label"] for r in rows]
+
+    # Size anchor and the post-discount range lead; raw Top-N ranges and the
+    # regression point follow.
+    assert labels[0].startswith("Size anchor")
+    assert labels[1].startswith("After 25% discount")
+    assert "EV/EBITDA (Top-N)" in labels
+    assert "EV/Revenue (Top-N)" in labels
+    assert labels[-1].startswith("Size-adjusted")
+    # The discounted row uses the EV/EBITDA basis (by_revenue was None).
+    disc_row = next(r for r in rows if r["label"].startswith("After"))
+    assert disc_row["mid"] == pytest.approx(195.0)
+
+
+def test_football_field_svg_renders_when_a_range_exists():
+    implied = {"by_ebitda": {"p25": 200.0, "median": 260.0, "p75": 320.0}, "by_revenue": None}
+
+    svg = reporter._football_field_svg(implied, None, None, None, None)
+
+    assert svg is not None
+    assert svg.startswith("<svg")
+    assert "EV/EBITDA (Top-N)" in svg
+    assert "Implied Enterprise Value" in svg
+
+
+def test_football_field_svg_none_without_any_range():
+    # Only point estimates, no comp range -> nothing to anchor the axis on.
+    implied = {"by_ebitda": None, "by_revenue": None}
+    size_anchor = {"n": 3, "median_ev_ebitda": 9.0, "implied_ev": 180.0}
+
+    assert reporter._football_field_svg(implied, None, None, None, size_anchor) is None
+
+
+def test_valuation_multiple_distribution_includes_added_multiples():
+    top = ["A", "B", "C"]
+    companies_by_ticker = {
+        t: _company(t, ev_revenue=2.0 + i, ev_ebit=14.0 + i, ev_gross_profit=6.0 + i,
+                    pe_ratio=20.0 + i, fcf_yield=0.05 + 0.01 * i)
+        for i, t in enumerate(top)
+    }
+    company_scores = pd.DataFrame({"ev_ebitda_actual": [10.0, 11.0, 12.0]}, index=top)
+
+    dist = reporter._valuation_multiple_distribution(company_scores, companies_by_ticker, top)
+
+    for key in ("ev_ebitda", "ev_revenue", "ev_ebit", "ev_gross_profit", "pe_ratio", "fcf_yield"):
+        assert key in dist
+        assert "median" in dist[key]
+    assert dist["ev_ebit"]["median"] == pytest.approx(15.0)
+    assert dist["pe_ratio"]["median"] == pytest.approx(21.0)
+
+
+def test_valuation_multiple_distribution_placeholder_when_field_absent():
+    # No comp carries ev_ebit -> a zero placeholder so the template's fixed
+    # rows still have stats to format (same convention as ev_revenue).
+    top = ["A", "B"]
+    companies_by_ticker = {t: _company(t, ev_ebit=None) for t in top}
+    company_scores = pd.DataFrame({"ev_ebitda_actual": [10.0, 11.0]}, index=top)
+
+    dist = reporter._valuation_multiple_distribution(company_scores, companies_by_ticker, top)
+
+    assert dist["ev_ebit"]["median"] == pytest.approx(0.0)
+
+
+def test_financial_benchmarks_includes_leverage_and_fcf_rows():
+    top = ["A", "B", "C"]
+    companies_by_ticker = {
+        t: _company(t, fcf_conversion=0.60 + 0.05 * i, interest_coverage=5.0 + i, debt_to_equity=0.5 + 0.1 * i)
+        for i, t in enumerate(top)
+    }
+    imputation_medians = {
+        "by_group": {},
+        "global": {"ebitda_margin": 0.18, "revenue_cagr_3yr": 0.05, "gross_margin": 0.35, "capex_revenue": 0.04, "net_debt_ebitda": 1.5},
+    }
+    target_config = {"ebitda_margin_estimate": 0.18}
+
+    rows = reporter._financial_benchmarks(companies_by_ticker, top, target_config, imputation_medians, "manufacturing")
+    by_metric = {r["metric"]: r for r in rows}
+
+    assert {"FCF Conversion", "Interest Coverage", "Debt/Equity"} <= set(by_metric)
+    # Interest Coverage isn't in imputation_medians, so the target has no
+    # estimate — the row still shows the comp distribution.
+    assert by_metric["Interest Coverage"]["target_est"] is None
+    assert by_metric["Interest Coverage"]["median"] == pytest.approx(6.0)
+    # capex_revenue does have an imputation median, so its target_est is filled.
+    assert by_metric["Capex/Revenue"]["target_est"] == pytest.approx(0.04)
+
+
 def test_size_anchor_uses_strict_screen_median_times_ebitda():
     strict = {"n": 4, "tickers": ["A", "B", "C", "D"], "median_ev_ebitda": 11.0}
 
@@ -585,7 +682,7 @@ def test_html_report_flags_low_margin_comp():
     )
 
     html_text = reporter.HTML_PATH.read_text(encoding="utf-8")
-    assert "Company-specific caution" in html_text
+    assert "soft data point" in html_text  # the low-margin caution note
     assert "5.0% EBITDA margin" in html_text
 
 

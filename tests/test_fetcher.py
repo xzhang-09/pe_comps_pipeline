@@ -11,7 +11,8 @@ def _statement_df(rows: list[dict]) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def _income_df(revenue_by_period, operating_income=None, gross_profit=None, cogs=None):
+def _income_df(revenue_by_period, operating_income=None, gross_profit=None, cogs=None,
+               net_income=None, interest_expense=None):
     periods = list(revenue_by_period.keys())
     rows = [{"standard_concept": "Revenue", **revenue_by_period}]
     if operating_income is not None:
@@ -20,21 +21,31 @@ def _income_df(revenue_by_period, operating_income=None, gross_profit=None, cogs
         rows.append({"standard_concept": "GrossProfit", periods[0]: gross_profit})
     if cogs is not None:
         rows.append({"standard_concept": "CostOfGoodsAndServicesSold", periods[0]: cogs})
+    if net_income is not None:
+        rows.append({"standard_concept": "NetIncome", periods[0]: net_income})
+    if interest_expense is not None:
+        rows.append({"standard_concept": "InterestExpense", periods[0]: interest_expense})
     return _statement_df(rows)
 
 
-def _cashflow_df(depreciation_amortization=None):
-    if depreciation_amortization is None:
-        return _statement_df([])
-    return _statement_df([{"standard_concept": "DepreciationExpense", "p0": depreciation_amortization}])
+def _cashflow_df(depreciation_amortization=None, operating_cash_flow=None):
+    rows = []
+    if depreciation_amortization is not None:
+        rows.append({"standard_concept": "DepreciationExpense", "p0": depreciation_amortization})
+    if operating_cash_flow is not None:
+        rows.append({"standard_concept": "NetCashFromOperatingActivities", "p0": operating_cash_flow})
+    return _statement_df(rows)
 
 
 def _balance_sheet_df(cash=None, short_term_debt=None, current_portion_ltd=None, long_term_debt=None,
                       minority_interest=None, preferred_equity=None,
-                      operating_lease_current=None, operating_lease_noncurrent=None, operating_lease_total=None):
+                      operating_lease_current=None, operating_lease_noncurrent=None, operating_lease_total=None,
+                      total_equity=None):
     rows = []
     if cash is not None:
         rows.append({"standard_concept": "CashAndMarketableSecurities", "p0": cash})
+    if total_equity is not None:
+        rows.append({"standard_concept": "AllEquityBalance", "p0": total_equity})
     if short_term_debt is not None:
         rows.append({"standard_concept": "ShortTermDebt", "p0": short_term_debt})
     if current_portion_ltd is not None:
@@ -44,13 +55,13 @@ def _balance_sheet_df(cash=None, short_term_debt=None, current_portion_ltd=None,
     if minority_interest is not None:
         rows.append({"standard_concept": "MinorityInterest", "p0": minority_interest})
     if preferred_equity is not None:
-        rows.append({"standard_concept": "PreferredStockValue", "p0": preferred_equity})
+        rows.append({"standard_concept": "PreferredStock", "p0": preferred_equity})
     if operating_lease_total is not None:
-        rows.append({"standard_concept": "OperatingLeaseLiability", "p0": operating_lease_total})
+        rows.append({"standard_concept": "OperatingLeaseDebtEquivalent", "p0": operating_lease_total})
     if operating_lease_current is not None:
-        rows.append({"standard_concept": "OperatingLeaseLiabilityCurrent", "p0": operating_lease_current})
+        rows.append({"standard_concept": "OperatingLeaseCurrentDebtEquivalent", "p0": operating_lease_current})
     if operating_lease_noncurrent is not None:
-        rows.append({"standard_concept": "OperatingLeaseLiabilityNoncurrent", "p0": operating_lease_noncurrent})
+        rows.append({"standard_concept": "OperatingLeaseNonCurrentDebtEquivalent", "p0": operating_lease_noncurrent})
     return _statement_df(rows)
 
 
@@ -121,15 +132,17 @@ def _healthy_company(mocker, revenue=200_000_000.0, operating_income=30_000_000.
                       cash=None, short_term_debt=None, current_portion_ltd=None, long_term_debt=None,
                       minority_interest=None, preferred_equity=None,
                       operating_lease_current=None, operating_lease_noncurrent=None, operating_lease_total=None,
+                      net_income=None, interest_expense=None, operating_cash_flow=None, total_equity=None,
                       business_text=None):
-    income_df = _income_df({"p0": revenue}, operating_income=operating_income, gross_profit=gross_profit)
-    cashflow_df = _cashflow_df(depreciation_amortization)
+    income_df = _income_df({"p0": revenue}, operating_income=operating_income, gross_profit=gross_profit,
+                           net_income=net_income, interest_expense=interest_expense)
+    cashflow_df = _cashflow_df(depreciation_amortization, operating_cash_flow=operating_cash_flow)
     balance_sheet_df = _balance_sheet_df(
         cash=cash, short_term_debt=short_term_debt,
         current_portion_ltd=current_portion_ltd, long_term_debt=long_term_debt,
         minority_interest=minority_interest, preferred_equity=preferred_equity,
         operating_lease_current=operating_lease_current, operating_lease_noncurrent=operating_lease_noncurrent,
-        operating_lease_total=operating_lease_total,
+        operating_lease_total=operating_lease_total, total_equity=total_equity,
     )
     financials = FakeFinancials(income_df, cashflow_df, balance_sheet_df=balance_sheet_df, capex=capex)
     return FakeCompany(name="Test Co.", financials=financials, business_text=business_text)
@@ -328,6 +341,68 @@ def test_ev_bridge_with_no_minority_or_preferred_matches_old_bridge(mocker, samp
     assert record["enterprise_value_usd_mm"] == pytest.approx(440.0)
     assert record["minority_interest_usd_mm"] is None
     assert record["preferred_equity_usd_mm"] is None
+
+
+def test_additional_pe_metrics_computed(mocker, sample_config):
+    mocker.patch("src.fetcher.edgar.Company", return_value=_healthy_company(
+        mocker, revenue=200_000_000.0, operating_income=30_000_000.0, depreciation_amortization=10_000_000.0,
+        gross_profit=70_000_000.0, capex=8_000_000.0,
+        cash=10_000_000.0, long_term_debt=50_000_000.0, total_equity=100_000_000.0,
+        net_income=18_000_000.0, interest_expense=6_000_000.0, operating_cash_flow=35_000_000.0,
+    ))
+    mocker.patch("src.fetcher.fmp_client.get_profile", return_value={
+        "marketCap": 400_000_000, "sector": "Industrials",
+    })
+
+    record = fetcher.fetch_batch(["PE1"], sample_config)[0]
+
+    # EBITDA = 40MM, EBIT = 30MM, EV = market cap 400 + net debt 40 = 440MM.
+    # FCF = CFO 35 - capex 8 = 27MM.
+    assert record["free_cash_flow_usd_mm"] == pytest.approx(27.0)
+    assert record["fcf_conversion"] == pytest.approx(27.0 / 40.0)           # 0.675
+    assert record["interest_coverage"] == pytest.approx(30.0 / 6.0)         # EBIT / interest = 5.0
+    assert record["debt_to_equity"] == pytest.approx(50.0 / 100.0)          # 0.5
+    assert record["ev_ebit"] == pytest.approx(440.0 / 30.0)                 # ~14.67x
+    assert record["ev_gross_profit"] == pytest.approx(440.0 / 70.0)         # ~6.29x
+    assert record["pe_ratio"] == pytest.approx(400.0 / 18.0)               # ~22.2x
+    assert record["fcf_yield"] == pytest.approx(27.0 / 440.0)               # ~6.1%
+
+
+def test_pe_ratio_none_when_net_income_negative(mocker, sample_config):
+    mocker.patch("src.fetcher.edgar.Company", return_value=_healthy_company(
+        mocker, revenue=200_000_000.0, operating_income=30_000_000.0, depreciation_amortization=10_000_000.0,
+        cash=10_000_000.0, long_term_debt=50_000_000.0,
+        net_income=-5_000_000.0,
+    ))
+    mocker.patch("src.fetcher.fmp_client.get_profile", return_value={
+        "marketCap": 400_000_000, "sector": "Industrials",
+    })
+
+    record = fetcher.fetch_batch(["PE2"], sample_config)[0]
+
+    # A negative-earnings comp yields a meaningless P/E -> left None.
+    assert record["pe_ratio"] is None
+    # but EV/EBIT still computes off the positive EBIT.
+    assert record["ev_ebit"] == pytest.approx(440.0 / 30.0)
+
+
+def test_new_metrics_none_when_source_lines_absent(mocker, sample_config):
+    # No interest expense, no operating cash flow, no equity tagged -> the
+    # dependent ratios stay None rather than dividing by a missing value.
+    mocker.patch("src.fetcher.edgar.Company", return_value=_healthy_company(
+        mocker, revenue=200_000_000.0, operating_income=30_000_000.0, depreciation_amortization=10_000_000.0,
+        cash=10_000_000.0, long_term_debt=50_000_000.0,
+    ))
+    mocker.patch("src.fetcher.fmp_client.get_profile", return_value={
+        "marketCap": 400_000_000, "sector": "Industrials",
+    })
+
+    record = fetcher.fetch_batch(["NA1"], sample_config)[0]
+
+    assert record["fcf_conversion"] is None
+    assert record["interest_coverage"] is None
+    assert record["debt_to_equity"] is None
+    assert record["fcf_yield"] is None
 
 
 def test_fmp_lookup_sleeps_between_tickers_not_before_first(mocker, sample_config):
