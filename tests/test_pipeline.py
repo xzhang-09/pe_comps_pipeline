@@ -1,7 +1,9 @@
 import sys
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
+import pytest
 import yaml
 
 import src.pipeline as pipeline
@@ -186,3 +188,75 @@ def test_score_and_report_reuses_universe_without_re_enriching(mocker, tmp_path,
         assert not m.called, f"{name} was called during scoring — universe was re-enriched"
     assert scorer_run.call_count == 2     # scored twice off the one enriched universe
     assert generate.call_count == 2
+
+
+def test_universe_artifact_round_trips(tmp_path):
+    feature_matrix = pd.DataFrame(
+        {"ebitda_margin": [0.2, 0.3], "ev_ebitda_log": [np.log1p(12.0), np.log1p(8.0)]},
+        index=["AAA", "BBB"],
+    )
+    universe = pipeline.EnrichedUniverse(
+        companies=[{"ticker": "AAA", "ev_ebitda": 12.0}, {"ticker": "BBB", "ev_ebitda": 8.0}],
+        llm_features={"AAA": {"business_model": "manufacturing"}, "BBB": {"business_model": "services"}},
+        feature_matrix=feature_matrix,
+        ev_ebitda_raw=pd.Series([12.0, 8.0], index=["AAA", "BBB"], name="ev_ebitda"),
+        imputation_medians={"global": {"ebitda_margin": 0.25}},
+    )
+
+    pipeline.save_universe(universe, tmp_path / "u")
+    loaded = pipeline.load_universe(tmp_path / "u")
+
+    assert loaded.companies == universe.companies
+    assert loaded.llm_features == universe.llm_features
+    assert loaded.imputation_medians == universe.imputation_medians
+    pd.testing.assert_frame_equal(loaded.feature_matrix, universe.feature_matrix)
+    # ev_ebitda_raw isn't persisted; it's recomputed from the matrix label column.
+    pd.testing.assert_series_equal(loaded.ev_ebitda_raw, universe.ev_ebitda_raw, check_names=False)
+
+
+def test_load_universe_rejects_incompatible_schema(tmp_path):
+    universe = pipeline.EnrichedUniverse(
+        companies=[{"ticker": "AAA", "ev_ebitda": 12.0}],
+        llm_features={"AAA": {"business_model": "manufacturing"}},
+        feature_matrix=pd.DataFrame({"ev_ebitda_log": [np.log1p(12.0)]}, index=["AAA"]),
+        ev_ebitda_raw=pd.Series([12.0], index=["AAA"]),
+        imputation_medians={},
+    )
+    pipeline.save_universe(universe, tmp_path / "u")
+    # Corrupt the manifest's schema version — a stale artifact must be refused, not scored.
+    manifest_path = tmp_path / "u" / "manifest.json"
+    manifest_path.write_text('{"schema_version": 999}', encoding="utf-8")
+
+    with pytest.raises(ValueError, match="schema_version"):
+        pipeline.load_universe(tmp_path / "u")
+
+
+def test_run_pipeline_reuse_universe_skips_enrichment(mocker, tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    config_path = _write_config(tmp_path)
+
+    feature_matrix = pd.DataFrame({"ebitda_margin": [0.2], "ev_ebitda_log": [np.log1p(12.0)]}, index=["AAA"])
+    universe = pipeline.EnrichedUniverse(
+        companies=[{"ticker": "AAA", "ev_ebitda": 12.0}],
+        llm_features={"AAA": {"business_model": "manufacturing", "extraction_failed": False, "low_confidence_flag": False}},
+        feature_matrix=feature_matrix,
+        ev_ebitda_raw=pd.Series([12.0], index=["AAA"]),
+        imputation_medians={"ebitda_margin": 0.2},
+    )
+    pipeline.save_universe(universe, tmp_path / "u")
+
+    enrich_build = mocker.patch("src.pipeline.universe_builder.build")
+    mocker.patch("src.pipeline.fetcher.fetch_batch")
+    mocker.patch("src.pipeline.llm_analyzer.analyze_batch")
+    mocker.patch("src.pipeline.feature_builder.build")
+    mocker.patch("src.pipeline.llm_analyzer.analyze_target", return_value={"business_model": "manufacturing"})
+    mocker.patch("src.pipeline.scorer.run", return_value={
+        "company_scores": pd.DataFrame({"residual_abs": [0.5]}, index=["AAA"]),
+        "feature_distance_sq_diff": pd.DataFrame({"ebitda_margin": [0.1]}, index=["AAA"]),
+    })
+    generate = mocker.patch("src.pipeline.reporter.generate", return_value={"csv": "x.csv", "n_comps": 1})
+
+    pipeline.run_pipeline(str(config_path), reuse_universe=str(tmp_path / "u"))
+
+    enrich_build.assert_not_called()   # steps 1-4 skipped entirely
+    generate.assert_called_once()
