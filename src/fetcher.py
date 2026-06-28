@@ -2,7 +2,7 @@ import csv
 import json
 import os
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import edgar
@@ -34,6 +34,32 @@ BUSINESS_DESCRIPTION_MAX_CHARS = 1500
 # enterprise-values endpoints, which return 402 on FMP's free tier for
 # anything beyond a handful of demo mega-caps.
 FMP_REQUEST_DELAY_SECONDS = 1
+
+# Cache freshness, split by how fast each layer changes. Fundamentals come from
+# annual 10-K XBRL and only move when a new annual report is filed, so they are
+# cached for a quarter. Market cap — and every EV multiple derived from it —
+# comes from FMP and moves daily, so it is refreshed on its own short TTL by
+# re-running only the FMP enrichment, without re-pulling the expensive EDGAR
+# fundamentals (see fetch_batch). A cached record past its fundamentals TTL is
+# refetched whole. Previously the whole record, market cap included, was cached
+# indefinitely, so EV/EBITDA could be computed against a months-old share price.
+FUNDAMENTALS_TTL_DAYS = 90
+MARKET_DATA_TTL_DAYS = 1
+
+
+def _is_fresh(timestamp: str | None, ttl_days: float) -> bool:
+    """True if `timestamp` (ISO 8601) is within `ttl_days` of now. A missing or
+    unparseable timestamp counts as stale, so pre-layered cache files (which
+    have no market_data_timestamp) get their market layer refreshed once."""
+    if not timestamp:
+        return False
+    try:
+        ts = datetime.fromisoformat(timestamp)
+    except ValueError:
+        return False
+    if ts.tzinfo is None:
+        ts = ts.replace(tzinfo=timezone.utc)
+    return datetime.now(timezone.utc) - ts <= timedelta(days=ttl_days)
 
 # Columns in edgartools' Statement.to_dataframe() that aren't fiscal-period values.
 STATEMENT_METADATA_COLUMNS = {
@@ -553,6 +579,10 @@ def _enrich_with_fmp_data(record: CompanyRecord, ticker: str, config: PipelineCo
         logger.warning(f"{ticker} — FMP returned no profile data. Leaving market data as None.")
         return
     record["raw_fmp_profile"] = profile
+    # Stamp the market layer: a successful FMP call (even one with no marketCap)
+    # marks the fast-moving data as refreshed now, so a stale-market reload that
+    # re-runs only this function bumps the timestamp and recomputes EV multiples.
+    record["market_data_timestamp"] = datetime.now(timezone.utc).isoformat()
 
     if not record.get("business_description"):
         description = profile.get("description")
@@ -560,8 +590,10 @@ def _enrich_with_fmp_data(record: CompanyRecord, ticker: str, config: PipelineCo
             record["business_description"] = description[:BUSINESS_DESCRIPTION_MAX_CHARS]
             record["description_source"] = "fmp"
 
+    # Always (re)set from FMP — on a market-only refresh the record already
+    # carries a now-stale market_cap, so this must overwrite, not skip.
     market_cap = profile.get("marketCap")
-    if market_cap is not None and record.get("market_cap_usd_mm") is None:
+    if market_cap is not None:
         record["market_cap_usd_mm"] = market_cap / 1e6
     record["gics_sector"] = profile.get("sector")
 
@@ -692,11 +724,23 @@ def fetch_batch(tickers: list[str | dict], config: PipelineConfig | dict) -> lis
         logger.info(f"Processing {i}/{total}: {ticker}")
 
         cached = _load_cache(ticker)
-        if cached is not None:
-            logger.info(f"{ticker} — loaded from cache")
-            results.append(_attach_universe_metadata(cached, candidate))
+        if cached is not None and _is_fresh(cached.get("fetch_timestamp"), FUNDAMENTALS_TTL_DAYS):
+            cached = _attach_universe_metadata(cached, candidate)
+            if _is_fresh(cached.get("market_data_timestamp"), MARKET_DATA_TTL_DAYS):
+                logger.info(f"{ticker} — loaded from cache")
+            else:
+                # Slow fundamentals layer is still fresh; refresh only the
+                # fast-moving market layer (one FMP call, no EDGAR re-pull) so
+                # EV/EBITDA reflects a current market cap, not a frozen one.
+                logger.info(f"{ticker} — refreshing stale market data (fundamentals still cached)")
+                _enrich_with_fmp_data(cached, ticker, cfg, sleep_before=fmp_calls_made > 0)
+                fmp_calls_made += 1
+                cached = _validate(cached, ticker)
+                _save_cache(ticker, cached)
+            results.append(cached)
             continue
 
+        # No cache, or fundamentals past their TTL — refetch the whole record.
         try:
             record = _fetch_single(ticker)
         except Exception as e:

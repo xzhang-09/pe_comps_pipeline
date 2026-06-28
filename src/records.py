@@ -87,7 +87,11 @@ class CompanyRecord(TypedDict, total=False):
 
     # Bookkeeping. raw_fmp_profile is FMP's full /profile payload (the universe
     # domicile filter reads its 'country'); missing_flags marks which fields
-    # came back empty; fetch_timestamp is when this record was built (UTC ISO).
+    # came back empty. Two timestamps drive layered cache freshness (fetcher):
+    # fetch_timestamp is when the slow EDGAR fundamentals were built;
+    # market_data_timestamp is when the fast-moving FMP market layer (market cap
+    # and the EV multiples derived from it) was last refreshed.
     raw_fmp_profile: dict | None
     missing_flags: dict[str, bool]
     fetch_timestamp: str
+    market_data_timestamp: str | None

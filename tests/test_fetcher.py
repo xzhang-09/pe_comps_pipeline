@@ -1,5 +1,6 @@
 import importlib
 import json
+from datetime import datetime, timedelta, timezone
 
 import pandas as pd
 import pytest
@@ -153,8 +154,10 @@ def _config_with_leases(sample_config, include_leases):
 
 
 def test_cache_hit_skips_api_call(mocker, sample_company, make_config):
+    # Both cache layers fresh (fundamentals AND market data) -> no API calls.
     fetcher.CACHE_DIR.mkdir(parents=True, exist_ok=True)
-    cache_payload = dict(sample_company, ticker="AAA")
+    now = datetime.now(timezone.utc).isoformat()
+    cache_payload = dict(sample_company, ticker="AAA", fetch_timestamp=now, market_data_timestamp=now)
     (fetcher.CACHE_DIR / "AAA.json").write_text(json.dumps(cache_payload), encoding="utf-8")
 
     mock_company_cls = mocker.patch("src.fetcher.edgar.Company")
@@ -165,6 +168,55 @@ def test_cache_hit_skips_api_call(mocker, sample_company, make_config):
     mock_company_cls.assert_not_called()
     mock_fmp.assert_not_called()
     assert results[0]["ticker"] == "AAA"
+
+
+def test_stale_market_data_refreshes_fmp_only(mocker, sample_company, make_config):
+    # Fundamentals still fresh, but the fast-moving market layer is past its TTL:
+    # refresh market cap via FMP WITHOUT re-pulling the expensive EDGAR data.
+    fetcher.CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    now = datetime.now(timezone.utc)
+    cache_payload = dict(
+        sample_company, ticker="AAA",
+        fetch_timestamp=(now - timedelta(days=2)).isoformat(),         # fundamentals fresh
+        market_data_timestamp=(now - timedelta(days=5)).isoformat(),   # market stale
+        market_cap_usd_mm=500.0,                                       # the frozen, stale cap
+    )
+    (fetcher.CACHE_DIR / "AAA.json").write_text(json.dumps(cache_payload), encoding="utf-8")
+
+    mock_company_cls = mocker.patch("src.fetcher.edgar.Company")
+    mock_fmp = mocker.patch(
+        "src.fetcher.fmp_client.get_profile",
+        return_value={"marketCap": 900_000_000.0, "sector": "Industrials"},
+    )
+
+    results = fetcher.fetch_batch(["AAA"], make_config())
+
+    mock_company_cls.assert_not_called()             # no EDGAR re-pull
+    mock_fmp.assert_called_once()                    # only the market layer refreshed
+    assert results[0]["market_cap_usd_mm"] == 900.0  # 900e6 / 1e6, no longer the frozen 500.0
+
+
+def test_stale_fundamentals_triggers_full_refetch(mocker, sample_company, make_config):
+    # Fundamentals past their TTL -> ignore the cache and refetch the whole record.
+    fetcher.CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    now = datetime.now(timezone.utc)
+    cache_payload = dict(
+        sample_company, ticker="AAA",
+        fetch_timestamp=(now - timedelta(days=200)).isoformat(),   # fundamentals stale
+        market_data_timestamp=now.isoformat(),
+        revenue_ttm_usd_mm=200.0,
+    )
+    (fetcher.CACHE_DIR / "AAA.json").write_text(json.dumps(cache_payload), encoding="utf-8")
+
+    mock_company_cls = mocker.patch(
+        "src.fetcher.edgar.Company", return_value=_healthy_company(mocker, revenue=500_000_000.0),
+    )
+    mocker.patch("src.fetcher.fmp_client.get_profile", return_value=None)
+
+    results = fetcher.fetch_batch(["AAA"], make_config())
+
+    assert mock_company_cls.called                         # full EDGAR refetch happened
+    assert results[0]["revenue_ttm_usd_mm"] == 500.0       # refetched value, not the cached 200.0
 
 
 def test_cache_miss_calls_api(mocker, sample_config):
