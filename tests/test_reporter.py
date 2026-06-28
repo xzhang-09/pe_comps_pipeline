@@ -114,12 +114,22 @@ def _sample_config():
         "target_company": {
             "name": "Example Manufacturing Co.",
             "description": "A test target company.",
+            "primary_sic_codes": ["3714"],
             "gics_sector": "20",
             "revenue_usd_mm": 150,
             "ebitda_margin_estimate": 0.18,
         },
+        "universe": {"max_candidates": 10},
+        "llm": {
+            "extraction_model": "gpt-4.1",
+            "judge_model": "gpt-4.1-mini",
+            "temperature": 0,
+            "max_tokens": 500,
+            "batch_size": 20,
+            "judge_threshold": 3,
+            "embedding_model": "text-embedding-3-small",
+        },
         "output": {"top_n_comps": 15, "report_formats": ["csv", "html"]},
-        "llm": {"embedding_model": "text-embedding-3-small"},
         "scorer": {"ranking_penalties": dict(DEFAULT_PENALTIES)},
     }
 

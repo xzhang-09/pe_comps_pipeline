@@ -10,6 +10,7 @@ from jinja2 import Environment, FileSystemLoader
 from scipy import stats
 
 from src import comp_fit_reviewer, feature_builder, get_logger, llm_analyzer, scorer
+from src.config_schema import PipelineConfig, as_config
 
 logger = get_logger(__name__)
 
@@ -1478,13 +1479,13 @@ def _write_html(context: dict) -> str:
     return str(HTML_PATH)
 
 
-def _top_n_from_config(config: dict) -> int:
-    configured = config.get("output", {}).get("top_n_comps")
+def _top_n_from_config(config: PipelineConfig) -> int:
+    configured = config.output.top_n_comps
     return int(configured) if configured else TOP_N
 
 
-def _report_formats_from_config(config: dict) -> list[str]:
-    formats = config.get("output", {}).get("report_formats") or list(DEFAULT_REPORT_FORMATS)
+def _report_formats_from_config(config: PipelineConfig) -> list[str]:
+    formats = config.output.report_formats or list(DEFAULT_REPORT_FORMATS)
     unsupported = sorted(set(formats) - SUPPORTED_REPORT_FORMATS)
     if unsupported:
         raise ValueError(f"Unsupported report format(s): {', '.join(unsupported)}")
@@ -1497,7 +1498,7 @@ def generate(
     llm_features: dict[str, dict],
     target_llm_features: dict,
     imputation_medians: dict,
-    config: dict,
+    config: PipelineConfig | dict,
 ) -> dict:
     """
     Select Top 15 comps and generate reports.
@@ -1509,17 +1510,23 @@ def generate(
     Returns:
         {"csv": "outputs/comps_report.csv", "html": "outputs/comps_report.html"}
     """
+    cfg = as_config(config)
     companies_by_ticker = {c["ticker"]: c for c in companies}
     company_scores = scorer_results["company_scores"]
-    target_config = config["target_company"]
+    # target_config and penalties stay plain dicts: both are threaded into a deep
+    # tree of valuation/benchmark/selection helpers, and penalties is the dict
+    # currency reporter shares with eval/evaluator and the selection tests — so
+    # they're flattened from the validated model here rather than retyping that
+    # whole surface. Every other config read below goes through the typed model.
+    target_config = cfg.target_company.model_dump()
 
     target_business_model = target_llm_features.get("business_model")
     target_customer_type = target_llm_features.get("customer_type")
     target_revenue = target_config.get("revenue_usd_mm")
-    top_n = _top_n_from_config(config)
+    top_n = _top_n_from_config(cfg)
 
-    penalties = config["scorer"]["ranking_penalties"]
-    embedding_model = config["llm"]["embedding_model"]
+    penalties = cfg.scorer.ranking_penalties.model_dump()
+    embedding_model = cfg.llm.embedding_model
 
     eligible_candidates = _eligible_candidates(company_scores, llm_features, companies_by_ticker)
     subsector_similarities = _subsector_similarities(
@@ -1540,7 +1547,7 @@ def generate(
     data_notes = _data_notes(llm_features)
     top_review_payload = [_review_candidate_payload(row, "selected") for row in top15_rows]
     near_miss_review_payload = _near_miss_review_payload(audit_trail, companies_by_ticker, llm_features, company_scores)
-    comp_fit_review = comp_fit_reviewer.review_comp_fit(target_config, top_review_payload, near_miss_review_payload, config)
+    comp_fit_review = comp_fit_reviewer.review_comp_fit(target_config, top_review_payload, near_miss_review_payload, cfg)
     comp_fit_review["fit_label"] = (
         _fit_label(comp_fit_review.get("overall_score"), comp_fit_review.get("weaknesses"))
         if comp_fit_review.get("status") == "available" else None
@@ -1633,8 +1640,7 @@ def generate(
     # headline range and the flagged-excluded range so the report can show
     # an adjusted range next to every raw one. size_anchor surfaces the
     # strictest size-comparable subset as the executive summary's anchor.
-    valuation_config = config.get("valuation", {})
-    discount = valuation_config.get("size_marketability_discount") or 0.0
+    discount = cfg.valuation.size_marketability_discount or 0.0
     discounted_valuation = _discounted_valuation(implied_valuation, discount)
     discounted_valuation_excl_flagged = (
         _discounted_valuation(implied_valuation_excl_flagged, discount) if implied_valuation_excl_flagged else None
@@ -1664,8 +1670,6 @@ def generate(
     description_sources_vary = len(description_sources) > 1
     description_source_common = next(iter(description_sources)) if len(description_sources) == 1 else None
 
-    output_config = config.get("output", {})
-
     context = {
         "target_name": target_config.get("name"),
         "target_description": target_config.get("description"),
@@ -1691,7 +1695,7 @@ def generate(
         "discounted_valuation": discounted_valuation,
         "discounted_valuation_excl_flagged": discounted_valuation_excl_flagged,
         "size_anchor": size_anchor,
-        "discount_note": valuation_config.get("discount_note"),
+        "discount_note": cfg.valuation.discount_note,
         "low_margin_comps": low_margin_comps,
         "financial_benchmarks": _financial_benchmarks(
             companies_by_ticker, top15, target_config, imputation_medians, target_business_model,
@@ -1712,12 +1716,12 @@ def generate(
         "SIZE_BAND_MULTIPLE": SIZE_BAND_MULTIPLE,
         "STRICT_SIZE_BAND_LOWER_MULTIPLE": STRICT_SIZE_BAND_LOWER_MULTIPLE,
         "STRICT_SIZE_BAND_UPPER_MULTIPLE": STRICT_SIZE_BAND_UPPER_MULTIPLE,
-        "prepared_by": output_config.get("prepared_by"),
-        "confidential": bool(output_config.get("confidential", False)),
+        "prepared_by": cfg.output.prepared_by,
+        "confidential": cfg.output.confidential,
     }
 
     output_paths = {}
-    report_formats = _report_formats_from_config(config)
+    report_formats = _report_formats_from_config(cfg)
     if "csv" in report_formats:
         output_paths["csv"] = _write_csv(top15_rows)
     if "html" in report_formats:

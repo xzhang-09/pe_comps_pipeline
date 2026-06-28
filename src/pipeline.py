@@ -18,16 +18,14 @@ def _ensure_directories() -> None:
         Path(directory).mkdir(parents=True, exist_ok=True)
 
 
-def _load_config(config_path: str) -> dict:
+def _load_config(config_path: str) -> PipelineConfig:
     with open(config_path, encoding="utf-8") as f:
         raw_config = yaml.safe_load(f)
 
     try:
-        validated = PipelineConfig.model_validate(raw_config)
+        return PipelineConfig.model_validate(raw_config)
     except ValidationError as e:
         raise ValueError(f"Invalid {config_path}:\n{e}") from e
-
-    return validated.model_dump()
 
 
 def run_pipeline(
@@ -80,8 +78,8 @@ def run_pipeline(
         current_step = "STEP 5/6: Scoring comps by distance to target"
         logger.info(current_step)
         scorer_results = scorer.run(
-            feature_matrix, config["target_company"], target_llm_features, imputation_medians,
-            config["scorer"]["feature_weights"],
+            feature_matrix, config.target_company, target_llm_features, imputation_medians,
+            config.scorer.feature_weights,
         )
         logger.info(f"Scored {len(scorer_results['company_scores'])} companies by financial-feature distance to target")
 
@@ -107,7 +105,7 @@ def run_pipeline(
         n_comps = 0
 
     elapsed = time.time() - start_time
-    target_name = config["target_company"]["name"]
+    target_name = config.target_company.name
 
     summary = (
         "=" * 60 + "\n"
