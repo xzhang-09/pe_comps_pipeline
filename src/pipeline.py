@@ -1,12 +1,15 @@
 import argparse
 import time
+from dataclasses import dataclass
 from pathlib import Path
 
+import pandas as pd
 import yaml
 from pydantic import ValidationError
 
 from src import feature_builder, fetcher, get_logger, llm_analyzer, reporter, scorer, universe_builder
 from src.config_schema import PipelineConfig
+from src.records import CompanyRecord
 
 logger = get_logger(__name__)
 
@@ -28,11 +31,99 @@ def _load_config(config_path: str) -> PipelineConfig:
         raise ValueError(f"Invalid {config_path}:\n{e}") from e
 
 
+@dataclass(frozen=True)
+class EnrichedUniverse:
+    """The target-agnostic output of the enrichment layer (steps 1-4): a
+    discovered, fetched, LLM-tagged comp pool plus the standardized feature
+    matrix built from it. Everything here depends only on the comp universe (and
+    the target's SIC codes that scoped discovery) — NOT on the target's financial
+    estimates or the scorer weights — so the same EnrichedUniverse can be scored
+    repeatedly against different target estimates / penalty weights without
+    re-running the expensive discover→fetch→extract work. score_and_report()
+    consumes it; this seam is what makes a future parameter-tuning loop (which
+    re-scores many times) practical."""
+
+    companies: list[CompanyRecord]
+    llm_features: dict[str, dict]
+    feature_matrix: pd.DataFrame
+    ev_ebitda_raw: pd.Series
+    imputation_medians: dict
+
+
+def enrich_universe(config: PipelineConfig) -> EnrichedUniverse:
+    """Steps 1-4: discover the comp universe from the target's SIC codes, fetch
+    fundamentals + market data, extract comp business-model features, and build
+    the standardized feature matrix. Target-financial-agnostic — see
+    EnrichedUniverse for why that matters."""
+    logger.info("STEP 1/6: Building universe")
+    candidates = universe_builder.build(config)
+    logger.info(f"Universe: {len(candidates)} candidates")
+
+    logger.info("STEP 2/6: Fetching financial data")
+    companies = fetcher.fetch_batch(candidates, config)
+    before_market_cap_filter = len(companies)
+    companies = universe_builder.filter_by_market_cap(companies)
+    if len(companies) != before_market_cap_filter:
+        logger.info(f"Market cap filter: kept {len(companies)}/{before_market_cap_filter} companies")
+    before_domicile_filter = len(companies)
+    companies = universe_builder.filter_by_domicile(companies)
+    if len(companies) != before_domicile_filter:
+        logger.info(f"Domicile filter: kept {len(companies)}/{before_domicile_filter} companies (US only)")
+    n_valid = sum(1 for c in companies if c.get("ev_ebitda") is not None)
+    logger.info(f"Fetched: {n_valid}/{len(companies)} companies with valid data")
+
+    logger.info("STEP 3/6: Running LLM analysis")
+    llm_features = llm_analyzer.analyze_batch(companies, config)
+    n_success = sum(1 for v in llm_features.values() if not v.get("extraction_failed"))
+    n_failed = sum(1 for v in llm_features.values() if v.get("extraction_failed"))
+    n_low = sum(1 for v in llm_features.values() if v.get("low_confidence_flag"))
+    logger.info(f"LLM extracted: {n_success} | failed: {n_failed} | low confidence: {n_low}")
+
+    logger.info("STEP 4/6: Building feature matrix")
+    feature_matrix, ev_ebitda_raw, imputation_medians = feature_builder.build(companies, llm_features)
+    logger.info(f"Feature matrix: {feature_matrix.shape[0]} rows x {feature_matrix.shape[1]} columns")
+
+    return EnrichedUniverse(
+        companies=companies,
+        llm_features=llm_features,
+        feature_matrix=feature_matrix,
+        ev_ebitda_raw=ev_ebitda_raw,
+        imputation_medians=imputation_medians,
+    )
+
+
+def score_and_report(universe: EnrichedUniverse, config: PipelineConfig) -> dict:
+    """Target-specific tail: extract the target's own business-model features,
+    score the enriched comp pool by distance to the target (step 5), and generate
+    the report (step 6). Re-runnable against the same EnrichedUniverse with
+    different target estimates / scorer weights without re-enriching."""
+    target_llm_features = llm_analyzer.analyze_target(config)
+
+    logger.info("STEP 5/6: Scoring comps by distance to target")
+    scorer_results = scorer.run(
+        universe.feature_matrix, config.target_company, target_llm_features,
+        universe.imputation_medians, config.scorer.feature_weights,
+    )
+    logger.info(f"Scored {len(scorer_results['company_scores'])} companies by financial-feature distance to target")
+
+    logger.info("STEP 6/6: Generating report")
+    output_paths = reporter.generate(
+        scorer_results, universe.companies, universe.llm_features, target_llm_features,
+        universe.imputation_medians, config,
+    )
+    saved_reports = [path for key, path in output_paths.items() if key != "n_comps"]
+    logger.info(f"Report saved: {', '.join(saved_reports)}")
+    return output_paths
+
+
 def run_pipeline(
     config_path: str = "config.yaml",
 ) -> dict:
     """
-    Run the full pipeline end-to-end.
+    Run the full pipeline end-to-end: enrich the comp universe, then score it
+    against the target and report. The two layers are separable (see
+    enrich_universe / score_and_report) so the same universe can be re-scored
+    without re-enriching.
 
     Returns the output paths dict from reporter.generate().
     """
@@ -40,60 +131,18 @@ def run_pipeline(
     _ensure_directories()
     config = _load_config(config_path)
 
-    current_step = None
     try:
-        current_step = "STEP 1/6: Building universe"
-        logger.info(current_step)
-        candidates = universe_builder.build(config)
-        logger.info(f"Universe: {len(candidates)} candidates")
-
-        current_step = "STEP 2/6: Fetching financial data"
-        logger.info(current_step)
-        companies = fetcher.fetch_batch(candidates, config)
-        before_market_cap_filter = len(companies)
-        companies = universe_builder.filter_by_market_cap(companies)
-        if len(companies) != before_market_cap_filter:
-            logger.info(f"Market cap filter: kept {len(companies)}/{before_market_cap_filter} companies")
-        before_domicile_filter = len(companies)
-        companies = universe_builder.filter_by_domicile(companies)
-        if len(companies) != before_domicile_filter:
-            logger.info(f"Domicile filter: kept {len(companies)}/{before_domicile_filter} companies (US only)")
-        n_valid = sum(1 for c in companies if c.get("ev_ebitda") is not None)
-        logger.info(f"Fetched: {n_valid}/{len(companies)} companies with valid data")
-
-        current_step = "STEP 3/6: Running LLM analysis"
-        logger.info(current_step)
-        llm_features = llm_analyzer.analyze_batch(companies, config)
-        target_llm_features = llm_analyzer.analyze_target(config)
-        n_success = sum(1 for v in llm_features.values() if not v.get("extraction_failed"))
-        n_failed = sum(1 for v in llm_features.values() if v.get("extraction_failed"))
-        n_low = sum(1 for v in llm_features.values() if v.get("low_confidence_flag"))
-        logger.info(f"LLM extracted: {n_success} | failed: {n_failed} | low confidence: {n_low}")
-
-        current_step = "STEP 4/6: Building feature matrix"
-        logger.info(current_step)
-        feature_matrix, ev_ebitda_raw, imputation_medians = feature_builder.build(companies, llm_features)
-        logger.info(f"Feature matrix: {feature_matrix.shape[0]} rows x {feature_matrix.shape[1]} columns")
-
-        current_step = "STEP 5/6: Scoring comps by distance to target"
-        logger.info(current_step)
-        scorer_results = scorer.run(
-            feature_matrix, config.target_company, target_llm_features, imputation_medians,
-            config.scorer.feature_weights,
-        )
-        logger.info(f"Scored {len(scorer_results['company_scores'])} companies by financial-feature distance to target")
-
-        current_step = "STEP 6/6: Generating report"
-        logger.info(current_step)
-        output_paths = reporter.generate(
-            scorer_results, companies, llm_features, target_llm_features, imputation_medians, config,
-        )
-        saved_reports = [path for key, path in output_paths.items() if key != "n_comps"]
-        logger.info(f"Report saved: {', '.join(saved_reports)}")
-
+        universe = enrich_universe(config)
     except Exception:
-        logger.error(f"Pipeline failed during: {current_step}", exc_info=True)
-        print(f"Pipeline failed during: {current_step} — see logs/pipeline.log for details.")
+        logger.error("Pipeline failed during universe enrichment (steps 1-4)", exc_info=True)
+        print("Pipeline failed during universe enrichment — see logs/pipeline.log for details.")
+        raise
+
+    try:
+        output_paths = score_and_report(universe, config)
+    except Exception:
+        logger.error("Pipeline failed during scoring/report (steps 5-6)", exc_info=True)
+        print("Pipeline failed during scoring/report — see logs/pipeline.log for details.")
         raise
 
     if "n_comps" in output_paths:

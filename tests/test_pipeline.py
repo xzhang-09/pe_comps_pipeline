@@ -146,3 +146,43 @@ def test_main_suggest_sic_codes_handles_empty_suggestions(mocker, tmp_path, monk
     output = capsys.readouterr().out
     assert "No SIC code suggestions" in output
     mock_run.assert_not_called()
+
+
+def test_score_and_report_reuses_universe_without_re_enriching(mocker, tmp_path, monkeypatch):
+    # The payoff of the enrichment/scoring split: an already-enriched universe can
+    # be scored repeatedly (e.g. a tuning loop varying config) without re-running
+    # any of the expensive discover/fetch/extract work.
+    monkeypatch.chdir(tmp_path)
+    config = pipeline._load_config(str(_write_config(tmp_path)))
+
+    universe = pipeline.EnrichedUniverse(
+        companies=[{"ticker": "AAA", "ev_ebitda": 12.0}],
+        llm_features={"AAA": {"business_model": "manufacturing", "extraction_failed": False, "low_confidence_flag": False}},
+        feature_matrix=pd.DataFrame({"ebitda_margin": [0.2], "ev_ebitda_log": [2.5]}, index=["AAA"]),
+        ev_ebitda_raw=pd.Series([12.0], index=["AAA"]),
+        imputation_medians={"ebitda_margin": 0.2},
+    )
+
+    enrich_mocks = {
+        "universe_builder.build": mocker.patch("src.pipeline.universe_builder.build"),
+        "fetcher.fetch_batch": mocker.patch("src.pipeline.fetcher.fetch_batch"),
+        "llm_analyzer.analyze_batch": mocker.patch("src.pipeline.llm_analyzer.analyze_batch"),
+        "feature_builder.build": mocker.patch("src.pipeline.feature_builder.build"),
+    }
+    mocker.patch("src.pipeline.llm_analyzer.analyze_target", return_value={"business_model": "manufacturing"})
+    scorer_run = mocker.patch(
+        "src.pipeline.scorer.run",
+        return_value={
+            "company_scores": pd.DataFrame({"residual_abs": [0.5]}, index=["AAA"]),
+            "feature_distance_sq_diff": pd.DataFrame({"ebitda_margin": [0.1]}, index=["AAA"]),
+        },
+    )
+    generate = mocker.patch("src.pipeline.reporter.generate", return_value={"csv": "x.csv", "n_comps": 1})
+
+    pipeline.score_and_report(universe, config)
+    pipeline.score_and_report(universe, config)
+
+    for name, m in enrich_mocks.items():
+        assert not m.called, f"{name} was called during scoring — universe was re-enriched"
+    assert scorer_run.call_count == 2     # scored twice off the one enriched universe
+    assert generate.call_count == 2
