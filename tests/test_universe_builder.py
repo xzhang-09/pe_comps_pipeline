@@ -34,45 +34,32 @@ def test_filter_by_market_cap_makes_no_fmp_calls(mocker):
     mock_get_profile.assert_not_called()
 
 
-def _config(max_candidates=10, primary_allocation_pct=0.8, primary_sics=None, adjacent_sics=None):
-    return {
-        "target_company": {
-            "primary_sic_codes": primary_sics if primary_sics is not None else ["1111"],
-            "adjacent_sic_codes": adjacent_sics if adjacent_sics is not None else ["2222"],
-        },
-        "universe": {
-            "max_candidates": max_candidates,
-            "primary_allocation_pct": primary_allocation_pct,
-        },
-    }
-
-
-def test_build_uses_sic_discovery_for_primary_bucket(mocker):
+def test_build_uses_sic_discovery_for_primary_bucket(mocker, make_config):
     mocker.patch(
         "src.universe_builder.sic_universe_builder.discover_tickers_by_sic",
         side_effect=lambda sics: ["SIC1"] if sics == ["1111"] else [],
     )
 
-    result = universe_builder.build(_config())
+    result = universe_builder.build(make_config())
 
     assert result[0]["ticker"] == "SIC1"
     assert result[0]["source_bucket"] == "primary"
     assert result[0]["matched_sic_codes"] == ["1111"]
 
 
-def test_build_adjacent_excludes_overlap_with_primary(mocker):
+def test_build_adjacent_excludes_overlap_with_primary(mocker, make_config):
     mocker.patch(
         "src.universe_builder.sic_universe_builder.discover_tickers_by_sic",
         side_effect=lambda sics: ["SHARED"],
     )
 
-    result = universe_builder.build(_config())
+    result = universe_builder.build(make_config())
 
     assert [r["ticker"] for r in result].count("SHARED") == 1
     assert result[0]["source_bucket"] == "primary"
 
 
-def test_build_respects_per_bucket_quota(mocker):
+def test_build_respects_per_bucket_quota(mocker, make_config):
     primary_pool = [f"P{i}" for i in range(10)]
     adjacent_pool = [f"A{i}" for i in range(10)]
     mocker.patch(
@@ -80,20 +67,22 @@ def test_build_respects_per_bucket_quota(mocker):
         side_effect=lambda sics: primary_pool if sics == ["1111"] else adjacent_pool,
     )
 
-    result = universe_builder.build(_config(max_candidates=10, primary_allocation_pct=0.8))
+    result = universe_builder.build(make_config(universe={"max_candidates": 10, "primary_allocation_pct": 0.8}))
 
     assert len([r for r in result if r["ticker"].startswith("P")]) == 8
     assert len([r for r in result if r["ticker"].startswith("A")]) == 2
     assert len(result) == 10
 
 
-def test_build_maps_sic_to_industry_cluster(mocker):
+def test_build_maps_sic_to_industry_cluster(mocker, make_config):
     mocker.patch(
         "src.universe_builder.sic_universe_builder.discover_tickers_by_sic",
         side_effect=lambda sics: ["AUTO"] if sics == ["3714"] else [],
     )
-    config = _config(primary_sics=["3714"], adjacent_sics=[])
-    config["universe"]["sic_clusters"] = {"3714": "auto_parts"}
+    config = make_config(
+        target_company={"primary_sic_codes": ["3714"], "adjacent_sic_codes": []},
+        universe={"sic_clusters": {"3714": "auto_parts"}},
+    )
 
     result = universe_builder.build(config)
 

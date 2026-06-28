@@ -156,3 +156,20 @@ class PipelineConfig(BaseModel):
     output: OutputConfig = Field(default_factory=OutputConfig)
     scorer: ScorerConfig = Field(default_factory=ScorerConfig)
     valuation: ValuationConfig = Field(default_factory=ValuationConfig)
+
+
+def as_config(config: "PipelineConfig | dict") -> "PipelineConfig":
+    """Coerce a raw config dict into a validated PipelineConfig, passing an
+    existing PipelineConfig through unchanged.
+
+    Migration scaffold for moving the pipeline off raw config dicts: a consumer
+    switches its body to typed attribute access (cfg.universe.max_candidates)
+    and calls as_config() at its entry, while still accepting the dict that
+    pipeline._load_config currently hands down and the dicts standalone scripts
+    build. Once _load_config returns the model directly, every as_config() call
+    becomes a cheap isinstance no-op. Validation here is full-config by design:
+    it deliberately refuses to let a module run against a half-built config that
+    could never pass production validation."""
+    if isinstance(config, PipelineConfig):
+        return config
+    return PipelineConfig.model_validate(config)

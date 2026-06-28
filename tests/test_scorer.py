@@ -38,7 +38,15 @@ def _medians(feature_matrix):
 
 
 def _target_config():
-    return {"revenue_usd_mm": 150, "ebitda_margin_estimate": 0.18}
+    # A valid TargetCompanyConfig (name/description/primary_sic_codes are
+    # required) — scorer.run now coerces this slice to the typed model.
+    return {
+        "name": "Target Co.",
+        "description": "Industrial parts manufacturer serving automotive OEMs.",
+        "primary_sic_codes": ["3714"],
+        "revenue_usd_mm": 150,
+        "ebitda_margin_estimate": 0.18,
+    }
 
 
 def _target_llm_features():
@@ -174,6 +182,9 @@ def test_feature_weights_all_default_when_no_template_or_default_matches():
 
 def _full_target_config():
     return {
+        "name": "Target Co.",
+        "description": "Industrial parts manufacturer serving automotive OEMs.",
+        "primary_sic_codes": ["3714"],
         "revenue_usd_mm": 150,
         "ebitda_margin_estimate": 0.18,
         "gross_margin_estimate": 0.35,
@@ -245,7 +256,10 @@ def test_providing_a_feature_makes_it_drive_ranking():
 
 def test_no_provided_features_falls_back_to_all_features():
     fm = _synthetic_feature_matrix()
-    result = scorer.run(fm, {}, _target_llm_features(), _medians(fm))
+    # Valid target identity, but no financial estimates at all (revenue and the
+    # five *_estimate fields all unset) — the degenerate case the fallback guards.
+    no_financials = {"name": "T", "description": "no financial estimates provided", "primary_sic_codes": ["3714"]}
+    result = scorer.run(fm, no_financials, _target_llm_features(), _medians(fm))
 
     assert set(result["observed_target_features"]) == set(FINANCIAL_COLUMNS)
     # Degenerate all-zero distances would mean nothing got scored apart.

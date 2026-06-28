@@ -152,7 +152,7 @@ def _config_with_leases(sample_config, include_leases):
     return {**sample_config, "valuation": {"include_operating_leases_in_ev": include_leases}}
 
 
-def test_cache_hit_skips_api_call(mocker, sample_company):
+def test_cache_hit_skips_api_call(mocker, sample_company, make_config):
     fetcher.CACHE_DIR.mkdir(parents=True, exist_ok=True)
     cache_payload = dict(sample_company, ticker="AAA")
     (fetcher.CACHE_DIR / "AAA.json").write_text(json.dumps(cache_payload), encoding="utf-8")
@@ -160,7 +160,7 @@ def test_cache_hit_skips_api_call(mocker, sample_company):
     mock_company_cls = mocker.patch("src.fetcher.edgar.Company")
     mock_fmp = mocker.patch("src.fetcher.fmp_client.get_profile")
 
-    results = fetcher.fetch_batch(["AAA"], {"universe": {"max_candidates": 10}})
+    results = fetcher.fetch_batch(["AAA"], make_config())
 
     mock_company_cls.assert_not_called()
     mock_fmp.assert_not_called()

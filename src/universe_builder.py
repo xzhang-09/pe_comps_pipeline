@@ -1,4 +1,5 @@
 from src import get_logger, sic_universe_builder
+from src.config_schema import PipelineConfig, as_config
 
 logger = get_logger(__name__)
 
@@ -137,7 +138,7 @@ def _merge_records(primary_records: list[dict], adjacent_records: list[dict], si
     return list(merged.values())
 
 
-def build(config: dict) -> list[dict]:
+def build(config: PipelineConfig | dict) -> list[dict]:
     """
     Return candidate records sourced entirely from the target company's own
     SIC codes — no hardcoded ticker list. Each record carries the ticker plus
@@ -155,12 +156,13 @@ def build(config: dict) -> list[dict]:
     not performed here, so the daily call budget is reserved for valuation
     enrichment.
     """
-    target = config["target_company"]
-    primary_sics = target["primary_sic_codes"]
-    adjacent_sics = target.get("adjacent_sic_codes", [])
-    universe_config = config.get("universe", {})
+    cfg = as_config(config)
+    target = cfg.target_company
+    primary_sics = target.primary_sic_codes
+    adjacent_sics = target.adjacent_sic_codes
+    universe_cfg = cfg.universe
 
-    sic_clusters = universe_config.get("sic_clusters", {})
+    sic_clusters = universe_cfg.sic_clusters
     primary_records = _records_for_bucket(primary_sics, "primary", sic_clusters)
     adjacent_records = _records_for_bucket(adjacent_sics, "adjacent", sic_clusters)
     merged_records = _merge_records(primary_records, adjacent_records, sic_clusters)
@@ -170,8 +172,8 @@ def build(config: dict) -> list[dict]:
     logger.info(f"Primary bucket — {len(primary_candidates)} candidates (SIC {primary_sics})")
     logger.info(f"Adjacent bucket — {len(adjacent_candidates)} candidates (SIC {adjacent_sics})")
 
-    max_candidates = config["universe"]["max_candidates"]
-    primary_allocation_pct = config["universe"]["primary_allocation_pct"]
+    max_candidates = universe_cfg.max_candidates
+    primary_allocation_pct = universe_cfg.primary_allocation_pct
     primary_quota = round(max_candidates * primary_allocation_pct)
     adjacent_quota = max_candidates - primary_quota
 

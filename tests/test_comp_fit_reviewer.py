@@ -7,6 +7,7 @@ def _target():
     return {
         "name": "Example Manufacturing Co.",
         "description": "Industrial parts manufacturer serving automotive OEMs.",
+        "primary_sic_codes": ["3714"],
         "revenue_usd_mm": 150,
         "ebitda_margin_estimate": 0.18,
     }
@@ -33,17 +34,7 @@ def _top_comp(ticker="AAA"):
     }
 
 
-def _config():
-    return {
-        "llm": {
-            "judge_model": "gpt-4.1-mini",
-            "temperature": 0,
-            "max_tokens": 500,
-        },
-    }
-
-
-def test_review_comp_fit_parses_and_caches_llm_response(mocker, tmp_path):
+def test_review_comp_fit_parses_and_caches_llm_response(mocker, tmp_path, make_config):
     mocker.patch.object(comp_fit_reviewer, "REVIEW_PATH", tmp_path / "comp_fit_review.json")
     response = json.dumps({
         "overall_score": 82,
@@ -59,30 +50,30 @@ def test_review_comp_fit_parses_and_caches_llm_response(mocker, tmp_path):
     mocker.patch("src.comp_fit_reviewer.openai.OpenAI", return_value=client)
     mocker.patch("src.comp_fit_reviewer._call_openai", return_value=response)
 
-    result = comp_fit_reviewer.review_comp_fit(_target(), [_top_comp()], [], _config())
+    result = comp_fit_reviewer.review_comp_fit(_target(), [_top_comp()], [], make_config())
 
     assert result["status"] == "available"
     assert result["overall_score"] == 82
     assert comp_fit_reviewer.REVIEW_PATH.exists()
 
-    cached_result = comp_fit_reviewer.review_comp_fit(_target(), [_top_comp()], [], _config())
+    cached_result = comp_fit_reviewer.review_comp_fit(_target(), [_top_comp()], [], make_config())
 
     assert cached_result["status"] == "available"
     assert comp_fit_reviewer._call_openai.call_count == 1
 
 
-def test_review_comp_fit_returns_unavailable_on_invalid_json(mocker, tmp_path):
+def test_review_comp_fit_returns_unavailable_on_invalid_json(mocker, tmp_path, make_config):
     mocker.patch.object(comp_fit_reviewer, "REVIEW_PATH", tmp_path / "comp_fit_review.json")
     mocker.patch("src.comp_fit_reviewer.openai.OpenAI")
     mocker.patch("src.comp_fit_reviewer._call_openai", return_value="not json")
 
-    result = comp_fit_reviewer.review_comp_fit(_target(), [_top_comp()], [], _config())
+    result = comp_fit_reviewer.review_comp_fit(_target(), [_top_comp()], [], make_config())
 
     assert result["status"] == "unavailable"
     assert "invalid JSON" in result["reason"]
 
 
-def test_review_comp_fit_refreshes_when_signature_changes(mocker, tmp_path):
+def test_review_comp_fit_refreshes_when_signature_changes(mocker, tmp_path, make_config):
     mocker.patch.object(comp_fit_reviewer, "REVIEW_PATH", tmp_path / "comp_fit_review.json")
     responses = [
         json.dumps({
@@ -109,8 +100,8 @@ def test_review_comp_fit_refreshes_when_signature_changes(mocker, tmp_path):
     mocker.patch("src.comp_fit_reviewer.openai.OpenAI")
     call = mocker.patch("src.comp_fit_reviewer._call_openai", side_effect=responses)
 
-    first = comp_fit_reviewer.review_comp_fit(_target(), [_top_comp("AAA")], [], _config())
-    second = comp_fit_reviewer.review_comp_fit(_target(), [_top_comp("BBB")], [], _config())
+    first = comp_fit_reviewer.review_comp_fit(_target(), [_top_comp("AAA")], [], make_config())
+    second = comp_fit_reviewer.review_comp_fit(_target(), [_top_comp("BBB")], [], make_config())
 
     assert first["overall_score"] == 70
     assert second["overall_score"] == 80

@@ -6,6 +6,7 @@ import openai
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_fixed
 
 from src import get_logger
+from src.config_schema import PipelineConfig, as_config
 
 logger = get_logger(__name__)
 
@@ -210,8 +211,8 @@ def _failed_result() -> dict:
     }
 
 
-def _extract_and_judge(client, ticker: str, company_name: str, business_description: str, config: dict) -> dict:
-    llm_config = config["llm"]
+def _extract_and_judge(client, ticker: str, company_name: str, business_description: str, config: PipelineConfig) -> dict:
+    llm_config = config.llm
 
     user_prompt = USER_PROMPT_TEMPLATE.format(
         company_name=company_name, business_description=business_description,
@@ -219,8 +220,8 @@ def _extract_and_judge(client, ticker: str, company_name: str, business_descript
 
     try:
         extraction_text = _call_openai(
-            client, llm_config["extraction_model"], SYSTEM_PROMPT, user_prompt,
-            llm_config["temperature"], llm_config["max_tokens"],
+            client, llm_config.extraction_model, SYSTEM_PROMPT, user_prompt,
+            llm_config.temperature, llm_config.max_tokens,
         )
     except Exception as e:
         logger.warning(f"{ticker} — extraction API call failed: {e}")
@@ -238,8 +239,8 @@ def _extract_and_judge(client, ticker: str, company_name: str, business_descript
     judge_result = None
     try:
         judge_text = _call_openai(
-            client, llm_config["judge_model"], None, judge_prompt,
-            llm_config["temperature"], llm_config["max_tokens"],
+            client, llm_config.judge_model, None, judge_prompt,
+            llm_config.temperature, llm_config.max_tokens,
         )
         judge_result = _parse_json_response(judge_text, ticker)
     except Exception as e:
@@ -247,7 +248,7 @@ def _extract_and_judge(client, ticker: str, company_name: str, business_descript
 
     judge_score = judge_result.get("score") if judge_result else None
     judge_reason = judge_result.get("reason") if judge_result else None
-    judge_threshold = llm_config["judge_threshold"]
+    judge_threshold = llm_config.judge_threshold
 
     result = {field: extraction.get(field) for field in EXTRACTION_FIELDS}
 
@@ -272,7 +273,7 @@ def _extract_and_judge(client, ticker: str, company_name: str, business_descript
     return result
 
 
-def analyze_batch(companies: list[dict], config: dict) -> dict[str, dict]:
+def analyze_batch(companies: list[dict], config: PipelineConfig | dict) -> dict[str, dict]:
     """
     Extract business model features for each company.
 
@@ -289,8 +290,9 @@ def analyze_batch(companies: list[dict], config: dict) -> dict[str, dict]:
         Writes/updates data/checkpoints/llm_checkpoint.json
         Logs progress to pipeline.log
     """
+    cfg = as_config(config)
     checkpoint = _load_checkpoint()
-    batch_size = config["llm"]["batch_size"]
+    batch_size = cfg.llm.batch_size
     client = openai.OpenAI()
 
     processed_since_save = 0
@@ -314,7 +316,7 @@ def analyze_batch(companies: list[dict], config: dict) -> dict[str, dict]:
 
         logger.info(f"Analyzing {ticker}...")
         checkpoint[ticker] = _extract_and_judge(
-            client, ticker, company.get("company_name", ticker), description, config,
+            client, ticker, company.get("company_name", ticker), description, cfg,
         )
 
         processed_since_save += 1
@@ -326,18 +328,19 @@ def analyze_batch(companies: list[dict], config: dict) -> dict[str, dict]:
     return checkpoint
 
 
-def analyze_target(config: dict) -> dict:
+def analyze_target(config: PipelineConfig | dict) -> dict:
     """
     Run LLM extraction on the target company description from config.
     Returns the same extraction result dict format.
     Does NOT use the checkpoint (target company is always re-analyzed).
     """
-    target = config["target_company"]
+    cfg = as_config(config)
+    target = cfg.target_company
     client = openai.OpenAI()
-    return _extract_and_judge(client, "TARGET", target["name"], target["description"], config)
+    return _extract_and_judge(client, "TARGET", target.name, target.description, cfg)
 
 
-def suggest_sic_codes(config: dict) -> list[dict]:
+def suggest_sic_codes(config: PipelineConfig | dict) -> list[dict]:
     """
     Suggest candidate SIC codes for the target's primary/adjacent_sic_codes
     config fields, based on its free-text description — advisory only, does
@@ -348,15 +351,16 @@ def suggest_sic_codes(config: dict) -> list[dict]:
     code list (https://www.sec.gov/info/edgar/siccodes.htm) before adding it
     to config.yaml. Never raises — returns [] on any failure.
     """
-    target = config["target_company"]
-    llm_config = config["llm"]
+    cfg = as_config(config)
+    target = cfg.target_company
+    llm_config = cfg.llm
     client = openai.OpenAI()
 
-    prompt = SIC_SUGGESTION_PROMPT_TEMPLATE.format(description=target["description"])
+    prompt = SIC_SUGGESTION_PROMPT_TEMPLATE.format(description=target.description)
     try:
         text = _call_openai(
-            client, llm_config["extraction_model"], SIC_SUGGESTION_SYSTEM_PROMPT, prompt,
-            llm_config["temperature"], llm_config["max_tokens"],
+            client, llm_config.extraction_model, SIC_SUGGESTION_SYSTEM_PROMPT, prompt,
+            llm_config.temperature, llm_config.max_tokens,
         )
     except Exception as e:
         logger.warning(f"SIC code suggestion API call failed: {e}")

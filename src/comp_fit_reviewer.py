@@ -6,6 +6,7 @@ from pathlib import Path
 import openai
 
 from src import get_logger
+from src.config_schema import PipelineConfig, TargetCompanyConfig, as_config
 from src.llm_analyzer import _call_openai, _strip_markdown_fences
 
 logger = get_logger(__name__)
@@ -94,13 +95,13 @@ def _canonical_json(data) -> str:
     return json.dumps(data, sort_keys=True, separators=(",", ":"), default=str)
 
 
-def _signature(target_config: dict, top_comps: list[dict], near_misses: list[dict]) -> str:
+def _signature(target_config: TargetCompanyConfig, top_comps: list[dict], near_misses: list[dict]) -> str:
     payload = {
         "target": {
-            "name": target_config.get("name"),
-            "description": target_config.get("description"),
-            "revenue_usd_mm": target_config.get("revenue_usd_mm"),
-            "ebitda_margin_estimate": target_config.get("ebitda_margin_estimate"),
+            "name": target_config.name,
+            "description": target_config.description,
+            "revenue_usd_mm": target_config.revenue_usd_mm,
+            "ebitda_margin_estimate": target_config.ebitda_margin_estimate,
         },
         "review_prompt_version": REVIEW_PROMPT_VERSION,
         "top_comps": top_comps,
@@ -187,7 +188,7 @@ def _normalize_review(review: dict) -> dict:
     }
 
 
-def _max_revenue_ratio(target_config: dict, top_comps: list[dict]) -> dict | None:
+def _max_revenue_ratio(target_config: TargetCompanyConfig, top_comps: list[dict]) -> dict | None:
     """
     Precomputes the largest comp/target revenue ratio deterministically and
     hands it to the LLM as a given fact (see SYSTEM_PROMPT's instruction to
@@ -198,7 +199,7 @@ def _max_revenue_ratio(target_config: dict, top_comps: list[dict]) -> dict | Non
     the true max), and a wrong ratio in the summary directly contradicts
     the report's own deterministic scale-reconciliation note elsewhere.
     """
-    target_revenue = target_config.get("revenue_usd_mm")
+    target_revenue = target_config.revenue_usd_mm
     if not target_revenue or target_revenue <= 0:
         return None
     candidates = [
@@ -211,20 +212,30 @@ def _max_revenue_ratio(target_config: dict, top_comps: list[dict]) -> dict | Non
     return {"ticker": max_ticker, "ratio": round(max_revenue / target_revenue, 1)}
 
 
-def review_comp_fit(target_config: dict, top_comps: list[dict], near_misses: list[dict], config: dict) -> dict:
-    signature = _signature(target_config, top_comps, near_misses)
+def review_comp_fit(
+    target_config: TargetCompanyConfig | dict,
+    top_comps: list[dict],
+    near_misses: list[dict],
+    config: PipelineConfig | dict,
+) -> dict:
+    target = (
+        target_config if isinstance(target_config, TargetCompanyConfig)
+        else TargetCompanyConfig.model_validate(target_config)
+    )
+    cfg = as_config(config)
+    signature = _signature(target, top_comps, near_misses)
     cached = _load_cached(signature)
     if cached is not None:
         return cached
 
-    llm_config = config["llm"]
+    llm_config = cfg.llm
     prompt = PROMPT_TEMPLATE.format(
         target_json=json.dumps({
-            "name": target_config.get("name"),
-            "description": target_config.get("description"),
-            "revenue_usd_mm": target_config.get("revenue_usd_mm"),
-            "ebitda_margin_estimate": target_config.get("ebitda_margin_estimate"),
-            "max_revenue_ratio_among_selected_comps": _max_revenue_ratio(target_config, top_comps),
+            "name": target.name,
+            "description": target.description,
+            "revenue_usd_mm": target.revenue_usd_mm,
+            "ebitda_margin_estimate": target.ebitda_margin_estimate,
+            "max_revenue_ratio_among_selected_comps": _max_revenue_ratio(target, top_comps),
         }, indent=2),
         top_comps_json=json.dumps(top_comps, indent=2),
         near_misses_json=json.dumps(near_misses, indent=2),
@@ -232,8 +243,8 @@ def review_comp_fit(target_config: dict, top_comps: list[dict], near_misses: lis
 
     try:
         text = _call_openai(
-            openai.OpenAI(), llm_config["judge_model"], SYSTEM_PROMPT, prompt,
-            llm_config["temperature"], max(REVIEW_MAX_OUTPUT_TOKENS, llm_config["max_tokens"]),
+            openai.OpenAI(), llm_config.judge_model, SYSTEM_PROMPT, prompt,
+            llm_config.temperature, max(REVIEW_MAX_OUTPUT_TOKENS, llm_config.max_tokens),
         )
     except Exception as e:
         logger.warning(f"Comp-fit review API call failed: {e}")

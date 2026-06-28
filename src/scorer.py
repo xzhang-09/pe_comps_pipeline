@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 
 from src import get_logger
+from src.config_schema import TargetCompanyConfig
 from src.feature_builder import FINANCIAL_FEATURE_COLUMNS, LABEL_COLUMN, median_for
 
 logger = get_logger(__name__)
@@ -48,7 +49,7 @@ def _feature_weights(feature_weights_config: dict, business_model: str | None) -
 
 
 def _target_financial_row(
-    target_config: dict, imputation_medians: dict, target_business_model: str | None,
+    target_config: TargetCompanyConfig, imputation_medians: dict, target_business_model: str | None,
 ) -> tuple[dict, list[str]]:
     """
     Builds the target's financial feature vector and the list of features the
@@ -65,7 +66,7 @@ def _target_financial_row(
 
     observed: list[str] = []
 
-    revenue = target_config.get("revenue_usd_mm")
+    revenue = target_config.revenue_usd_mm
     if revenue is not None:
         revenue_log = np.log1p(revenue)
         observed.append("revenue_ttm_log")
@@ -74,7 +75,7 @@ def _target_financial_row(
 
     target_row = {"revenue_ttm_log": revenue_log}
     for feature, config_key in TARGET_FEATURE_CONFIG_KEYS.items():
-        provided = target_config.get(config_key)
+        provided = getattr(target_config, config_key)
         if provided is not None:
             target_row[feature] = provided
             observed.append(feature)
@@ -145,7 +146,7 @@ def feature_distance_breakdown(sq_diff: pd.DataFrame, tickers: list[str], top_n:
 
 def run(
     feature_matrix: pd.DataFrame,
-    target_config: dict,
+    target_config: TargetCompanyConfig | dict,
     target_llm_features: dict,
     imputation_medians: dict,
     feature_weights_config: dict | None = None,
@@ -166,7 +167,11 @@ def run(
     financial_df = feature_matrix[list(FINANCIAL_FEATURE_COLUMNS)]
     ev_ebitda_raw = np.expm1(feature_matrix[LABEL_COLUMN])
 
-    target_row, observed_features = _target_financial_row(target_config, imputation_medians, target_business_model)
+    target = (
+        target_config if isinstance(target_config, TargetCompanyConfig)
+        else TargetCompanyConfig.model_validate(target_config)
+    )
+    target_row, observed_features = _target_financial_row(target, imputation_medians, target_business_model)
     if not observed_features:
         # No analyst-provided features at all (target gives neither revenue nor
         # any margin/growth/leverage estimate). Excluding everything would make

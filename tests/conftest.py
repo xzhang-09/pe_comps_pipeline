@@ -1,5 +1,44 @@
 import pytest
 
+from src.config_schema import PipelineConfig
+
+
+@pytest.fixture
+def make_config():
+    """Factory for a *valid* PipelineConfig in tests. Pass nested overrides as
+    dicts (shallow-merged into the defaults), e.g.
+    make_config(universe={"max_candidates": 5}). Validating through the real
+    schema means tests exercise the production contract instead of an ad-hoc
+    partial dict that could never pass pipeline._load_config — the migration to
+    typed config (config_schema.as_config) relies on every consumer receiving a
+    config that actually validates."""
+    def _make(**overrides) -> PipelineConfig:
+        base = {
+            "target_company": {
+                "name": "Test Co.",
+                "description": "Test company that manufactures industrial parts for OEMs.",
+                "primary_sic_codes": ["1111"],
+                "adjacent_sic_codes": ["2222"],
+            },
+            "universe": {"max_candidates": 10, "primary_allocation_pct": 0.8},
+            "llm": {
+                "extraction_model": "gpt-4.1",
+                "judge_model": "gpt-4.1-mini",
+                "temperature": 0,
+                "max_tokens": 500,
+                "batch_size": 20,
+                "judge_threshold": 3,
+            },
+        }
+        for key, value in overrides.items():
+            if isinstance(value, dict) and isinstance(base.get(key), dict):
+                base[key] = {**base[key], **value}
+            else:
+                base[key] = value
+        return PipelineConfig.model_validate(base)
+
+    return _make
+
 
 @pytest.fixture
 def sample_company():
@@ -27,6 +66,7 @@ def sample_config():
     return {
         "target_company": {
             "name": "Example Manufacturing Co.",
+            "description": "Industrial parts manufacturer serving automotive OEMs.",
             "gics_sector": "20",
             "gics_industry": "2010",
             "revenue_usd_mm": 150,

@@ -10,6 +10,7 @@ import pandas as pd
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from src import fmp_client, get_logger
+from src.config_schema import PipelineConfig, as_config
 
 logger = get_logger(__name__)
 
@@ -500,14 +501,14 @@ def _fetch_single(ticker: str) -> dict:
     }
 
 
-def _include_operating_leases(config: dict) -> bool:
+def _include_operating_leases(config: PipelineConfig) -> bool:
     """Whether to capitalize operating leases into EV. Defaults False: under
     ASC 842 operating-lease cost still runs through operating income, so EBITDA
     is net of rent — adding the lease liability to EV without also adding rent
     back (i.e. moving to EV/EBITDAR) would make the multiple internally
     inconsistent. The toggle exists for lease-heavy targets where the analyst
     wants the lease-capitalized view and accepts that caveat."""
-    return bool((config.get("valuation") or {}).get("include_operating_leases_in_ev", False))
+    return config.valuation.include_operating_leases_in_ev
 
 
 def _ev_from_bridge(record: dict, market_cap_usd_mm: float, include_leases: bool) -> float:
@@ -525,7 +526,7 @@ def _ev_from_bridge(record: dict, market_cap_usd_mm: float, include_leases: bool
     return market_cap_usd_mm + net_debt_usd_mm + minority + preferred + leases
 
 
-def _enrich_with_fmp_data(record: dict, ticker: str, config: dict, sleep_before: bool) -> None:
+def _enrich_with_fmp_data(record: dict, ticker: str, config: PipelineConfig, sleep_before: bool) -> None:
     """
     Best-effort FMP lookup via get_profile() only — market cap, sector, and
     a fallback for business_description when EDGAR's didn't come through.
@@ -671,13 +672,14 @@ def _empty_record(ticker: str) -> dict:
     return record
 
 
-def fetch_batch(tickers: list[str | dict], config: dict) -> list[dict]:
+def fetch_batch(tickers: list[str | dict], config: PipelineConfig | dict) -> list[dict]:
     """
     Fetch financial data for all tickers.
     Returns list of dicts (one per ticker, including failed ones with None values).
     Uses cache — skips API call if cache/{ticker}.json exists.
     Writes failures to outputs/failed_tickers.csv.
     """
+    cfg = as_config(config)
     results = []
     total = len(tickers)
     fmp_calls_made = 0
@@ -703,7 +705,7 @@ def fetch_batch(tickers: list[str | dict], config: dict) -> list[dict]:
             continue
 
         record = _attach_universe_metadata(record, candidate)
-        _enrich_with_fmp_data(record, ticker, config, sleep_before=fmp_calls_made > 0)
+        _enrich_with_fmp_data(record, ticker, cfg, sleep_before=fmp_calls_made > 0)
         fmp_calls_made += 1
 
         record = _validate(record, ticker)
