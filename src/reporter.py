@@ -1,6 +1,9 @@
 import csv
+import hashlib
+import json
 import math
 import re
+import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -1493,6 +1496,50 @@ def _report_formats_from_config(config: PipelineConfig) -> list[str]:
     return formats
 
 
+def _git_commit() -> str:
+    """Short HEAD SHA of the code that produced this report, or 'unknown' if git
+    isn't available or this isn't a checkout — provenance, never fatal."""
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"],
+            capture_output=True, text=True, timeout=5, check=True,
+        )
+        return result.stdout.strip() or "unknown"
+    except Exception:
+        return "unknown"
+
+
+def _config_hash(cfg: PipelineConfig) -> str:
+    """Stable 12-char fingerprint of the config that produced this report, so two
+    reports can be told apart (or confirmed identical) by inputs at a glance —
+    same canonical-JSON-then-sha256 approach comp_fit_reviewer uses for its cache
+    key."""
+    canonical = json.dumps(cfg.model_dump(), sort_keys=True, separators=(",", ":"), default=str)
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:12]
+
+
+def _oldest_timestamp(records: list[CompanyRecord], field: str) -> str | None:
+    """Oldest value of `field` across records (missing values ignored). ISO 8601
+    UTC timestamps sort lexicographically in chronological order, so min() is the
+    earliest — i.e. the worst-case staleness of that data layer."""
+    stamps = [r.get(field) for r in records if r.get(field)]
+    return min(stamps) if stamps else None
+
+
+def _provenance(cfg: PipelineConfig, comp_records: list[CompanyRecord]) -> dict:
+    """Self-attestation block: which config, which code, and how old the
+    underlying data actually is. With the layered cache (fetcher), a comp's data
+    is no longer necessarily fetched at run time — fundamentals can be up to their
+    TTL old and market cap up to its shorter TTL — so the report states the real
+    vintage rather than claiming everything is live."""
+    return {
+        "config_hash": _config_hash(cfg),
+        "code_version": _git_commit(),
+        "fundamentals_as_of": _oldest_timestamp(comp_records, "fetch_timestamp"),
+        "market_data_as_of": _oldest_timestamp(comp_records, "market_data_timestamp"),
+    }
+
+
 def generate(
     scorer_results: dict,
     companies: list[CompanyRecord],
@@ -1709,6 +1756,7 @@ def generate(
         "selection_summary": _selection_summary(top15, eligible_candidates, model_diagnostics, data_notes),
         "comp_fit_review": comp_fit_review,
         "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC"),
+        "provenance": _provenance(cfg, [companies_by_ticker[t] for t in top15 if t in companies_by_ticker]),
         "n_comps": len(top15_rows),
         "tukey_fence_multiplier": TUKEY_FENCE_MULTIPLIER,
         "meaningful_narrowing_ratio": MEANINGFUL_NARROWING_RATIO,

@@ -1,9 +1,11 @@
 import csv
+from pathlib import Path
 
 import pandas as pd
 import pytest
 
 import src.reporter as reporter
+from src.config_schema import as_config
 
 
 @pytest.fixture(autouse=True)
@@ -158,6 +160,37 @@ def test_top15_selected_correctly():
     with open(result["csv"], newline="", encoding="utf-8") as f:
         rows = list(csv.DictReader(f))
     assert len(rows) == 15
+
+
+def test_config_hash_deterministic_and_sensitive(make_config):
+    # Same config -> same fingerprint; any change -> different fingerprint.
+    assert reporter._config_hash(make_config()) == reporter._config_hash(make_config())
+    assert reporter._config_hash(make_config(universe={"max_candidates": 99})) != reporter._config_hash(make_config())
+
+
+def test_oldest_timestamp_picks_earliest_ignoring_missing():
+    records = [
+        {"fetch_timestamp": "2026-06-20T00:00:00+00:00"},
+        {"fetch_timestamp": "2026-06-10T00:00:00+00:00"},
+        {},  # no timestamp — ignored
+    ]
+    assert reporter._oldest_timestamp(records, "fetch_timestamp") == "2026-06-10T00:00:00+00:00"
+    assert reporter._oldest_timestamp([], "fetch_timestamp") is None
+
+
+def test_report_html_embeds_provenance():
+    companies, llm_features, company_scores = _build_sample(n=30, n_matching=15)
+    scorer_results = _scorer_results(company_scores)
+    config = _sample_config()
+
+    result = reporter.generate(
+        scorer_results, companies, llm_features, _llm(business_model="manufacturing"),
+        _imputation_medians(), config,
+    )
+
+    html = Path(result["html"]).read_text(encoding="utf-8")
+    assert reporter._config_hash(as_config(config)) in html  # report self-attests its config
+    assert "Provenance" in html
 
 
 def test_top_n_comps_config_controls_csv_row_count():
