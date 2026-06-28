@@ -11,6 +11,7 @@ from scipy import stats
 
 from src import comp_fit_reviewer, feature_builder, get_logger, llm_analyzer, scorer
 from src.config_schema import PipelineConfig, as_config
+from src.records import CompanyRecord
 
 logger = get_logger(__name__)
 
@@ -1494,7 +1495,7 @@ def _report_formats_from_config(config: PipelineConfig) -> list[str]:
 
 def generate(
     scorer_results: dict,
-    companies: list[dict],
+    companies: list[CompanyRecord],
     llm_features: dict[str, dict],
     target_llm_features: dict,
     imputation_medians: dict,

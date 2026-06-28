@@ -1,5 +1,6 @@
 from src import get_logger, sic_universe_builder
 from src.config_schema import PipelineConfig, as_config
+from src.records import CompanyRecord
 
 logger = get_logger(__name__)
 
@@ -9,7 +10,7 @@ logger = get_logger(__name__)
 MIN_MARKET_CAP_USD_MM = 30.0
 
 
-def filter_by_market_cap(companies: list[dict]) -> list[dict]:
+def filter_by_market_cap(companies: list[CompanyRecord]) -> list[CompanyRecord]:
     """
     Drop companies below MIN_MARKET_CAP_USD_MM, using the market_cap_usd_mm
     field fetcher.fetch_batch already populated via FMP during valuation
@@ -36,7 +37,7 @@ def filter_by_market_cap(companies: list[dict]) -> list[dict]:
     return filtered
 
 
-def filter_by_domicile(companies: list[dict], allowed_countries: set[str] | None = None) -> list[dict]:
+def filter_by_domicile(companies: list[CompanyRecord], allowed_countries: set[str] | None = None) -> list[CompanyRecord]:
     """Drop companies domiciled outside the allowed set (default: US only).
     Country comes from FMP's raw_fmp_profile.country field populated during
     enrichment. Companies with no FMP profile (country unknown) are kept so a

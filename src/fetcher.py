@@ -11,6 +11,7 @@ from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_ex
 
 from src import fmp_client, get_logger
 from src.config_schema import PipelineConfig, as_config
+from src.records import CompanyRecord
 
 logger = get_logger(__name__)
 
@@ -98,7 +99,7 @@ def _cache_path(ticker: str) -> Path:
     return CACHE_DIR / f"{ticker}.json"
 
 
-def _load_cache(ticker: str) -> dict | None:
+def _load_cache(ticker: str) -> CompanyRecord | None:
     path = _cache_path(ticker)
     if not path.exists():
         return None
@@ -106,7 +107,7 @@ def _load_cache(ticker: str) -> dict | None:
         return json.load(f)
 
 
-def _save_cache(ticker: str, record: dict) -> None:
+def _save_cache(ticker: str, record: CompanyRecord) -> None:
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
     with open(_cache_path(ticker), "w", encoding="utf-8") as f:
         json.dump(record, f, indent=2)
@@ -129,7 +130,7 @@ def _candidate_metadata(candidate: str | dict) -> dict:
     }
 
 
-def _attach_universe_metadata(record: dict, candidate: str | dict) -> dict:
+def _attach_universe_metadata(record: CompanyRecord, candidate: str | dict) -> CompanyRecord:
     metadata = _candidate_metadata(candidate)
     if not metadata:
         record.setdefault("universe_metadata", {})
@@ -388,7 +389,7 @@ def _log_retry(retry_state):
     before_sleep=_log_retry,
     reraise=True,
 )
-def _fetch_single(ticker: str) -> dict:
+def _fetch_single(ticker: str) -> CompanyRecord:
     """
     Fetch fundamentals from SEC EDGAR XBRL (10-K) — revenue, EBITDA, gross
     profit, capex, and now net_debt_ebitda too, since debt/cash are balance
@@ -511,7 +512,7 @@ def _include_operating_leases(config: PipelineConfig) -> bool:
     return config.valuation.include_operating_leases_in_ev
 
 
-def _ev_from_bridge(record: dict, market_cap_usd_mm: float, include_leases: bool) -> float:
+def _ev_from_bridge(record: CompanyRecord, market_cap_usd_mm: float, include_leases: bool) -> float:
     """Enterprise value = equity value (market cap) + net debt + minority
     interest + preferred equity (+ operating leases if opted in). Minority
     interest and preferred are senior claims on the consolidated business, so
@@ -526,7 +527,7 @@ def _ev_from_bridge(record: dict, market_cap_usd_mm: float, include_leases: bool
     return market_cap_usd_mm + net_debt_usd_mm + minority + preferred + leases
 
 
-def _enrich_with_fmp_data(record: dict, ticker: str, config: PipelineConfig, sleep_before: bool) -> None:
+def _enrich_with_fmp_data(record: CompanyRecord, ticker: str, config: PipelineConfig, sleep_before: bool) -> None:
     """
     Best-effort FMP lookup via get_profile() only — market cap, sector, and
     a fallback for business_description when EDGAR's didn't come through.
@@ -609,7 +610,7 @@ def _enrich_with_fmp_data(record: dict, ticker: str, config: PipelineConfig, sle
         record["fcf_yield"] = free_cash_flow_usd_mm / ev_usd_mm
 
 
-def _validate(record: dict, ticker: str) -> dict:
+def _validate(record: CompanyRecord, ticker: str) -> CompanyRecord:
     ev_ebitda = record.get("ev_ebitda")
     if ev_ebitda is not None and (ev_ebitda > 100 or ev_ebitda < 0):
         logger.warning(f"{ticker} — ev_ebitda outlier ({ev_ebitda}), setting None")
@@ -662,7 +663,7 @@ def _validate(record: dict, ticker: str) -> dict:
     return record
 
 
-def _empty_record(ticker: str) -> dict:
+def _empty_record(ticker: str) -> CompanyRecord:
     record = {field: None for field in EMPTY_FIELDS}
     record["ticker"] = ticker
     record["universe_metadata"] = {}
@@ -672,7 +673,7 @@ def _empty_record(ticker: str) -> dict:
     return record
 
 
-def fetch_batch(tickers: list[str | dict], config: PipelineConfig | dict) -> list[dict]:
+def fetch_batch(tickers: list[str | dict], config: PipelineConfig | dict) -> list[CompanyRecord]:
     """
     Fetch financial data for all tickers.
     Returns list of dicts (one per ticker, including failed ones with None values).

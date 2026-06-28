@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 
 from src import get_logger
+from src.records import CompanyRecord
 
 logger = get_logger(__name__)
 
@@ -32,11 +33,11 @@ UNKNOWN_GROUP = "unknown"
 GLOBAL_GROUP_KEY = "global"
 
 
-def _financial_raw_values(company: dict) -> dict:
+def _financial_raw_values(company: CompanyRecord) -> dict:
     return {field: company.get(field) for field in FINANCIAL_SOURCE_FIELDS}
 
 
-def _drop_rows(companies: list[dict], llm_features: dict[str, dict]) -> list[dict]:
+def _drop_rows(companies: list[CompanyRecord], llm_features: dict[str, dict]) -> list[CompanyRecord]:
     total = len(companies)
 
     with_label = [c for c in companies if c.get("ev_ebitda") is not None]
@@ -63,7 +64,7 @@ def _drop_rows(companies: list[dict], llm_features: dict[str, dict]) -> list[dic
     return after_llm
 
 
-def _build_financial_dataframe(companies: list[dict], tickers: list[str]) -> pd.DataFrame:
+def _build_financial_dataframe(companies: list[CompanyRecord], tickers: list[str]) -> pd.DataFrame:
     rows = []
     for c in companies:
         raw = _financial_raw_values(c)
@@ -82,7 +83,7 @@ def _build_financial_dataframe(companies: list[dict], tickers: list[str]) -> pd.
     return df
 
 
-def _group_key(company: dict, llm_features: dict[str, dict]) -> str:
+def _group_key(company: CompanyRecord, llm_features: dict[str, dict]) -> str:
     llm = llm_features.get(company["ticker"]) or {}
     return llm.get("business_model") or UNKNOWN_GROUP
 
@@ -125,7 +126,7 @@ def _impute_medians(financial_df: pd.DataFrame, group_keys: list[str]) -> dict:
 
 
 def build(
-    companies: list[dict],
+    companies: list[CompanyRecord],
     llm_features: dict[str, dict],
 ) -> tuple[pd.DataFrame, pd.Series, dict]:
     """
