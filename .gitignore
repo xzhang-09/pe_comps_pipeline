@@ -3,6 +3,7 @@ __pycache__/
 .venv/
 .DS_Store
 .pytest_cache/
+.coverage
 .env
 
 # Runtime artifacts are reproducible from a real pipeline run and should not be

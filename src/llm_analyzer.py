@@ -85,7 +85,7 @@ Rules:
   official SIC code list before using them — do not present them as
   certain."""
 
-SIC_SUGGESTION_PROMPT_TEMPLATE = """Suggest 3-6 candidate SIC codes for SEC EDGAR comparable-company
+SIC_SUGGESTION_PROMPT_TEMPLATE = """Suggest 6-12 candidate SIC codes for SEC EDGAR comparable-company
 discovery, based on this target company description.
 
 Description: {description}

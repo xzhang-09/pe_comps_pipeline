@@ -14,7 +14,7 @@ logger = get_logger(__name__)
 REVIEW_PATH = Path("outputs/comp_fit_review.json")
 REVIEW_MAX_OUTPUT_TOKENS = 2500
 
-REVIEW_PROMPT_VERSION = "analyst_memo_v6"
+REVIEW_PROMPT_VERSION = "analyst_memo_v7_scope_checked"
 
 SYSTEM_PROMPT = """You are a private equity analyst reviewing whether a selected
 public-company comparable set is a good fit for valuing a private target.
@@ -51,7 +51,11 @@ Rules:
 - The target JSON includes a pre-computed "max_revenue_ratio_among_selected_comps"
   field (ticker and ratio). When stating the largest revenue-scale ratio,
   use that exact number — do not compute your own ratio from the individual
-  comp revenue figures, which is error-prone across a list of this size."""
+  comp revenue figures, which is error-prone across a list of this size.
+- top_fits and questionable_fits must reference only tickers listed under
+  Selected Top Comps. near_miss_upgrades must reference only tickers listed
+  under Near-Miss Candidates. Never describe a near-miss ticker as a selected
+  comp."""
 
 PROMPT_TEMPLATE = """Review this comparable-company selection.
 

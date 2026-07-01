@@ -4,6 +4,7 @@ import requests
 
 FMP_BASE_URL = "https://financialmodelingprep.com/stable"
 REQUEST_TIMEOUT_SECONDS = 10
+FMP_FALLBACK_STATUS_CODES = {402, 403, 429}
 
 
 def _api_key() -> str:
@@ -14,6 +15,18 @@ def _api_key() -> str:
             "Export FMP_API_KEY=<your key> before running."
         )
     return key
+
+
+def _alternate_api_key() -> str | None:
+    return os.environ.get("FMP_API_KEY_ALTERNATE")
+
+
+def _profile_request(ticker: str, api_key: str) -> requests.Response:
+    return requests.get(
+        f"{FMP_BASE_URL}/profile",
+        params={"symbol": ticker, "apikey": api_key},
+        timeout=REQUEST_TIMEOUT_SECONDS,
+    )
 
 
 def get_profile(ticker: str) -> dict | None:
@@ -28,11 +41,14 @@ def get_profile(ticker: str) -> dict | None:
     plan, see README's "Using a paid FMP plan" note for how to get direct
     multiples from key-metrics/enterprise-values instead.
     """
-    resp = requests.get(
-        f"{FMP_BASE_URL}/profile",
-        params={"symbol": ticker, "apikey": _api_key()},
-        timeout=REQUEST_TIMEOUT_SECONDS,
-    )
-    resp.raise_for_status()
+    resp = _profile_request(ticker, _api_key())
+    try:
+        resp.raise_for_status()
+    except requests.HTTPError:
+        alternate_key = _alternate_api_key()
+        if resp.status_code not in FMP_FALLBACK_STATUS_CODES or not alternate_key:
+            raise
+        resp = _profile_request(ticker, alternate_key)
+        resp.raise_for_status()
     data = resp.json()
     return data[0] if data else None
