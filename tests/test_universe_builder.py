@@ -1,4 +1,20 @@
+import pytest
+
 import src.universe_builder as universe_builder
+
+
+@pytest.fixture(autouse=True)
+def sane_sic_preflight(mocker):
+    """
+    universe_builder.build() now preflights every SIC code against SEC
+    (see _preflight_sic_codes), which would hit the real network in these
+    tests. Default every code to a healthy filer count; the preflight
+    tests below override this with their own patch of the same target.
+    """
+    mocker.patch(
+        "src.universe_builder.sic_universe_builder.preflight_sic_codes",
+        side_effect=lambda sics: {sic: 10 for sic in sics},
+    )
 
 
 def test_filter_by_market_cap_below_threshold_filtered_out():
@@ -97,3 +113,37 @@ def test_build_maps_sic_to_industry_cluster(mocker, make_config):
         "industry_cluster": "auto_parts",
         "candidate_source": "sec_sic",
     }]
+
+
+def test_build_aborts_on_zero_filer_sic_code(mocker, make_config):
+    mocker.patch(
+        "src.universe_builder.sic_universe_builder.preflight_sic_codes",
+        side_effect=lambda sics: {sic: (0 if sic == "3535" else 10) for sic in sics},
+    )
+    discover = mocker.patch("src.universe_builder.sic_universe_builder.discover_tickers_by_sic")
+    config = make_config(target_company={"primary_sic_codes": ["3535", "3714"], "adjacent_sic_codes": []})
+
+    with pytest.raises(ValueError, match="no SEC filers with a usable US ticker for SIC code\\(s\\) 3535"):
+        universe_builder.build(config)
+    discover.assert_not_called()
+
+
+def test_build_aborts_on_broad_sic_code_unless_allowed(mocker, make_config):
+    mocker.patch(
+        "src.universe_builder.sic_universe_builder.preflight_sic_codes",
+        side_effect=lambda sics: {sic: (2000 if sic == "7373" else 10) for sic in sics},
+    )
+    mocker.patch(
+        "src.universe_builder.sic_universe_builder.discover_tickers_by_sic",
+        side_effect=lambda sics: ["TICK"],
+    )
+    config = make_config(target_company={"primary_sic_codes": ["7373"], "adjacent_sic_codes": []})
+
+    with pytest.raises(ValueError, match="7373 \\(2000 filers\\)"):
+        universe_builder.build(config)
+
+    allowed = make_config(
+        target_company={"primary_sic_codes": ["7373"], "adjacent_sic_codes": []},
+        universe={"allow_broad_sic_codes": True},
+    )
+    assert universe_builder.build(allowed)  # override lets the run proceed

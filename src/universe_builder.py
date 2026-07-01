@@ -139,6 +139,34 @@ def _merge_records(primary_records: list[dict], adjacent_records: list[dict], si
     return list(merged.values())
 
 
+def _preflight_sic_codes(sic_codes: list[str], allow_broad: bool) -> None:
+    """
+    Fail fast on SIC codes that can't produce a sane universe, before the
+    per-CIK ticker lookups start (see sic_universe_builder.preflight_sic_codes
+    for cost). Both failure modes were hit in validation and previously
+    surfaced only mid-run: a code with zero SEC filers silently contributed
+    nothing, and an over-broad code triggered hundreds of lookups for
+    companies unrelated to the target.
+    """
+    counts = sic_universe_builder.preflight_sic_codes(sic_codes)
+    zero = sorted(sic for sic, n in counts.items() if n == 0)
+    broad = {sic: n for sic, n in counts.items() if n > sic_universe_builder.BROAD_SIC_CIK_THRESHOLD}
+
+    if zero:
+        raise ValueError(
+            f"SIC preflight: no SEC filers with a usable US ticker for SIC code(s) {', '.join(zero)}. "
+            "Remove them from primary/adjacent_sic_codes (verify the code against the SEC SIC list, "
+            "or pick a nearby code that public companies actually file under)."
+        )
+    if broad and not allow_broad:
+        detail = ", ".join(f"{sic} ({n} filers)" for sic, n in sorted(broad.items()))
+        raise ValueError(
+            f"SIC preflight: {detail} exceed(s) the {sic_universe_builder.BROAD_SIC_CIK_THRESHOLD}-filer "
+            "threshold — such broad codes mostly fetch companies unrelated to the target and burn the SEC "
+            "request budget. Replace with a narrower code, or set universe.allow_broad_sic_codes: true to proceed."
+        )
+
+
 def build(config: PipelineConfig | dict) -> list[dict]:
     """
     Return candidate records sourced entirely from the target company's own
@@ -162,6 +190,8 @@ def build(config: PipelineConfig | dict) -> list[dict]:
     primary_sics = target.primary_sic_codes
     adjacent_sics = target.adjacent_sic_codes
     universe_cfg = cfg.universe
+
+    _preflight_sic_codes(primary_sics + adjacent_sics, universe_cfg.allow_broad_sic_codes)
 
     sic_clusters = universe_cfg.sic_clusters
     primary_records = _records_for_bucket(primary_sics, "primary", sic_clusters)

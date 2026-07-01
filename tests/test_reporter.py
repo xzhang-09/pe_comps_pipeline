@@ -480,9 +480,9 @@ def test_html_report_includes_comp_fit_review_when_available(mocker):
         "summary": "The Top 15 are a solid directional comp set.",
         "strengths": ["Most selected companies are manufacturing/B2B."],
         "weaknesses": ["A few candidates have adjacent end markets."],
-        "top_fits": [{"ticker": "AAA", "score": 90, "reason": "Best business-model fit."}],
-        "questionable_fits": [{"ticker": "BBB", "score": 58, "reason": "Different end market."}],
-        "near_miss_upgrades": [{"ticker": "CCC", "score": 76, "reason": "Could replace a weaker fit."}],
+        "top_fits": [{"ticker": "T000", "score": 90, "reason": "Best business-model fit."}],
+        "questionable_fits": [{"ticker": "T001", "score": 58, "reason": "Different end market."}],
+        "near_miss_upgrades": [{"ticker": "T015", "score": 76, "reason": "Could replace a weaker fit."}],
     })
     companies, llm_features, company_scores = _build_sample(n=30, n_matching=15)
     scorer_results = _scorer_results(company_scores)
@@ -496,6 +496,93 @@ def test_html_report_includes_comp_fit_review_when_available(mocker):
     assert "Comparable Fit Review" in html_text
     assert "84 / 100" in html_text
     assert "Best business-model fit." in html_text
+    assert "Different end market." in html_text
+
+
+def test_html_report_counts_business_model_alignment_when_top_set_has_exception(mocker):
+    mocker.patch("src.reporter.comp_fit_reviewer.review_comp_fit", return_value={
+        "status": "available",
+        "overall_score": 70,
+        "review_confidence": "medium",
+        "summary": "Directional set.",
+        "strengths": [],
+        "weaknesses": [],
+        "top_fits": [],
+        "questionable_fits": [],
+        "near_miss_upgrades": [],
+    })
+    companies, llm_features, company_scores = _build_sample(n=30, n_matching=15)
+    llm_features["T014"] = _llm(business_model="services", customer_type="B2B")
+    llm_features["T013"] = _llm(business_model="manufacturing", customer_type="B2C")
+    scorer_results = _scorer_results(company_scores)
+
+    reporter.generate(
+        scorer_results, companies, llm_features, _llm(business_model="manufacturing", customer_type="B2B"),
+        _imputation_medians(), _sample_config(),
+    )
+
+    html_text = reporter.HTML_PATH.read_text(encoding="utf-8")
+    assert "14/15 comps match the target's business model (manufacturing)" in html_text
+    assert "Exceptions: T014 (services)" in html_text
+    assert "14/15 comps match the target's customer base (B2B)" in html_text
+    assert "Exceptions: T013 (B2C)" in html_text
+    assert "All Top 15 comps share" not in html_text
+
+
+def test_html_report_filters_comp_fit_review_tickers_to_their_scope(mocker):
+    mocker.patch("src.reporter.comp_fit_reviewer.review_comp_fit", return_value={
+        "status": "available",
+        "overall_score": 70,
+        "review_confidence": "medium",
+        "summary": "Directional set.",
+        "strengths": [],
+        "weaknesses": [],
+        "top_fits": [{"ticker": "T000", "score": 90, "reason": "Selected comp."}],
+        "questionable_fits": [{"ticker": "T020", "score": 55, "reason": "Near miss incorrectly listed as selected."}],
+        "near_miss_upgrades": [{"ticker": "T001", "score": 80, "reason": "Selected comp incorrectly listed as near miss."}],
+    })
+    companies, llm_features, company_scores = _build_sample(n=30, n_matching=15)
+    scorer_results = _scorer_results(company_scores)
+
+    reporter.generate(
+        scorer_results, companies, llm_features, _llm(business_model="manufacturing"),
+        _imputation_medians(), _sample_config(),
+    )
+
+    html_text = reporter.HTML_PATH.read_text(encoding="utf-8")
+    assert "Near miss incorrectly listed as selected." not in html_text
+    assert "Selected comp incorrectly listed as near miss." not in html_text
+    assert "Review scope check removed 1 selected-comp callout" in html_text
+
+
+def test_top_table_moves_business_customer_and_fit_reason_to_note(mocker):
+    mocker.patch("src.reporter.comp_fit_reviewer.review_comp_fit", return_value={
+        "status": "available",
+        "overall_score": 70,
+        "review_confidence": "medium",
+        "summary": "Directional set.",
+        "strengths": [],
+        "weaknesses": [],
+        "top_fits": [],
+        "questionable_fits": [{"ticker": "T001", "score": 55, "reason": "Different end market."}],
+        "near_miss_upgrades": [],
+    })
+    companies, llm_features, company_scores = _build_sample(n=30, n_matching=15)
+    llm_features["T001"] = _llm(business_model="services", customer_type="B2C")
+    company_scores.loc["T001", "residual_abs"] = 0.01
+    scorer_results = _scorer_results(company_scores)
+
+    reporter.generate(
+        scorer_results, companies, llm_features, _llm(business_model="manufacturing", customer_type="B2B"),
+        _imputation_medians(), _sample_config(),
+    )
+
+    html_text = reporter.HTML_PATH.read_text(encoding="utf-8")
+    assert "<th>Business</th>" not in html_text
+    assert "<th>Customer</th>" not in html_text
+    assert "<th>Fit Notes</th>" not in html_text
+    assert "business model mismatch" in html_text
+    assert "customer type mismatch" in html_text
     assert "Different end market." in html_text
 
 
@@ -761,3 +848,96 @@ def test_html_report_omits_adjusted_range_when_discount_zero():
 
     html_text = reporter.HTML_PATH.read_text(encoding="utf-8")
     assert "Private-company-adjusted implied EV" not in html_text
+
+
+def test_assign_tier_requires_no_mismatch_for_core():
+    assert reporter._assign_tier("strong", False, has_mismatch=False) == "core"
+    assert reporter._assign_tier("strong", False, has_mismatch=True) == "secondary"
+    assert reporter._assign_tier("strong", True, has_mismatch=False) == "review_exclude"
+    assert reporter._assign_tier("weak", False, has_mismatch=False) == "review_exclude"
+    assert reporter._assign_tier(None, False, has_mismatch=False) == "secondary"
+
+
+def test_mismatched_strong_fit_capped_at_secondary_in_csv(mocker):
+    # The LLM review calls both T000 and T005 strongest fits, but T005's
+    # business model mismatches the target — the deterministic mismatch
+    # check must cap it at secondary so the tier never contradicts the
+    # fit_notes printed next to it.
+    mocker.patch("src.reporter.comp_fit_reviewer.review_comp_fit", return_value={
+        "status": "available",
+        "overall_score": 80,
+        "review_confidence": "medium",
+        "summary": "Directional set.",
+        "strengths": [],
+        "weaknesses": [],
+        "top_fits": [
+            {"ticker": "T000", "score": 90, "reason": "Best fit."},
+            {"ticker": "T005", "score": 85, "reason": "Strong fit."},
+        ],
+        "questionable_fits": [],
+        "near_miss_upgrades": [],
+    })
+    companies, llm_features, company_scores = _build_sample(n=30, n_matching=15)
+    llm_features["T005"] = _llm(business_model="services")  # mismatch vs manufacturing target
+    scorer_results = _scorer_results(company_scores)
+
+    result = reporter.generate(
+        scorer_results, companies, llm_features, _llm(business_model="manufacturing"),
+        _imputation_medians(), _sample_config(),
+    )
+
+    with open(result["csv"], newline="", encoding="utf-8") as f:
+        rows = list(csv.DictReader(f))
+    tiers = {row["ticker"]: row["tier"] for row in rows}
+    assert tiers["T000"] == "core"
+    assert tiers["T005"] == "secondary"
+
+
+def test_report_rows_ordered_tier_first_and_reranked():
+    # T000 has the best financial fit but an extreme EV/EBITDA multiple —
+    # flagged review_exclude, so it must sink below the unflagged comps
+    # instead of leading the table, and ranks must be renumbered to match.
+    companies, llm_features, company_scores = _build_sample(n=30, n_matching=15)
+    company_scores.loc["T000", "ev_ebitda_actual"] = 100.0
+    scorer_results = _scorer_results(company_scores)
+
+    result = reporter.generate(
+        scorer_results, companies, llm_features, _llm(business_model="manufacturing"),
+        _imputation_medians(), _sample_config(),
+    )
+
+    with open(result["csv"], newline="", encoding="utf-8") as f:
+        rows = list(csv.DictReader(f))
+    assert rows[-1]["ticker"] == "T000"
+    assert rows[-1]["tier"] == "review_exclude"
+    tier_order = [reporter.TIER_ORDER[row["tier"]] for row in rows]
+    assert tier_order == sorted(tier_order)
+    assert [int(row["rank"]) for row in rows] == list(range(1, len(rows) + 1))
+
+
+def test_small_pool_stamps_warning_on_report_and_return_value():
+    companies, llm_features, company_scores = _build_sample(n=9, n_matching=9)
+    scorer_results = _scorer_results(company_scores)
+
+    result = reporter.generate(
+        scorer_results, companies, llm_features, _llm(business_model="manufacturing"),
+        _imputation_medians(), _sample_config(),
+    )
+
+    assert "only 9 eligible companies" in result["small_sample_warning"]
+    html_text = reporter.HTML_PATH.read_text(encoding="utf-8")
+    assert "Sample-size warning" in html_text
+    assert "only 9 eligible companies" in html_text
+
+
+def test_no_small_sample_warning_at_or_above_threshold():
+    companies, llm_features, company_scores = _build_sample(n=30, n_matching=15)
+    scorer_results = _scorer_results(company_scores)
+
+    result = reporter.generate(
+        scorer_results, companies, llm_features, _llm(business_model="manufacturing"),
+        _imputation_medians(), _sample_config(),
+    )
+
+    assert result["small_sample_warning"] is None
+    assert "Sample-size warning" not in reporter.HTML_PATH.read_text(encoding="utf-8")

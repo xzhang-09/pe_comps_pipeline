@@ -108,6 +108,30 @@ def _fetch_company_tickers(cik: int) -> list[str]:
     return [t for t in profile.get("tickers", []) if t]
 
 
+# Above this many SEC filers, a SIC code is almost certainly broader than
+# any single comp universe (validation hit this with 7373, "computer
+# integrated systems design") and the per-CIK ticker lookups it triggers
+# dominate the run's SEC request budget. universe_builder.build treats
+# crossing it as an error unless universe.allow_broad_sic_codes is set.
+BROAD_SIC_CIK_THRESHOLD = 500
+
+
+def preflight_sic_codes(sic_codes: list[str]) -> dict[str, int]:
+    """
+    Cheap SIC -> filer-count check run before ticker discovery, so a
+    zero-result or too-broad code is caught before the expensive per-CIK
+    ticker lookups (one SEC request each) rather than discovered mid-run.
+    Uses the ticker cache where one exists (that count is exact); otherwise
+    one browse-edgar enumeration per code (~1 request per 100 CIKs), which
+    discover_tickers_by_sic would have issued anyway.
+    """
+    counts = {}
+    for sic in dict.fromkeys(sic_codes):
+        cached = _load_cache(sic)
+        counts[sic] = len(cached) if cached is not None else len(_fetch_ciks_for_sic(sic))
+    return counts
+
+
 def discover_tickers_by_sic(sic_codes: list[str]) -> list[str]:
     """
     Return a deduplicated list of tickers for every company that has filed

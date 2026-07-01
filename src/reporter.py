@@ -1,9 +1,6 @@
 import csv
-import hashlib
-import json
 import math
 import re
-import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -12,7 +9,7 @@ import pandas as pd
 from jinja2 import Environment, FileSystemLoader
 from scipy import stats
 
-from src import comp_fit_reviewer, feature_builder, get_logger, llm_analyzer, scorer
+from src import comp_fit_reviewer, feature_builder, get_logger, llm_analyzer, provenance, scorer
 from src.config_schema import PipelineConfig, as_config
 from src.records import CompanyRecord
 
@@ -140,10 +137,26 @@ DESCRIPTION_SOURCE_LABELS = {
 }
 
 
-def _assign_tier(fit_flag: str | None, outlier_flag: bool) -> str:
+# Ordering used to lay out the final report: tier first, financial-distance
+# rank within tier. A review_exclude comp can otherwise land at rank 1 purely
+# on financial closeness (observed in validation), which reads as an
+# endorsement the tier label then has to walk back.
+TIER_ORDER = {"core": 0, "secondary": 1, "review_exclude": 2}
+
+
+def _assign_tier(fit_flag: str | None, outlier_flag: bool, has_mismatch: bool) -> str:
+    """
+    has_mismatch is any categorical/end-market soft-penalty firing
+    (business model, customer type, or sub-sector — see _penalty_breakdown).
+    It caps a comp at secondary even when the LLM review calls it a
+    strongest fit: "core" must mean the deterministic mismatch checks and
+    the qualitative review agree, otherwise the tier label contradicts the
+    fit_notes printed right next to it (observed in validation: a
+    distribution business tagged core against a services target).
+    """
     if fit_flag == "weak" or outlier_flag:
         return "review_exclude"
-    if fit_flag == "strong":
+    if fit_flag == "strong" and not has_mismatch:
         return "core"
     return "secondary"
 
@@ -239,7 +252,8 @@ CSV_COLUMNS = (
     "rank", "ticker", "company_name", "ev_ebitda_actual",
     "residual_abs", "ebitda_margin", "gross_margin", "revenue_ttm_usd_mm",
     "revenue_cagr_3yr", "net_debt_ebitda", "business_model", "customer_type",
-    "capital_intensity", "sub_sector_description", "judge_score", "low_confidence_flag",
+    "capital_intensity", "sub_sector_description", "tier", "fit_notes",
+    "judge_score", "low_confidence_flag",
 )
 
 
@@ -1347,6 +1361,94 @@ def _top15_medians(rows: list[dict]) -> dict:
     return medians
 
 
+def _business_model_alignment_summary(rows: list[dict], target_business_model: str | None, target_customer_type: str | None) -> dict | None:
+    if not rows or (not target_business_model and not target_customer_type):
+        return None
+    business_matches = [row for row in rows if row.get("business_model") == target_business_model] if target_business_model else []
+    business_exceptions = (
+        [
+            {"ticker": row["ticker"], "business_model": row.get("business_model") or "unknown"}
+            for row in rows if row.get("business_model") != target_business_model
+        ]
+        if target_business_model else []
+    )
+    customer_matches = [row for row in rows if row.get("customer_type") == target_customer_type] if target_customer_type else []
+    customer_exceptions = (
+        [
+            {"ticker": row["ticker"], "customer_type": row.get("customer_type") or "unknown"}
+            for row in rows if row.get("customer_type") != target_customer_type
+        ]
+        if target_customer_type else []
+    )
+    fit_note_exceptions = [
+        {"ticker": row["ticker"], "fit_notes": row.get("fit_notes")}
+        for row in rows
+        if row.get("fit_notes") and row.get("fit_notes") != "No material fit flags"
+    ]
+    return {
+        "target_business_model": target_business_model,
+        "n_matching": len(business_matches),
+        "n_total": len(rows),
+        "exceptions": business_exceptions,
+        "target_customer_type": target_customer_type,
+        "n_customer_matching": len(customer_matches),
+        "customer_exceptions": customer_exceptions,
+        "fit_note_exceptions": fit_note_exceptions,
+    }
+
+
+def _filter_review_scope(review: dict, selected_tickers: set[str], near_miss_tickers: set[str]) -> dict:
+    if review.get("status") != "available":
+        return review
+
+    removed_selected = 0
+    removed_near_miss = 0
+
+    for key in ("top_fits", "questionable_fits"):
+        scoped = []
+        for row in review.get(key, []):
+            if row.get("ticker") in selected_tickers:
+                scoped.append(row)
+            else:
+                removed_selected += 1
+        review[key] = scoped
+
+    scoped_near_misses = []
+    for row in review.get("near_miss_upgrades", []):
+        if row.get("ticker") in near_miss_tickers:
+            scoped_near_misses.append(row)
+        else:
+            removed_near_miss += 1
+    review["near_miss_upgrades"] = scoped_near_misses
+
+    notes = []
+    if removed_selected:
+        plural = "s" if removed_selected != 1 else ""
+        notes.append(
+            f"Review scope check removed {removed_selected} selected-comp callout{plural} "
+            "that referenced a non-selected ticker."
+        )
+    if removed_near_miss:
+        plural = "s" if removed_near_miss != 1 else ""
+        notes.append(
+            f"Review scope check removed {removed_near_miss} near-miss callout{plural} "
+            "that referenced a selected or unavailable ticker."
+        )
+    review["scope_notes"] = notes
+    return review
+
+
+def _fit_notes(reasons: list[str], fit_flag: str | None, outlier_flag: bool, review_reason: str | None) -> str:
+    notes = list(reasons)
+    if fit_flag == "strong":
+        notes.append("qualitative review: strongest fit")
+    elif fit_flag == "weak":
+        notes.append(f"qualitative review: {review_reason}" if review_reason else "qualitative review: weaker fit")
+    if outlier_flag:
+        notes.append("EV/EBITDA statistical outlier")
+    return "; ".join(notes) if notes else "No material fit flags"
+
+
 def _review_candidate_payload(row: dict, candidate_type: str, reasons: list[str] | None = None) -> dict:
     return {
         "candidate_type": candidate_type,
@@ -1499,14 +1601,7 @@ def _report_formats_from_config(config: PipelineConfig) -> list[str]:
 def _git_commit() -> str:
     """Short HEAD SHA of the code that produced this report, or 'unknown' if git
     isn't available or this isn't a checkout — provenance, never fatal."""
-    try:
-        result = subprocess.run(
-            ["git", "rev-parse", "--short", "HEAD"],
-            capture_output=True, text=True, timeout=5, check=True,
-        )
-        return result.stdout.strip() or "unknown"
-    except Exception:
-        return "unknown"
+    return provenance.git_commit()
 
 
 def _config_hash(cfg: PipelineConfig) -> str:
@@ -1514,8 +1609,7 @@ def _config_hash(cfg: PipelineConfig) -> str:
     reports can be told apart (or confirmed identical) by inputs at a glance —
     same canonical-JSON-then-sha256 approach comp_fit_reviewer uses for its cache
     key."""
-    canonical = json.dumps(cfg.model_dump(), sort_keys=True, separators=(",", ":"), default=str)
-    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:12]
+    return provenance.config_hash(cfg)
 
 
 def _oldest_timestamp(records: list[CompanyRecord], field: str) -> str | None:
@@ -1577,6 +1671,15 @@ def generate(
     embedding_model = cfg.llm.embedding_model
 
     eligible_candidates = _eligible_candidates(company_scores, llm_features, companies_by_ticker)
+    small_sample_warning = None
+    if len(eligible_candidates) < cfg.output.min_comps_warning:
+        small_sample_warning = (
+            f"Small comp pool: only {len(eligible_candidates)} eligible companies survived filtering "
+            f"(warning threshold: {cfg.output.min_comps_warning}). Distance-based ranking and the multiple "
+            "distributions below are unstable at this sample size — treat them as directional at best, and "
+            "consider widening SIC codes or relaxing universe filters."
+        )
+        logger.warning(small_sample_warning)
     subsector_similarities = _subsector_similarities(
         target_llm_features.get("sub_sector_description"), llm_features, eligible_candidates, embedding_model,
     )
@@ -1596,6 +1699,11 @@ def generate(
     top_review_payload = [_review_candidate_payload(row, "selected") for row in top15_rows]
     near_miss_review_payload = _near_miss_review_payload(audit_trail, companies_by_ticker, llm_features, company_scores)
     comp_fit_review = comp_fit_reviewer.review_comp_fit(target_config, top_review_payload, near_miss_review_payload, cfg)
+    comp_fit_review = _filter_review_scope(
+        comp_fit_review,
+        selected_tickers=set(top15),
+        near_miss_tickers={row.get("ticker") for row in near_miss_review_payload},
+    )
     comp_fit_review["fit_label"] = (
         _fit_label(comp_fit_review.get("overall_score"), comp_fit_review.get("weaknesses"))
         if comp_fit_review.get("status") == "available" else None
@@ -1614,18 +1722,52 @@ def generate(
     # tickers by hand.
     strong_tickers = {row.get("ticker") for row in comp_fit_review.get("top_fits", [])}
     weak_tickers = {row.get("ticker") for row in comp_fit_review.get("questionable_fits", [])}
+    review_reasons = {
+        row.get("ticker"): row.get("reason")
+        for row in [*comp_fit_review.get("top_fits", []), *comp_fit_review.get("questionable_fits", [])]
+    }
     # Statistical outliers are flagged independently of the LLM's fit
     # judgment (see _ev_ebitda_outlier_tickers) — a comp can be a good
     # qualitative match and still be a multiple outlier, or vice versa.
     outlier_tickers = _ev_ebitda_outlier_tickers(company_scores, top15)
     flagged_tickers = weak_tickers | outlier_tickers
+    apply_business_model_penalty = target_business_model not in EXEMPT_BUSINESS_MODELS
+    apply_customer_type_penalty = target_customer_type not in EXEMPT_CUSTOMER_TYPES
     for row in top15_rows:
         if row["ticker"] in strong_tickers:
             row["fit_flag"] = "strong"
         elif row["ticker"] in weak_tickers:
             row["fit_flag"] = "weak"
         row["outlier_flag"] = row["ticker"] in outlier_tickers
-        row["tier"] = _assign_tier(row["fit_flag"], row["outlier_flag"])
+        penalty = _penalty_breakdown(
+            ticker=row["ticker"],
+            base_rank=row["rank"],
+            residual=float(company_scores.loc[row["ticker"], "residual_abs"]),
+            llm_features=llm_features,
+            companies_by_ticker=companies_by_ticker,
+            target_business_model=target_business_model,
+            target_customer_type=target_customer_type,
+            target_revenue=target_revenue,
+            apply_business_model_penalty=apply_business_model_penalty,
+            apply_customer_type_penalty=apply_customer_type_penalty,
+            subsector_similarities=subsector_similarities,
+            penalties=penalties,
+        )
+        has_mismatch = bool(
+            penalty["business_model_penalty"] or penalty["customer_type_penalty"] or penalty["subsector_penalty"]
+        )
+        row["tier"] = _assign_tier(row["fit_flag"], row["outlier_flag"], has_mismatch)
+        row["fit_notes"] = _fit_notes(
+            penalty["reasons"], row["fit_flag"], row["outlier_flag"], review_reasons.get(row["ticker"])
+        )
+
+    # Lay the report out tier-first (stable sort preserves adjusted-score
+    # order within each tier) and renumber ranks to match — see TIER_ORDER.
+    # top15 (the ticker list) keeps selection order; every downstream use of
+    # it (valuation distributions, screens) is order-insensitive.
+    top15_rows.sort(key=lambda row: TIER_ORDER[row["tier"]])
+    for rank, row in enumerate(top15_rows, start=1):
+        row["rank"] = rank
 
     tier_summary = [
         {
@@ -1721,6 +1863,7 @@ def generate(
     context = {
         "target_name": target_config.get("name"),
         "target_description": target_config.get("description"),
+        "small_sample_warning": small_sample_warning,
         "valuation_multiples": valuation_multiples,
         "implied_valuation": implied_valuation,
         "implied_valuation_excl_flagged": implied_valuation_excl_flagged,
@@ -1750,6 +1893,7 @@ def generate(
         ),
         "top15": top15_rows,
         "top15_medians": _top15_medians(top15_rows),
+        "business_model_alignment": _business_model_alignment_summary(top15_rows, target_business_model, target_customer_type),
         "audit_trail": audit_trail,
         "model_diagnostics": model_diagnostics,
         "data_notes": data_notes,
@@ -1776,5 +1920,6 @@ def generate(
     if "html" in report_formats:
         output_paths["html"] = _write_html(context)
     output_paths["n_comps"] = len(top15_rows)
+    output_paths["small_sample_warning"] = small_sample_warning
 
     return output_paths

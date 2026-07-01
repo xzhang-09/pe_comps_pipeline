@@ -164,7 +164,7 @@ def score_and_report(universe: EnrichedUniverse, config: PipelineConfig) -> dict
         scorer_results, universe.companies, universe.llm_features, target_llm_features,
         universe.imputation_medians, config,
     )
-    saved_reports = [path for key, path in output_paths.items() if key != "n_comps"]
+    saved_reports = [output_paths[key] for key in ("csv", "html") if output_paths.get(key)]
     logger.info(f"Report saved: {', '.join(saved_reports)}")
     return output_paths
 
@@ -224,13 +224,17 @@ def run_pipeline(
     elapsed = time.time() - start_time
     target_name = config.target_company.name
 
+    warning_line = (
+        f"WARNING: {output_paths['small_sample_warning']}\n" if output_paths.get("small_sample_warning") else ""
+    )
     summary = (
         "=" * 60 + "\n"
         "PIPELINE COMPLETE\n"
         f"Target: {target_name}\n"
         f"Comparable companies found: {n_comps}\n"
         f"Report: {output_paths.get('html', output_paths.get('csv', 'not generated'))}\n"
-        f"Run time: {elapsed:.0f}s\n"
+        + warning_line
+        + f"Run time: {elapsed:.0f}s\n"
         + "=" * 60
     )
     print(summary)

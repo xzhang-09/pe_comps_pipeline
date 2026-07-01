@@ -33,8 +33,9 @@
     border: 1px solid #dddddd;
   }
   th {
-    background: #1a3a5c;
-    color: #ffffff;
+    background: #eef3f7;
+    color: #1a3a5c;
+    border-top: 2px solid #b8c7d6;
   }
   tr.row-odd { background: #f9f9f9; }
   tr.row-even { background: #ffffff; }
@@ -101,6 +102,16 @@
     padding: 6px;
     margin: -40px -40px 24px -40px;
   }
+  .warning-banner {
+    background: #fdf3e7;
+    border: 1px solid #c77c1b;
+    border-left: 5px solid #c77c1b;
+    border-radius: 4px;
+    color: #7a4a09;
+    font-size: 13px;
+    padding: 10px 14px;
+    margin: 16px 0;
+  }
   tr.fit-strong { border-left: 4px solid #2e7d32; }
   tr.fit-weak { border-left: 4px solid #c0392b; }
   .tier-core { color: #2e7d32; font-weight: bold; }
@@ -138,17 +149,19 @@
 
 <h1>Comparable Company Analysis — {{ target_name }}</h1>
 
+{% if small_sample_warning %}<div class="warning-banner"><strong>Sample-size warning:</strong> {{ small_sample_warning }}</div>{% endif %}
+
 <!-- Executive Summary -->
 {% set led_with_adjusted = executive_summary.size_anchor_ev is not none or executive_summary.adjusted_ev_low is not none %}
 <div class="summary-box">
   {% if executive_summary.size_anchor_ev is not none %}
   {% if executive_summary.size_anchor_ev_discounted is not none %}
-  <p><strong>Bottom line (directional):</strong> ≈ <strong>${{ "%.0f"|format(executive_summary.size_anchor_ev_discounted) }}mm</strong> — the size-comparable anchor ({{ executive_summary.size_anchor_n }} comps near the target's revenue, median EV/EBITDA {{ "%.1f"|format(executive_summary.size_anchor_multiple) }}×) after a {{ "%.0f"|format(executive_summary.discount_pct) }}% net private-company discount; <strong>${{ "%.0f"|format(executive_summary.size_anchor_ev) }}mm</strong> before the discount.{% if executive_summary.adjusted_ev_low is not none %} Full comp set, same discount applied: <strong>${{ "%.0f"|format(executive_summary.adjusted_ev_low) }}–{{ "%.0f"|format(executive_summary.adjusted_ev_high) }}mm</strong>.{% endif %} The size-comparable sample is thin — directional, not a pricing recommendation.</p>
+  <p><strong>Bottom line (directional):</strong> ≈ <strong>${{ "%.0f"|format(executive_summary.size_anchor_ev_discounted) }}mm</strong> — the size-comparable anchor ({{ executive_summary.size_anchor_n }} comps near the target's revenue, median EV/EBITDA {{ "%.1f"|format(executive_summary.size_anchor_multiple) }}×) after a {{ "%.0f"|format(executive_summary.discount_pct) }}% net private-company discount assumption; <strong>${{ "%.0f"|format(executive_summary.size_anchor_ev) }}mm</strong> before the discount.{% if executive_summary.adjusted_ev_low is not none %} Full comp set, same assumption applied: <strong>${{ "%.0f"|format(executive_summary.adjusted_ev_low) }}–{{ "%.0f"|format(executive_summary.adjusted_ev_high) }}mm</strong>.{% endif %} The size-comparable sample is thin — directional, not a pricing recommendation.</p>
   {% else %}
   <p><strong>Bottom line (directional):</strong> ≈ <strong>${{ "%.0f"|format(executive_summary.size_anchor_ev) }}mm</strong> — the size-comparable anchor ({{ executive_summary.size_anchor_n }} comps near the target's revenue, median EV/EBITDA {{ "%.1f"|format(executive_summary.size_anchor_multiple) }}× × target EBITDA). The size-comparable sample is thin — directional, not a pricing recommendation.</p>
   {% endif %}
   {% elif executive_summary.adjusted_ev_low is not none %}
-  <p><strong>Bottom line (directional):</strong> ≈ <strong>${{ "%.0f"|format(executive_summary.adjusted_ev_low) }}–{{ "%.0f"|format(executive_summary.adjusted_ev_high) }}mm</strong> — the working figure, after a {{ "%.0f"|format(executive_summary.discount_pct) }}% net private-company discount on the comp-implied range.</p>
+  <p><strong>Bottom line (directional):</strong> ≈ <strong>${{ "%.0f"|format(executive_summary.adjusted_ev_low) }}–{{ "%.0f"|format(executive_summary.adjusted_ev_high) }}mm</strong> — the working figure, after a {{ "%.0f"|format(executive_summary.discount_pct) }}% net private-company discount assumption on the comp-implied range.</p>
   {% elif executive_summary.implied_ev_low is not none %}
   <p><strong>Bottom line (directional):</strong> ≈ <strong>${{ "%.0f"|format(executive_summary.implied_ev_low) }}–{{ "%.0f"|format(executive_summary.implied_ev_high) }}mm</strong> (P25–P75 by {{ executive_summary.implied_basis }}, {{ executive_summary.n_comps }} comps) — a wide, comp-driven range, not a pricing recommendation.</p>
   {% else %}
@@ -217,7 +230,7 @@
 
 <!-- Section 2: Top 15 Comparable Companies -->
 <h2 id="sec2">2. Top {{ n_comps }} Comparable Companies</h2>
-{% if top15 and top15[0].business_model %}<p class="note">All Top {{ n_comps }} comps share the target's business model ({{ top15[0].business_model }}). <strong>Rank</strong> = financial distance plus business-model/customer/scale/end-market penalties (§8); <strong>Fin. Dist.</strong> is the financial component alone (lower = closer). <strong>Tier</strong> (<span class="tier-core">Core</span> / <span class="tier-secondary">Secondary</span> / <span class="tier-review_exclude">Review</span>) is a separate fit-quality flag, not the rank — see §3. † marks a statistical EV/EBITDA outlier (Tukey {{ tukey_fence_multiplier }}× IQR).</p>{% endif %}
+{% if business_model_alignment %}<p class="note">{% if business_model_alignment.target_business_model %}{% if business_model_alignment.n_matching == business_model_alignment.n_total %}{{ business_model_alignment.n_matching }}/{{ business_model_alignment.n_total }} comps match the target's business model ({{ business_model_alignment.target_business_model }}).{% else %}{{ business_model_alignment.n_matching }}/{{ business_model_alignment.n_total }} comps match the target's business model ({{ business_model_alignment.target_business_model }}). Exceptions: {% for e in business_model_alignment.exceptions %}{{ e.ticker }} ({{ e.business_model }}){% if not loop.last %}, {% endif %}{% endfor %}.{% endif %}{% endif %}{% if business_model_alignment.target_customer_type %} {% if business_model_alignment.n_customer_matching == business_model_alignment.n_total %}{{ business_model_alignment.n_customer_matching }}/{{ business_model_alignment.n_total }} comps match the target's customer base ({{ business_model_alignment.target_customer_type }}).{% else %}{{ business_model_alignment.n_customer_matching }}/{{ business_model_alignment.n_total }} comps match the target's customer base ({{ business_model_alignment.target_customer_type }}). Exceptions: {% for e in business_model_alignment.customer_exceptions %}{{ e.ticker }} ({{ e.customer_type }}){% if not loop.last %}, {% endif %}{% endfor %}.{% endif %}{% endif %} <strong>Rank</strong> orders by <strong>Tier</strong> first (<span class="tier-core">Core</span> / <span class="tier-secondary">Secondary</span> / <span class="tier-review_exclude">Review</span> — see §3), then within each tier by financial distance plus business-model/customer/scale/end-market penalties (§8); <strong>Fin. Dist.</strong> is the financial component alone (lower = closer). † marks a statistical EV/EBITDA outlier (Tukey {{ tukey_fence_multiplier }}× IQR).</p>{% if business_model_alignment.fit_note_exceptions %}<p class="note"><strong>Fit flags:</strong> {% for e in business_model_alignment.fit_note_exceptions %}{{ e.ticker }} — {{ e.fit_notes }}{% if not loop.last %}; {% endif %}{% endfor %}.</p>{% endif %}{% endif %}
 <div class="tier-summary-grid">
   {% for t in tier_summary %}
   <div class="tier-summary-item">
@@ -274,6 +287,11 @@
 {% if comp_fit_review.status == "available" %}
   <p><strong>Overall Top {{ n_comps }} Fit:</strong> {{ comp_fit_review.overall_score }} / 100{% if comp_fit_review.fit_label %} ({{ comp_fit_review.fit_label }}){% endif %} — comp-set fit (business/customer-type/scale/end-market). <strong>Data confidence:</strong> {{ comp_fit_review.review_confidence | capitalize }} — reliability of the extracted source data, a separate axis from fit.</p>
   <p>{{ comp_fit_review.summary }}</p>
+  {% if comp_fit_review.scope_notes %}
+  {% for note in comp_fit_review.scope_notes %}
+  <p class="note">{{ note }}</p>
+  {% endfor %}
+  {% endif %}
   {% if scale_reconciliation_note %}
   <p class="note">{{ scale_reconciliation_note }}</p>
 
@@ -450,7 +468,7 @@
   </tr>
   {% endif %}
 </table>
-<p class="note">Public trading comps are large-cap, liquid, minority-interest multiples; applied straight to a small private mid-market target they overstate value. This range applies a single net haircut to the comp-derived EV.{% if discount_note %} {{ discount_note }}{% endif %} It is not a substitute for precedent M&A transaction multiples, which are the more direct private-market reference.</p>
+<p class="note">Public trading comps are large-cap, liquid, minority-interest multiples; applied straight to a small private mid-market target they overstate value. This range applies a single deal-team discount assumption to the comp-derived EV.{% if discount_note %} {{ discount_note }}{% endif %} It is not a substitute for precedent M&A transaction multiples, which are the more direct private-market reference.</p>
 {% endif %}
 {% if implied_valuation_excl_flagged %}
 <p><strong>Sensitivity — excluding weaker/outlier fits ({{ flagged_tickers | join(", ") }}):</strong></p>

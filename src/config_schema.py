@@ -40,6 +40,15 @@ class UniverseConfig(BaseModel):
     max_revenue_usd_mm: float | None = None
     min_ebitda_margin: float | None = None
     sic_clusters: dict[str, str] = Field(default_factory=dict)
+    # SIC preflight escape hatch (see universe_builder.build /
+    # sic_universe_builder.preflight_sic_codes): a SIC code matching more
+    # than BROAD_SIC_CIK_THRESHOLD SEC filers aborts the run before the
+    # expensive per-CIK ticker lookups unless this is set — a too-broad
+    # code (observed in validation: 7373, "computer integrated systems")
+    # burns hundreds of SEC requests to fetch companies mostly unrelated
+    # to the target. Zero-result codes always abort; there is no override
+    # for a code that finds nothing.
+    allow_broad_sic_codes: bool = False
 
 
 class LLMConfig(BaseModel):
@@ -71,6 +80,14 @@ class OutputConfig(BaseModel):
     # defaults to False so existing configs render exactly as before.
     prepared_by: str | None = None
     confidential: bool = False
+    # When the eligible comp pool (after low-confidence/training filters)
+    # falls below this, reporter.py stamps a small-sample warning on the
+    # report and the pipeline's returned status: distance-based ranking and
+    # multiple distributions computed on a handful of comps are unstable
+    # (observed in validation: a 9-company pool produced an essentially
+    # arbitrary ranking). Soft warning only — the run still completes, since
+    # deliberately small universes are normal while iterating on SIC codes.
+    min_comps_warning: int = 15
 
 
 class RankingPenaltiesConfig(BaseModel):
