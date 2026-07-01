@@ -22,8 +22,26 @@ At a high level, the pipeline:
   second-pass confidence judge;
 - scores each company by its standardized financial-feature distance to the
   target (revenue scale, margins, growth, leverage); and
-- ranks comps by that distance, with penalties for business-model, customer-type,
-  and revenue-scale mismatch.
+- ranks comps tier-first (Core / Secondary / Review-Exclude), ordering within
+  each tier by that distance plus penalties for business-model, customer-type,
+  end-market, and revenue-scale mismatch.
+
+## Sample Output
+
+A full sample run (synthetic target, non-confidential) is committed under
+[`docs/samples/`](docs/samples/):
+
+- [`sample_report.html`](docs/samples/sample_report.html) — the generated HTML
+  comps report (tiered comp table, implied-valuation football field,
+  benchmarks, near-miss audit trail, provenance footer).
+- [`sample_report.csv`](docs/samples/sample_report.csv) — the matching CSV.
+- [`ui_screenshot.png`](docs/samples/ui_screenshot.png) — the Gradio web UI.
+
+Validation notes for the two end-to-end test cases (including one deliberate
+failure case and what was fixed as a result) are in
+[`docs/validation.md`](docs/validation.md).
+
+![Web UI](docs/samples/ui_screenshot.png)
 
 ## What This Project Demonstrates
 
@@ -66,6 +84,12 @@ pip install -e ".[dev]"
 pe-comps
 # (equivalent to: python -m src.pipeline)
 
+# Optional web UI for non-technical users:
+pe-comps-ui
+# Open http://127.0.0.1:7860 in a browser. The UI collects target-company
+# inputs, writes a per-run config under outputs/ui_runs/, runs the same pipeline,
+# and exposes the generated HTML/CSV reports for preview/download.
+
 # If you don't already know which SIC codes fit the target, fill in
 # target_company.description and primary_sic_codes: [] as a placeholder,
 # then get advisory suggestions (doesn't modify config.yaml):
@@ -76,6 +100,21 @@ pytest tests/ -v
 ```
 
 ## Configuration Guide
+
+### Web UI
+
+For internal users who should not edit YAML or run CLI commands directly, start
+the Gradio UI:
+
+```bash
+pe-comps-ui
+```
+
+The server listens on `http://127.0.0.1:7860` by default. API keys are not
+entered in the page; keep `OPENAI_API_KEY`, `FMP_API_KEY`, and `SEC_IDENTITY` in
+the server environment or `.env`. Each UI run writes its generated config and
+copies its HTML/CSV outputs into `outputs/ui_runs/<run-id>/`, so reports from
+separate runs do not overwrite each other.
 
 All settings live in `config.yaml`:
 
@@ -149,6 +188,12 @@ Full schema overview:
   - `sic_clusters`: optional `{sic_code: label}` map attached to each fetched
     company as `industry_cluster` — a human-readable grouping used only for
     diagnostics/segmentation, not read by the comp ranking.
+  - `allow_broad_sic_codes`: escape hatch for the SIC preflight. Before any
+    per-company SEC lookups, every configured SIC code is checked for filer
+    count: codes yielding no usable tickers always abort the run, and codes
+    matching more than 500 SEC filers abort unless this is set to `true` —
+    an over-broad code mostly fetches companies unrelated to the target and
+    burns the SEC request budget.
 - **`llm`**
   - `extraction_model` / `judge_model`: OpenAI models for business-model
     extraction and judging (e.g. `gpt-4.1` / `gpt-4.1-mini`).
@@ -164,6 +209,11 @@ Full schema overview:
 - **`output`**
   - `top_n_comps`: Top-N size for the report.
   - `report_formats`: which report formats to produce (`csv`, `html`, or both).
+  - `min_comps_warning`: when the eligible comp pool (after the
+    low-confidence filter) is smaller than this (default 15), the HTML report
+    gets a sample-size warning banner and the CLI/UI status echoes it —
+    distance rankings and multiple distributions computed on a handful of
+    comps are directional at best. Soft warning only; the run still completes.
 - **`scorer`**
   - `feature_weights`: `{business_model: {financial_feature: weight}}` — lets
     different industries weight the 6 financial features differently in the
@@ -196,9 +246,12 @@ report has 7 sections:
 1. **Target and Selection Snapshot** — target summary, run timestamp,
    selected-comp count, scoring-pool size, eligible-candidate count, data-failure
    count, and EV/EBITDA IQR compression versus the eligible pool.
-2. **Top-N Comparable Companies** — ranked by financial-feature distance to the
-   target, after soft penalties for business-model, customer-type,
-   revenue-scale, and sub-sector mismatch.
+2. **Top-N Comparable Companies** — ordered tier-first (Core → Secondary →
+   Review/Exclude), then within each tier by financial-feature distance to the
+   target after soft penalties for business-model, customer-type,
+   revenue-scale, and sub-sector mismatch. A comp with a deterministic
+   mismatch flag is capped at Secondary even when the qualitative review rates
+   it highly, so the tier label never contradicts the fit notes beside it.
 3. **Comparable Fit Review** — a directional qualitative review of the selected
    Top-N set, including strongest fits, questionable fits, and potential
    near-miss substitutions. This is not a substitute for transaction-team
@@ -348,6 +401,16 @@ This repository does not publish an audited ground-truth Precision@K benchmark.
 
 ## Known Limitations
 
+- **SIC-only discovery misses hybrid targets**: candidate discovery is driven
+  entirely by SIC codes, which classify what a company *makes* — validation
+  (see [`docs/validation.md`](docs/validation.md)) showed this fails for
+  hybrid manufacturing/services/system-integration targets such as warehouse
+  automation, where no SIC code maps to the actual business. Guardrails now
+  catch the symptoms (zero-yield and over-broad codes abort before the
+  expensive lookups; a too-small eligible pool stamps a warning on the
+  report), but the root fix is a second discovery mode — analyst-provided
+  seed tickers, then description-embedding search over SEC filers — which is
+  the top roadmap item.
 - **Data coverage**: public companies only, limited to whatever SEC EDGAR has
   filed 10-Ks under the configured `primary_sic_codes`/`adjacent_sic_codes` —
   not the full market. The data layer could be extended with Capital IQ or

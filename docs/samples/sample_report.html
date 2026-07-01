@@ -1,0 +1,894 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Comparable Company Analysis — Precision Motion Components Co.</title>
+<style>
+  body {
+    background: #ffffff;
+    color: #333333;
+    font-family: Arial, Helvetica, sans-serif;
+    margin: 40px auto;
+    max-width: 1100px;
+    line-height: 1.5;
+  }
+  h1 {
+    color: #1a3a5c;
+    border-bottom: 2px solid #1a3a5c;
+    padding-bottom: 8px;
+  }
+  h2 {
+    color: #1a3a5c;
+    margin-top: 36px;
+  }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 12px 0 24px 0;
+    font-size: 14px;
+  }
+  th, td {
+    text-align: left;
+    padding: 8px 10px;
+    border: 1px solid #dddddd;
+  }
+  th {
+    background: #eef3f7;
+    color: #1a3a5c;
+    border-top: 2px solid #b8c7d6;
+  }
+  tr.row-odd { background: #f9f9f9; }
+  tr.row-even { background: #ffffff; }
+  tr.top-rank { background: #e8f4f8 !important; }
+  tr.low-confidence td { font-style: italic; color: #888888; }
+  td.median-row, tr.median-row td { font-weight: bold; }
+  .summary-box {
+    background: #f9f9f9;
+    border: 1px solid #dddddd;
+    border-radius: 4px;
+    padding: 16px 20px;
+    margin: 16px 0;
+  }
+  .snapshot-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 12px;
+    margin: 16px 0 8px 0;
+  }
+  .snapshot-item {
+    border: 1px solid #dddddd;
+    border-radius: 4px;
+    padding: 12px;
+    background: #ffffff;
+  }
+  .snapshot-value {
+    color: #1a3a5c;
+    display: block;
+    font-size: 24px;
+    font-weight: bold;
+    line-height: 1.2;
+  }
+  .snapshot-label {
+    color: #555555;
+    display: block;
+    font-size: 12px;
+    margin-top: 4px;
+  }
+  .note {
+    color: #555555;
+    font-size: 13px;
+    margin-top: 8px;
+  }
+  .disclaimer {
+    font-size: 12px;
+    color: #888888;
+    margin-top: 8px;
+  }
+  .footer {
+    font-size: 12px;
+    color: #888888;
+    margin-top: 40px;
+    border-top: 1px solid #dddddd;
+    padding-top: 12px;
+  }
+  .confidential-banner {
+    background: #1a3a5c;
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: bold;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    text-align: center;
+    padding: 6px;
+    margin: -40px -40px 24px -40px;
+  }
+  .warning-banner {
+    background: #fdf3e7;
+    border: 1px solid #c77c1b;
+    border-left: 5px solid #c77c1b;
+    border-radius: 4px;
+    color: #7a4a09;
+    font-size: 13px;
+    padding: 10px 14px;
+    margin: 16px 0;
+  }
+  tr.fit-strong { border-left: 4px solid #2e7d32; }
+  tr.fit-weak { border-left: 4px solid #c0392b; }
+  .tier-core { color: #2e7d32; font-weight: bold; }
+  .tier-secondary { color: #555555; }
+  .tier-review_exclude { color: #c0392b; font-weight: bold; }
+  .tier-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    margin: 12px 0;
+  }
+  .tier-summary-item {
+    border: 1px solid #dddddd;
+    border-radius: 4px;
+    padding: 10px 14px;
+    background: #ffffff;
+  }
+  .toc {
+    font-size: 13px;
+    margin: 16px 0 8px 0;
+  }
+  .toc strong { color: #1a3a5c; }
+  .toc ol {
+    columns: 2;
+    margin: 6px 0 0 0;
+    padding-left: 20px;
+  }
+  .toc a { color: #1a3a5c; text-decoration: none; }
+  .toc a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+
+<h1>Comparable Company Analysis — Precision Motion Components Co.</h1>
+
+
+<!-- Executive Summary -->
+<div class="summary-box">
+  <p><strong>Bottom line (directional):</strong> ≈ <strong>$170mm</strong> — the size-comparable anchor (4 comps near the target's revenue, median EV/EBITDA 7.9×) after a 25% net private-company discount assumption; <strong>$226mm</strong> before the discount. Full comp set, same assumption applied: <strong>$168–338mm</strong>. The size-comparable sample is thin — directional, not a pricing recommendation.</p>
+<p><strong>Comp fit:</strong> 70 / 100 (Good / directionally supportive). <strong>Key caveat:</strong> Revenue scale fit is poor, with MOD 17.7x larger than the target, creating potential valuation distortions.</p>
+<p class="note">Unadjusted full comp set: $224–450mm (P25–P75 by EV/EBITDA) — large-cap trading multiples on a small private target, so high relative to the adjusted figure. Full build and sensitivities in §4.</p></div>
+
+<h3>Implied EV by method</h3>
+<svg viewBox="0 0 720 270" xmlns="http://www.w3.org/2000/svg" font-family="Arial, Helvetica, sans-serif" font-size="11"><line x1="185.0" y1="22" x2="185.0" y2="226.0" stroke="#eeeeee"/><text x="185.0" y="242.0" text-anchor="middle" fill="#555555">$69mm</text><line x1="270.0" y1="22" x2="270.0" y2="226.0" stroke="#eeeeee"/><text x="270.0" y="242.0" text-anchor="middle" fill="#555555">$151mm</text><line x1="355.0" y1="22" x2="355.0" y2="226.0" stroke="#eeeeee"/><text x="355.0" y="242.0" text-anchor="middle" fill="#555555">$233mm</text><line x1="440.0" y1="22" x2="440.0" y2="226.0" stroke="#eeeeee"/><text x="440.0" y="242.0" text-anchor="middle" fill="#555555">$315mm</text><line x1="525.0" y1="22" x2="525.0" y2="226.0" stroke="#eeeeee"/><text x="525.0" y="242.0" text-anchor="middle" fill="#555555">$397mm</text><line x1="610.0" y1="22" x2="610.0" y2="226.0" stroke="#eeeeee"/><text x="610.0" y="242.0" text-anchor="middle" fill="#555555">$479mm</text><text x="175" y="43.0" text-anchor="end" fill="#333333" font-weight="bold">Size anchor (n=4)</text><path d="M348.3 34.0 L353.3 39.0 L348.3 44.0 L343.3 39.0 Z" fill="#b8860b"/><text x="616" y="43.0" text-anchor="start" fill="#333333">$226mm</text><text x="175" y="77.0" text-anchor="end" fill="#333333" font-weight="bold">After 25% discount</text><rect x="287.7" y="66.0" width="176.2" height="14" fill="#2e7d32" opacity="0.30"/><line x1="351.2" y1="66.0" x2="351.2" y2="80.0" stroke="#2e7d32" stroke-width="2"/><text x="616" y="77.0" text-anchor="start" fill="#333333">$168–338mm</text><text x="175" y="111.0" text-anchor="end" fill="#333333" font-weight="normal">Size-comparable (n=8)</text><rect x="339.9" y="100.0" width="198.1" height="14" fill="#1a3a5c" opacity="0.30"/><line x1="360.0" y1="100.0" x2="360.0" y2="114.0" stroke="#1a3a5c" stroke-width="2"/><text x="616" y="111.0" text-anchor="start" fill="#333333">$218–409mm</text><text x="175" y="145.0" text-anchor="end" fill="#333333" font-weight="normal">EV/EBITDA (Top-N)</text><rect x="345.8" y="134.0" width="234.9" height="14" fill="#1a3a5c" opacity="0.30"/><line x1="430.4" y1="134.0" x2="430.4" y2="148.0" stroke="#1a3a5c" stroke-width="2"/><text x="616" y="145.0" text-anchor="start" fill="#333333">$224–450mm</text><text x="175" y="179.0" text-anchor="end" fill="#333333" font-weight="normal">EV/Revenue (Top-N)</text><rect x="214.3" y="168.0" width="350.5" height="14" fill="#1a3a5c" opacity="0.30"/><line x1="305.4" y1="168.0" x2="305.4" y2="182.0" stroke="#1a3a5c" stroke-width="2"/><text x="616" y="179.0" text-anchor="start" fill="#333333">$97–435mm</text><text x="175" y="213.0" text-anchor="end" fill="#333333" font-weight="normal">Size-adjusted (regr.)</text><path d="M463.0 204.0 L468.0 209.0 L463.0 214.0 L458.0 209.0 Z" fill="#888888"/><text x="616" y="213.0" text-anchor="start" fill="#333333">$337mm</text><text x="397.5" y="264" text-anchor="middle" fill="#333333" font-weight="bold">Implied Enterprise Value ($mm) — bar = P25–P75, tick = median</text></svg>
+<p class="note">Each bar is the P25–P75 implied enterprise value under one valuation method; the tick is the median, points are single estimates. The size anchor and post-discount range (highlighted) are the most decision-relevant for a target this size — see §4 for how each is built.</p>
+
+<nav class="toc">
+  <strong>Contents</strong>
+  <ol>
+    <li><a href="#sec1">Target and Selection Snapshot</a></li>
+    <li><a href="#sec2">Top 10 Comparable Companies</a></li>
+    <li><a href="#sec3">Comparable Fit Review</a></li>
+    <li><a href="#sec4">Valuation and Financial Benchmarks</a></li>
+    <li><a href="#sec5">Near-Miss Candidates</a></li>
+    <li><a href="#sec6">Selection Diagnostics</a></li>
+    <li><a href="#sec7">Data Notes</a></li>
+    <li><a href="#sec8">Methodology Notes</a></li>
+  </ol>
+</nav>
+
+<!-- Section 1: Target and Selection Snapshot -->
+<h2 id="sec1">1. Target and Selection Snapshot</h2>
+<div class="summary-box">
+  <p><strong>Precision Motion Components Co.</strong></p>
+  <p>Mid-market manufacturer of precision motion components for automotive and industrial OEMs. Products include bearings, drivetrain components, machined metal assemblies, and engineered replacement parts sold under long-term supply agreements. Asset-heavy operations with North American manufacturing facilities.
+</p>
+</div>
+
+<h3>Selection Snapshot</h3>
+<div class="snapshot-grid">
+  <div class="snapshot-item">
+    <span class="snapshot-value">10</span>
+    <span class="snapshot-label">selected comps</span>
+  </div>
+  <div class="snapshot-item">
+    <span class="snapshot-value">20</span>
+    <span class="snapshot-label">companies in scoring pool</span>
+  </div>
+  <div class="snapshot-item">
+    <span class="snapshot-value">20</span>
+    <span class="snapshot-label">eligible after hard filters</span>
+  </div>
+  <div class="snapshot-item">
+    <span class="snapshot-value">122%</span>
+    <span class="snapshot-label">Top 10 EV/EBITDA IQR vs. eligible pool (lower = tighter; ~100% = selection barely narrowed the spread)</span>
+  </div>
+  <div class="snapshot-item">
+    <span class="snapshot-value">12</span>
+    <span class="snapshot-label">companies excluded for weak source support</span>
+  </div>
+  <div class="snapshot-item">
+    <span class="snapshot-value">2</span>
+    <span class="snapshot-label">companies excluded for missing market / filing data</span>
+  </div>
+</div>
+<p class="note">Selection quality reflects financial similarity, business-model fit, customer/end-market alignment, revenue scale, near-miss review, and data availability.</p>
+
+<!-- Section 2: Top 15 Comparable Companies -->
+<h2 id="sec2">2. Top 10 Comparable Companies</h2>
+<p class="note">10/10 comps match the target's business model (manufacturing). 7/10 comps match the target's customer base (B2B). Exceptions: MPAA (mixed), DORM (mixed), HLLY (B2C). <strong>Rank</strong> orders by <strong>Tier</strong> first (<span class="tier-core">Core</span> / <span class="tier-secondary">Secondary</span> / <span class="tier-review_exclude">Review</span> — see §3), then within each tier by financial distance plus business-model/customer/scale/end-market penalties (§8); <strong>Fin. Dist.</strong> is the financial component alone (lower = closer). † marks a statistical EV/EBITDA outlier (Tukey 1.5× IQR).</p><p class="note"><strong>Fit flags:</strong> STRT — qualitative review: strongest fit; MPAA — customer type mismatch (mixed vs target's B2B); qualitative review: strongest fit; TAYD — end-market similarity below threshold (0.48 vs. 0.5 required); qualitative review: strongest fit; DORM — customer type mismatch (mixed vs target's B2B); revenue scale mismatch (+0.1 rank penalty); HLLY — customer type mismatch (B2C vs target's B2B); qualitative review: B2C customer type and focus on aftermarket enthusiast parts reduce end-market and customer-type fit.; CVGI — qualitative review: Very low EBITDA margin and weaker gross margin suggest financial profile mismatch despite B2B manufacturing.; MOD — revenue scale mismatch (+0.2 rank penalty); qualitative review: Extreme revenue scale mismatch (17.7x larger) and different end-market focus on thermal management weaken comparability.; EV/EBITDA statistical outlier.</p><div class="tier-summary-grid">
+  <div class="tier-summary-item">
+    <strong class="tier-core">Core Comps</strong> (1): STRT
+  </div>
+  <div class="tier-summary-item">
+    <strong class="tier-secondary">Secondary Comps</strong> (6): MPAA, ATMU, TAYD, THRM, SMP, DORM
+  </div>
+  <div class="tier-summary-item">
+    <strong class="tier-review_exclude">Review / Exclude</strong> (3): HLLY (weaker fit), CVGI (weaker fit), MOD (weaker fit + outlier)
+  </div>
+</div>
+
+<table>
+  <tr>
+    <th>Rank</th><th>Ticker</th><th>Company</th><th>Tier</th><th>Rev ($M)</th>
+    <th>EV/EBITDA</th><th>EV/Rev</th><th>EV/EBIT</th>
+    <th>EBITDA %</th><th>Gross %</th><th>Rev Gr</th><th>ND/EBITDA</th><th>Fin. Dist.</th>
+  </tr>
+  <tr class="top-rank fit-strong">
+    <td>1</td>
+    <td>STRT</td>
+    <td>STRATTEC SECURITY CORP</td>
+    <td class="tier-core">Core Comps</td>
+    <td>565</td>
+    <td>7.2x</td>
+    <td>0.5x</td>
+    <td>11.9x</td>
+    <td>6.6%</td>
+    <td>15.0%</td>
+    <td>5.1%</td>
+    <td>-2.0x</td>
+    <td>2.06</td>
+  </tr>
+  <tr class="row-even fit-strong">
+    <td>2</td>
+    <td>MPAA</td>
+    <td>MOTORCAR PARTS OF AMERICA INC</td>
+    <td class="tier-secondary">Secondary Comps</td>
+    <td>790</td>
+    <td>4.9x</td>
+    <td>0.5x</td>
+    <td>5.6x</td>
+    <td>9.5%</td>
+    <td>20.2%</td>
+    <td>4.9%</td>
+    <td>1.1x</td>
+    <td>1.95</td>
+  </tr>
+  <tr class="row-odd">
+    <td>3</td>
+    <td>ATMU</td>
+    <td>Atmus Filtration Technologies Inc.</td>
+    <td class="tier-secondary">Secondary Comps</td>
+    <td>1764</td>
+    <td>13.5x</td>
+    <td>2.5x</td>
+    <td>14.8x</td>
+    <td>18.6%</td>
+    <td>28.2%</td>
+    <td>4.1%</td>
+    <td>1.0x</td>
+    <td>2.48</td>
+  </tr>
+  <tr class="row-even fit-strong">
+    <td>4</td>
+    <td>TAYD</td>
+    <td>TAYLOR DEVICES, INC.</td>
+    <td class="tier-secondary">Secondary Comps</td>
+    <td>46</td>
+    <td>16.4x</td>
+    <td>4.0x</td>
+    <td>19.3x</td>
+    <td>24.5%</td>
+    <td>46.4%</td>
+    <td>3.8%</td>
+    <td>-0.1x</td>
+    <td>2.08</td>
+  </tr>
+  <tr class="row-odd">
+    <td>5</td>
+    <td>THRM</td>
+    <td>Gentherm Inc</td>
+    <td class="tier-secondary">Secondary Comps</td>
+    <td>1499</td>
+    <td>8.0x</td>
+    <td>0.7x</td>
+    <td>13.1x</td>
+    <td>9.1%</td>
+    <td>24.2%</td>
+    <td>1.0%</td>
+    <td>0.2x</td>
+    <td>2.57</td>
+  </tr>
+  <tr class="row-even">
+    <td>6</td>
+    <td>SMP</td>
+    <td>STANDARD MOTOR PRODUCTS, INC.</td>
+    <td class="tier-secondary">Secondary Comps</td>
+    <td>1791</td>
+    <td>7.7x</td>
+    <td>0.8x</td>
+    <td>10.2x</td>
+    <td>10.1%</td>
+    <td>31.2%</td>
+    <td>14.8%</td>
+    <td>2.9x</td>
+    <td>2.67</td>
+  </tr>
+  <tr class="row-odd">
+    <td>7</td>
+    <td>DORM</td>
+    <td>Dorman Products, Inc.</td>
+    <td class="tier-secondary">Secondary Comps</td>
+    <td>2130</td>
+    <td>12.7x</td>
+    <td>2.1x</td>
+    <td>15.1x</td>
+    <td>16.7%</td>
+    <td>42.1%</td>
+    <td>5.1%</td>
+    <td>1.1x</td>
+    <td>2.64</td>
+  </tr>
+  <tr class="row-even fit-weak">
+    <td>8</td>
+    <td>HLLY</td>
+    <td>Holley Inc.</td>
+    <td class="tier-review_exclude">Review / Exclude</td>
+    <td>614</td>
+    <td>8.5x</td>
+    <td>1.3x</td>
+    <td>9.5x</td>
+    <td>15.0%</td>
+    <td>43.4%</td>
+    <td>1.9%</td>
+    <td>5.3x</td>
+    <td>1.32</td>
+  </tr>
+  <tr class="row-odd fit-weak">
+    <td>9</td>
+    <td>CVGI</td>
+    <td>Commercial Vehicle Group, Inc.</td>
+    <td class="tier-review_exclude">Review / Exclude</td>
+    <td>649</td>
+    <td>17.7x</td>
+    <td>0.4x</td>
+    <td>N/A</td>
+    <td>2.2%</td>
+    <td>10.5%</td>
+    <td>-11.9%</td>
+    <td>5.2x</td>
+    <td>2.81</td>
+  </tr>
+  <tr class="row-even fit-weak">
+    <td>10</td>
+    <td>MOD</td>
+    <td>MODINE MANUFACTURING CO</td>
+    <td class="tier-review_exclude">Review / Exclude</td>
+    <td>3181</td>
+    <td>31.8x†</td>
+    <td>4.2x</td>
+    <td>39.2x</td>
+    <td>13.3%</td>
+    <td>23.0%</td>
+    <td>14.9%</td>
+    <td>0.9x</td>
+    <td>3.10</td>
+  </tr>
+  <tr style="border-top:2px solid #888;font-weight:600;">
+    <td colspan="4">Median</td>
+    <td>1144</td>
+    <td>10.6x</td>
+    <td>1.0x</td>
+    <td>13.1x</td>
+    <td>11.7%</td>
+    <td>26.2%</td>
+    <td>4.5%</td>
+    <td>1.0x</td>
+    <td></td>
+  </tr>
+</table>
+<p class="note"><strong>Caution:</strong> STRT (6.6% EBITDA margin), MPAA (9.5% EBITDA margin), THRM (9.1% EBITDA margin), CVGI (2.2% EBITDA margin) — a depressed margin drags a company's own multiples down, so read their low multiples as a soft data point, not a clean market multiple. Per-comp business descriptions are in the Data Appendix (§7).</p>
+
+<!-- Section 3: Comparable Fit Review -->
+<h2 id="sec3">3. Comparable Fit Review</h2>
+<div class="summary-box">
+  <p><strong>Overall Top 10 Fit:</strong> 70 / 100 (Good / directionally supportive) — comp-set fit (business/customer-type/scale/end-market). <strong>Data confidence:</strong> High — reliability of the extracted source data, a separate axis from fit.</p>
+  <p>The selected comps set shows strong alignment in business model and capital intensity with the target, all being asset-heavy manufacturers. Customer type fit is mixed, with most comps serving B2B or mixed customers, but one comp (HLLY) is B2C, reducing overall fit. End-market fit is moderate; several comps focus on automotive OEM and aftermarket parts, overlapping with the target's automotive and industrial OEM focus, but some serve different end markets (e.g., filtration, thermal management). Revenue scale fit is weak due to a large size gap, with MOD being 17.7x larger than the target, exceeding the 5x threshold. Financial profiles are reasonably comparable, though EBITDA margins vary. Data confidence is high with no source-support issues. Near-miss candidates generally suffer from revenue scale mismatches and end-market or customer-type fit issues but could be considered for upgrade if scale concerns lessen.</p>
+  <p class="note">For reference: Top 10 comp revenue ranges $46mm–$3181mm against the target's $180mm (up to 17.7x larger) — see the revenue-screened sensitivity case in Section 4 for a scale-controlled range.</p>
+
+
+  <h3>Strengths</h3>
+  <ul>
+    <li>All selected comps share asset-heavy manufacturing business models consistent with the target.</li>
+    <li>Most comps serve B2B or mixed customer types, aligning with the target's industrial and automotive OEM focus.</li>
+    <li>Financial profiles show reasonable EBITDA margin proximity and capital intensity similarity.</li>
+    <li>No low-confidence data flags across selected comps, supporting reliable analysis.</li>
+  </ul>
+
+  <h3>Weaknesses</h3>
+  <ul>
+    <li>End-market fit is moderate; some comps focus on aftermarket or non-automotive industrial segments, diluting direct comparability.</li>
+    <li>One selected comp (HLLY) is B2C, which mismatches the target's B2B focus.</li>
+    <li>Revenue scale fit is poor, with MOD 17.7x larger than the target, creating potential valuation distortions.</li>
+    <li>EBITDA margins vary widely, from 2.2% (CVGI) to 24.5% (TAYD), indicating financial profile heterogeneity.</li>
+  </ul>
+
+  <h3>Strongest Fits</h3>
+  <table>
+    <tr><th>Ticker</th><th>Score</th><th>Reason</th></tr>
+    <tr class="row-odd">
+      <td>STRT</td>
+      <td>85</td>
+      <td>Strong B2B customer alignment and manufacturing focus on automotive OEM security products closely match the target's end markets.</td>
+    </tr>
+    <tr class="row-even">
+      <td>MPAA</td>
+      <td>80</td>
+      <td>Mixed customer base with strong automotive aftermarket presence and asset-heavy manufacturing aligns well with the target.</td>
+    </tr>
+    <tr class="row-odd">
+      <td>TAYD</td>
+      <td>78</td>
+      <td>Good financial profile and B2B industrial manufacturing focus, though smaller scale than target.</td>
+    </tr>
+  </table>
+
+  <h3>Weaker Fits to Review</h3>
+  <p class="note">This table is the qualitative review's own judgment only. A comp can also land in Section 2's "Review/Exclude" tier purely as a statistical EV/EBITDA outlier (marked † there) without appearing here — that's a separate, independent check, not an omission. See the Comp Tiers summary in Section 2 for which comps were flagged for which reason.</p>
+  <table>
+    <tr><th>Ticker</th><th>Score</th><th>Reason</th></tr>
+    <tr class="row-odd">
+      <td>MOD</td>
+      <td>50</td>
+      <td>Extreme revenue scale mismatch (17.7x larger) and different end-market focus on thermal management weaken comparability.</td>
+    </tr>
+    <tr class="row-even">
+      <td>CVGI</td>
+      <td>55</td>
+      <td>Very low EBITDA margin and weaker gross margin suggest financial profile mismatch despite B2B manufacturing.</td>
+    </tr>
+    <tr class="row-odd">
+      <td>HLLY</td>
+      <td>60</td>
+      <td>B2C customer type and focus on aftermarket enthusiast parts reduce end-market and customer-type fit.</td>
+    </tr>
+  </table>
+
+  <h3>Potential Substitutions from Near-Misses</h3>
+  <table>
+    <tr><th>Ticker</th><th>Score</th><th>Reason</th></tr>
+    <tr class="row-odd">
+      <td>ESAB</td>
+      <td>75</td>
+      <td>Strong manufacturing and B2B fit with relevant industrial end markets; revenue scale and end-market similarity just below threshold.</td>
+    </tr>
+    <tr class="row-even">
+      <td>CPS</td>
+      <td>70</td>
+      <td>Good B2B manufacturing fit with automotive OEM focus; revenue scale mismatch limits current fit.</td>
+    </tr>
+  </table>
+</div>
+
+<!-- Section 4: Valuation and Financial Benchmarks -->
+<h2 id="sec4">4. Valuation and Financial Benchmarks</h2>
+<h3>Valuation Multiple Distribution</h3>
+<table>
+  <tr><th>Metric</th><th>25th pct</th><th>Median</th><th>75th pct</th><th>Mean</th></tr>
+  <tr class="row-odd">
+    <td>EV/EBITDA</td>
+    <td>7.8x</td>
+    <td class="median-row">10.6x</td>
+    <td>15.6x</td>
+    <td>12.8x</td>
+  </tr>
+  <tr class="row-even">
+    <td>EV/Revenue</td>
+    <td>0.5x</td>
+    <td class="median-row">1.0x</td>
+    <td>2.4x</td>
+    <td>1.7x</td>
+  </tr>
+  <tr class="row-odd">
+    <td>EV/EBIT</td>
+    <td>10.2x</td>
+    <td class="median-row">13.1x</td>
+    <td>15.1x</td>
+    <td>15.4x</td>
+  </tr>
+  <tr class="row-even">
+    <td>EV/Gross Profit</td>
+    <td>3.0x</td>
+    <td class="median-row">3.4x</td>
+    <td>7.7x</td>
+    <td>5.9x</td>
+  </tr>
+  <tr class="row-odd">
+    <td>P/E (equity)</td>
+    <td>19.8x</td>
+    <td class="median-row">20.2x</td>
+    <td>23.5x</td>
+    <td>33.8x</td>
+  </tr>
+  <tr>
+    <td>FCF Yield (levered, over EV)</td>
+    <td>1.9%</td>
+    <td class="median-row">3.8%</td>
+    <td>5.3%</td>
+    <td>6.1%</td>
+  </tr>
+</table>
+<p class="note">EV/EBIT suits this asset-heavy target (D&A is a real economic cost here, so EV/EBITDA flatters capital-intensive comps). P/E is equity-denominated, reflecting each comp's leverage and tax position rather than a capital-structure-neutral view. FCF Yield (operating cash flow − capex, over EV) is the cash-return lens a PE buyer underwrites to; a higher yield signals more cash generation per dollar of enterprise value paid.</p>
+<p class="note"><strong>Wide multiple spread:</strong> the Top 10 EV/EBITDA range (7.8x–15.6x, P75 over 2× P25) is too dispersed for the headline P25–P75 to read as a tight, usable band. The mean (12.8x) sits above the median (10.6x), confirming a right skew from a few high-multiple names — weight the median, the size-comparable anchor, and the flagged-excluded case below over the raw range.</p>
+
+<h3>Revenue vs. EV/EBITDA (Top 10-scaled view)</h3>
+<svg viewBox="0 0 720 420" xmlns="http://www.w3.org/2000/svg" font-family="Arial, Helvetica, sans-serif" font-size="11"><rect x="70" y="30" width="620" height="330" fill="none" stroke="#dddddd"/><line x1="70" y1="360.0" x2="690" y2="360.0" stroke="#eeeeee"/><text x="62" y="364.0" text-anchor="end" fill="#555555">0x</text><line x1="70" y1="294.0" x2="690" y2="294.0" stroke="#eeeeee"/><text x="62" y="298.0" text-anchor="end" fill="#555555">7x</text><line x1="70" y1="228.0" x2="690" y2="228.0" stroke="#eeeeee"/><text x="62" y="232.0" text-anchor="end" fill="#555555">15x</text><line x1="70" y1="162.0" x2="690" y2="162.0" stroke="#eeeeee"/><text x="62" y="166.0" text-anchor="end" fill="#555555">22x</text><line x1="70" y1="96.0" x2="690" y2="96.0" stroke="#eeeeee"/><text x="62" y="100.0" text-anchor="end" fill="#555555">29x</text><line x1="70" y1="30.0" x2="690" y2="30.0" stroke="#eeeeee"/><text x="62" y="34.0" text-anchor="end" fill="#555555">37x</text><line x1="193.7" y1="30" x2="193.7" y2="360" stroke="#eeeeee"/><text x="193.7" y="378" text-anchor="middle" fill="#555555">$100mm</text><line x1="309.1" y1="30" x2="309.1" y2="360" stroke="#eeeeee"/><text x="309.1" y="378" text-anchor="middle" fill="#555555">$300mm</text><line x1="435.6" y1="30" x2="435.6" y2="360" stroke="#eeeeee"/><text x="435.6" y="378" text-anchor="middle" fill="#555555">$1bn</text><line x1="551.0" y1="30" x2="551.0" y2="360" stroke="#eeeeee"/><text x="551.0" y="378" text-anchor="middle" fill="#555555">$3bn</text><line x1="677.5" y1="30" x2="677.5" y2="360" stroke="#eeeeee"/><text x="677.5" y="378" text-anchor="middle" fill="#555555">$10bn</text><text x="380.0" y="410" text-anchor="middle" fill="#333333" font-weight="bold">Revenue (log scale)</text><text x="16" y="195.0" text-anchor="middle" fill="#333333" font-weight="bold" transform="rotate(-90 16 195.0)">EV/EBITDA</text><line x1="255.4" y1="30" x2="255.4" y2="360" stroke="#1a3a5c" stroke-width="2" stroke-dasharray="4,3"/><text x="255.4" y="22" text-anchor="middle" fill="#1a3a5c" font-weight="bold">Target ($180mm)</text><circle cx="551.3" cy="258.6" r="3" fill="#cccccc" opacity="0.6"/><circle cx="495.2" cy="238.3" r="3" fill="#cccccc" opacity="0.6"/><circle cx="390.1" cy="200.1" r="3" fill="#cccccc" opacity="0.6"/><circle cx="541.5" cy="289.8" r="3" fill="#cccccc" opacity="0.6"/><circle cx="647.2" cy="247.7" r="3" fill="#cccccc" opacity="0.6"/><circle cx="620.9" cy="297.4" r="3" fill="#cccccc" opacity="0.6"/><circle cx="515.0" cy="245.5" r="3" fill="#cccccc" opacity="0.6"/><circle cx="533.3" cy="280.1" r="3" fill="#cccccc" opacity="0.6"/><circle cx="478.1" cy="288.0" r="3" fill="#cccccc" opacity="0.6"/><circle cx="384.2" cy="283.2" r="3" fill="#cccccc" opacity="0.6"/><circle cx="584.4" cy="286.8" r="3" fill="#cccccc" opacity="0.6"/><circle cx="557.1" cy="73.0" r="3" fill="#cccccc" opacity="0.6"/><circle cx="410.8" cy="315.5" r="3" fill="#cccccc" opacity="0.6"/><circle cx="579.9" cy="276.6" r="3" fill="#cccccc" opacity="0.6"/><circle cx="496.8" cy="290.5" r="3" fill="#cccccc" opacity="0.6"/><circle cx="375.6" cy="295.1" r="3" fill="#cccccc" opacity="0.6"/><circle cx="545.3" cy="236.0" r="3" fill="#cccccc" opacity="0.6"/><circle cx="543.4" cy="148.3" r="3" fill="#cccccc" opacity="0.6"/><circle cx="622.6" cy="149.7" r="3" fill="#cccccc" opacity="0.6"/><circle cx="112.8" cy="212.5" r="3" fill="#cccccc" opacity="0.6"/><circle cx="375.6" cy="295.1" r="5" fill="#2e7d32" stroke="#ffffff" stroke-width="1"/><text x="382.6" y="298.1" fill="#333333">STRT</text><circle cx="410.8" cy="315.5" r="5" fill="#2e7d32" stroke="#ffffff" stroke-width="1"/><text x="417.8" y="318.5" fill="#333333">MPAA</text><circle cx="495.2" cy="238.3" r="5" fill="#1a3a5c" stroke="#ffffff" stroke-width="1"/><text x="502.2" y="241.3" fill="#333333">ATMU</text><circle cx="112.8" cy="212.5" r="5" fill="#2e7d32" stroke="#ffffff" stroke-width="1"/><text x="119.8" y="215.5" fill="#333333">TAYD</text><circle cx="478.1" cy="288.0" r="5" fill="#1a3a5c" stroke="#ffffff" stroke-width="1"/><text x="485.1" y="291.0" fill="#333333">THRM</text><circle cx="496.8" cy="290.5" r="5" fill="#1a3a5c" stroke="#ffffff" stroke-width="1"/><text x="503.8" y="293.5" fill="#333333">SMP</text><circle cx="515.0" cy="245.5" r="5" fill="#1a3a5c" stroke="#ffffff" stroke-width="1"/><text x="522.0" y="248.5" fill="#333333">DORM</text><circle cx="384.2" cy="283.2" r="5" fill="#c0392b" stroke="#ffffff" stroke-width="1"/><text x="391.2" y="286.2" fill="#333333">HLLY</text><circle cx="390.1" cy="200.1" r="5" fill="#c0392b" stroke="#ffffff" stroke-width="1"/><text x="397.1" y="203.1" fill="#333333">CVGI</text><circle cx="557.1" cy="73.0" r="5" fill="#c0392b" stroke="#ffffff" stroke-width="1"/><text x="564.1" y="76.0" fill="#333333">MOD</text><circle cx="525" cy="34" r="4" fill="#1a3a5c"/><text x="535" y="38" fill="#333333">Top-N, no flag</text><circle cx="525" cy="50" r="4" fill="#2e7d32"/><text x="535" y="54" fill="#333333">Strongest fit</text><circle cx="525" cy="66" r="4" fill="#c0392b"/><text x="535" y="70" fill="#333333">Weaker fit / outlier</text><circle cx="525" cy="82" r="4" fill="#cccccc"/><text x="535" y="86" fill="#333333">Eligible pool</text></svg>
+<p class="note">Background dots are the full eligible pool (20 companies) for context. The dashed line marks the target's own revenue — note how far it sits from most of the comp cloud, and how the colored (Top 10) dots cluster relative to it. The y-axis is scaled to the Top 10's own range.</p>
+
+<h3>Implied Enterprise Value</h3>
+<table>
+  <tr><th>Basis</th><th>P25</th><th>Median</th><th>P75</th></tr>
+  <tr class="row-odd">
+    <td>EV/EBITDA × target EBITDA ($29mm)</td>
+    <td>$224mm</td>
+    <td class="median-row">$306mm</td>
+    <td>$450mm</td>
+  </tr>
+  <tr class="row-even">
+    <td>EV/Revenue × target revenue ($180mm)</td>
+    <td>$97mm</td>
+    <td class="median-row">$185mm</td>
+    <td>$435mm</td>
+  </tr>
+</table>
+<p class="note">Median values are notably divergent between the two bases (49% apart). Treat the wider of the two ranges with caution; the comp set's margin profile may not be representative of the target's.</p>
+<p><strong>Private-company-adjusted implied EV (after 25% net size/marketability discount):</strong></p>
+<table>
+  <tr><th>Basis</th><th>P25</th><th>Median</th><th>P75</th></tr>
+  <tr class="row-odd">
+    <td>EV/EBITDA basis × 0.75</td>
+    <td>$168mm</td>
+    <td class="median-row">$229mm</td>
+    <td>$338mm</td>
+  </tr>
+  <tr class="row-even">
+    <td>EV/Revenue basis × 0.75</td>
+    <td>$73mm</td>
+    <td class="median-row">$139mm</td>
+    <td>$326mm</td>
+  </tr>
+</table>
+<p class="note">Public trading comps are large-cap, liquid, minority-interest multiples; applied straight to a small private mid-market target they overstate value. This range applies a single deal-team discount assumption to the comp-derived EV. 25% directional private-company adjustment for validation only.
+ It is not a substitute for precedent M&A transaction multiples, which are the more direct private-market reference.</p>
+<p><strong>Sensitivity — excluding weaker/outlier fits (CVGI, HLLY, MOD):</strong></p>
+<table>
+  <tr><th>Basis</th><th>P25</th><th>Median</th><th>P75</th></tr>
+  <tr class="row-odd">
+    <td>EV/EBITDA × target EBITDA ($29mm)</td>
+    <td>$215mm</td>
+    <td class="median-row">$230mm</td>
+    <td>$377mm</td>
+  </tr>
+  <tr class="row-even">
+    <td>EV/Revenue × target revenue ($180mm)</td>
+    <td>$108mm</td>
+    <td class="median-row">$140mm</td>
+    <td>$417mm</td>
+  </tr>
+</table>
+<p class="note">The headline range above includes all Top 10 comps. "Weaker fits" are flagged qualitatively by the Comparable Fit Review in Section 3; "outliers" are comps whose EV/EBITDA falls outside a Tukey fence (1.5× IQR) of the Top 10's own distribution — a statistical check independent of the qualitative review. This sensitivity range shows the combined impact of excluding both.</p>
+<p><strong>Sensitivity — revenue-screened comps only (within 10x target revenue: 8 of 10 — HLLY, STRT, MPAA, ATMU, TAYD, THRM, SMP, CVGI):</strong></p>
+<table>
+  <tr><th>Basis</th><th>P25</th><th>Median</th><th>P75</th></tr>
+  <tr class="row-odd">
+    <td>EV/EBITDA × target EBITDA ($29mm)</td>
+    <td>$218mm</td>
+    <td class="median-row">$238mm</td>
+    <td>$409mm</td>
+  </tr>
+  <tr class="row-even">
+    <td>EV/Revenue × target revenue ($180mm)</td>
+    <td>$86mm</td>
+    <td class="median-row">$135mm</td>
+    <td>$286mm</td>
+  </tr>
+</table>
+<p class="note">Direct answer to the revenue-scale mismatch flagged elsewhere in this report: this range uses only the Top 10 comps within 10x of the target's own revenue, instead of adjusting for size statistically (see the regression-based cross-check below). This screen controls only for revenue scale — it does not exclude comps already flagged as weaker fits or valuation outliers above, so a comp can appear in this case even if the other sensitivity case excludes it.</p>
+<p class="note">A stricter size screen (0.5x–5x target revenue) leaves only 4 comps (HLLY, STRT, MPAA, CVGI) — too few for a full P25/P75 distribution. Rather than discard them, their median EV/EBITDA of 7.9x (≈ $226mm at the target's EBITDA) is carried up to the executive summary as the size-comparable anchor — a directional central case for a target this small, not a standalone range.</p>
+<p><strong>Directional size-adjusted cross-check:</strong> not a substitute for the ranges above — the regression below is <strong>not statistically significant</strong> at this sample size, so treat the implied EV as directional only.</p>
+<table>
+  <tr><th>Pool size (n)</th><th>Slope (EV/EBITDA per log10 revenue)</th><th>R²</th><th>Significant (p&lt;0.05)</th><th>Implied EV (directional)</th></tr>
+  <tr class="row-odd">
+    <td>20</td>
+    <td>0.98</td>
+    <td>0.01</td>
+    <td>No</td>
+    <td>~$337mm</td>
+  </tr>
+</table>
+<p class="note">Regresses EV/EBITDA on log10(revenue) across the full eligible pool (20 companies, not just the Top 10) to quantify whether this industry's multiples scale with company size, then reads off the predicted multiple at the target's own revenue.</p>
+
+<h3>Financial Benchmarks</h3>
+<p class="note">Target Est. without an asterisk is a target-specific input from the deal model (e.g. EBITDA Margin). Target Est.<sup>*</sup> is a stand-in for a metric the target does not disclose, imputed from the median of <em>same-business-model peers across the full scoring pool</em> (not the Top 10 shown here) — so a starred value can differ from this table's Median column, which is over the Top 10 only. A dash (—) means no target figure applies — these rows (e.g. FCF Conversion, Interest Coverage, Debt/Equity) show the comp distribution only, as a market-typical operating/leverage profile for the selected set.</p>
+<table>
+  <tr><th>Metric</th><th>Target Est.</th><th>P25</th><th>Median</th><th>P75</th><th>Target Percentile</th></tr>
+  <tr class="row-odd">
+    <td>EBITDA Margin</td>
+    <td>16.0%</td>
+    <td>9.2%</td>
+    <td class="median-row">11.7%</td>
+    <td>16.3%</td>
+    <td>70th</td>
+  </tr>
+  <tr class="row-even">
+    <td>Revenue Growth</td>
+    <td>3.4%*</td>
+    <td>2.4%</td>
+    <td class="median-row">4.5%</td>
+    <td>5.1%</td>
+    <td>30th</td>
+  </tr>
+  <tr class="row-odd">
+    <td>Gross Margin</td>
+    <td>26.2%*</td>
+    <td>20.9%</td>
+    <td class="median-row">26.2%</td>
+    <td>39.4%</td>
+    <td>50th</td>
+  </tr>
+  <tr class="row-even">
+    <td>Capex/Revenue</td>
+    <td>2.1%*</td>
+    <td>1.7%</td>
+    <td class="median-row">2.1%</td>
+    <td>3.6%</td>
+    <td>50th</td>
+  </tr>
+  <tr class="row-odd">
+    <td>FCF Conversion</td>
+    <td>—</td>
+    <td>22.2%</td>
+    <td class="median-row">39.9%</td>
+    <td>45.1%</td>
+    <td>N/A</td>
+  </tr>
+  <tr class="row-even">
+    <td>Net Debt/EBITDA</td>
+    <td>2.0x*</td>
+    <td>0.4x</td>
+    <td class="median-row">1.0x</td>
+    <td>2.5x</td>
+    <td>70th</td>
+  </tr>
+  <tr class="row-odd">
+    <td>Interest Coverage</td>
+    <td>—</td>
+    <td>5.5x</td>
+    <td class="median-row">9.7x</td>
+    <td>10.7x</td>
+    <td>N/A</td>
+  </tr>
+  <tr class="row-even">
+    <td>Debt/Equity</td>
+    <td>—</td>
+    <td>0.3x</td>
+    <td class="median-row">0.4x</td>
+    <td>0.8x</td>
+    <td>N/A</td>
+  </tr>
+</table>
+
+<!-- Section 5: Near-Miss Candidates -->
+<h2 id="sec5">5. Near-Miss Candidates (Just Outside the Top 10)</h2>
+<div class="summary-box">
+<p class="note">"Financial-only rank" ignores the business-model/customer-type/revenue-scale/end-market soft penalties applied in Section 2's Top 10 selection — a candidate ranked here by financial distance alone can still be correctly excluded from Top 10 for one of those other reasons (see the right-hand column).</p>
+  <table>
+    <tr><th>Financial-only rank</th><th>Ticker</th><th>Company</th><th>Primary reason excluded from Top 10</th></tr>
+    <tr class="row-odd">
+      <td>10</td>
+      <td>ESAB</td>
+      <td>ESAB Corp</td>
+      <td>revenue scale mismatch (+0.2 rank penalty); end-market similarity below threshold (0.49 vs. 0.5 required)</td>
+    </tr>
+    <tr class="row-even">
+      <td>11</td>
+      <td>GNTX</td>
+      <td>GENTEX CORP</td>
+      <td>customer type mismatch (mixed vs target's B2B); revenue scale mismatch (+0.1 rank penalty); end-market similarity below threshold (0.44 vs. 0.5 required)</td>
+    </tr>
+    <tr class="row-odd">
+      <td>13</td>
+      <td>CPS</td>
+      <td>Cooper-Standard Holdings Inc.</td>
+      <td>revenue scale mismatch (+0.2 rank penalty)</td>
+    </tr>
+    <tr class="row-even">
+      <td>14</td>
+      <td>PATK</td>
+      <td>PATRICK INDUSTRIES INC</td>
+      <td>revenue scale mismatch (+0.3 rank penalty)</td>
+    </tr>
+    <tr class="row-odd">
+      <td>16</td>
+      <td>NDSN</td>
+      <td>NORDSON CORP</td>
+      <td>revenue scale mismatch (+0.2 rank penalty)</td>
+    </tr>
+  </table>
+</div>
+
+<!-- Section 6: Selection Diagnostics -->
+<h2 id="sec6">6. Selection Diagnostics</h2>
+<div class="summary-box">
+  <p><strong>Average financial distance to target (Top 10):</strong> 2.37</p>
+  <p><strong>Multiple-spread check:</strong> Top 10 EV/EBITDA IQR is 7.9x vs. 6.5x for the eligible pool (20 companies), or 122% of the pool IQR. This indicates the selected set did not narrow the valuation-multiple spread.</p>
+  <p><strong>Financial attributes most influencing the ranking:</strong></p>
+  <table>
+    <tr><th>Feature</th><th>Relative influence</th></tr>
+    <tr class="row-odd">
+      <td>Revenue (TTM)</td>
+      <td>4.299</td>
+    </tr>
+    <tr class="row-even">
+      <td>EBITDA Margin</td>
+      <td>1.555</td>
+    </tr>
+    <tr class="row-odd">
+      <td>Gross Margin</td>
+      <td>0.000</td>
+    </tr>
+    <tr class="row-even">
+      <td>Revenue Growth (3yr CAGR)</td>
+      <td>0.000</td>
+    </tr>
+    <tr class="row-odd">
+      <td>Net Debt / EBITDA</td>
+      <td>0.000</td>
+    </tr>
+  </table>
+</div>
+
+<!-- Section 7: Data Notes -->
+<h2 id="sec7">7. Data Notes</h2>
+<div class="summary-box">
+  <p>12 companies were excluded because their source descriptions did not sufficiently support the extracted business profile.</p>
+  <p>2 companies were excluded because required market or filing data was unavailable.</p>
+  <p><strong>AI assistance note:</strong> Business-profile extraction and the Comparable Fit Review use LLM assistance. Outputs should be treated as directional support for analyst review, not as final diligence conclusions.</p>
+  <p><strong>Benchmarking note:</strong> The repository does not publish an audited external benchmark for comparable-company selection; use the fit review, near-miss list, and diagnostics as directional quality checks.</p>
+  <p class="disclaimer">Analysis based on public company data via FMP and SEC EDGAR. For reference purposes only.</p>
+</div>
+
+<h3>Data Appendix</h3>
+<p class="note">Underlying figures behind each Top 10 comp's EV/EBITDA and EV/Revenue (Section 2). Revenue, EBITDA, and net debt are derived from SEC EDGAR/XBRL filings; market cap is FMP-sourced. Enterprise Value = Market Cap + Net Debt + Minority Interest + Preferred Equity (operating lease liabilities optionally included per config); EV/EBITDA and EV/Revenue were computed from these fields for all 10 Top comps, not taken pre-calculated from a vendor. Figures are as of the data-vintage dates in the footer below (market cap and fundamentals can be served from cache within their refresh windows), not a fixed historical date.</p>
+<p class="note"><strong>EBITDA basis:</strong> EBITDA is unadjusted and derived directly from XBRL filings — it is <em>not</em> normalized for stock-based compensation, operating-lease treatment (IFRS 16 / ASC 842), or one-time/non-recurring items, and the same definition is applied to the target's estimate and to every comp. A normalized "adjusted EBITDA" (the basis most PE deal models price on) could shift individual multiples materially; treat the multiples here as a like-for-like screen on a common reported basis, not as adjusted-EBITDA pricing multiples.</p>
+<p class="note">All business descriptions were sourced from SEC EDGAR (filing text).</p>
+<table>
+  <tr><th>Ticker</th><th>Revenue ($M)</th><th>Market Cap ($M)</th><th>Net Debt ($M)</th><th>EBITDA ($M)</th><th>Enterprise Value ($M)</th><th>EV/EBITDA</th><th>EV/Revenue</th></tr>
+  <tr class="row-odd">
+    <td>STRT</td>
+    <td>565</td>
+    <td>347</td>
+    <td>-77</td>
+    <td>38</td>
+    <td>270</td>
+    <td>7.2x</td>
+    <td>0.5x</td>
+  </tr>
+  <tr class="row-even">
+    <td>MPAA</td>
+    <td>790</td>
+    <td>292</td>
+    <td>80</td>
+    <td>75</td>
+    <td>372</td>
+    <td>4.9x</td>
+    <td>0.5x</td>
+  </tr>
+  <tr class="row-odd">
+    <td>ATMU</td>
+    <td>1764</td>
+    <td>4106</td>
+    <td>334</td>
+    <td>329</td>
+    <td>4440</td>
+    <td>13.5x</td>
+    <td>2.5x</td>
+  </tr>
+  <tr class="row-even">
+    <td>TAYD</td>
+    <td>46</td>
+    <td>187</td>
+    <td>-1</td>
+    <td>11</td>
+    <td>185</td>
+    <td>16.4x</td>
+    <td>4.0x</td>
+  </tr>
+  <tr class="row-odd">
+    <td>THRM</td>
+    <td>1499</td>
+    <td>1058</td>
+    <td>28</td>
+    <td>136</td>
+    <td>1086</td>
+    <td>8.0x</td>
+    <td>0.7x</td>
+  </tr>
+  <tr class="row-even">
+    <td>SMP</td>
+    <td>1791</td>
+    <td>865</td>
+    <td>525</td>
+    <td>180</td>
+    <td>1390</td>
+    <td>7.7x</td>
+    <td>0.8x</td>
+  </tr>
+  <tr class="row-odd">
+    <td>DORM</td>
+    <td>2130</td>
+    <td>4121</td>
+    <td>390</td>
+    <td>355</td>
+    <td>4512</td>
+    <td>12.7x</td>
+    <td>2.1x</td>
+  </tr>
+  <tr class="row-even">
+    <td>HLLY</td>
+    <td>614</td>
+    <td>300</td>
+    <td>485</td>
+    <td>92</td>
+    <td>785</td>
+    <td>8.5x</td>
+    <td>1.3x</td>
+  </tr>
+  <tr class="row-odd">
+    <td>CVGI</td>
+    <td>649</td>
+    <td>177</td>
+    <td>73</td>
+    <td>14</td>
+    <td>250</td>
+    <td>17.7x</td>
+    <td>0.4x</td>
+  </tr>
+  <tr class="row-even">
+    <td>MOD</td>
+    <td>3181</td>
+    <td>13068</td>
+    <td>363</td>
+    <td>422</td>
+    <td>13431</td>
+    <td>31.8x</td>
+    <td>4.2x</td>
+  </tr>
+</table>
+
+<!-- Section 8: Methodology Notes -->
+<h2 id="sec8">8. Methodology Notes</h2>
+<div class="summary-box">
+  <p>Rank (Section 2) reflects overall comparability to the target: the standardized financial distance plus soft penalties (in the same distance units) for business-model, customer-type, revenue-scale, and end-market mismatch — not the EV/EBITDA multiple.</p>
+  <p>The <strong>Tier</strong> column is an independent fit-quality flag (from the Comparable Fit Review and the statistical outlier check), not a function of Rank. They usually agree, but a comp can be the closest financial fit (high Rank) and still be flagged for a second look (e.g. a different customer base) — the two are separate signals shown side by side on purpose.</p>
+  <p>The Comparable Fit Review (Section 3) is a directional qualitative review; it is not a substitute for transaction-team judgment, banker input, or confirmatory diligence.</p>
+  <p>Target Percentile (Section 4) shows where the target falls within the selected comp set. It is calculated directly from company-level data, so it may not match a simple interpolation from the rounded quartiles shown in the same table.</p>
+  <p>"Relative influence" (Section 6) values are standardized, weighted squared distances — comparable only to each other within that table (to show which financial attribute drove the ranking most), not an absolute or standalone valuation metric.</p>
+  <p><strong>Geography filter.</strong> By default the pipeline restricts candidates to US-domiciled companies (per the FMP company profile's country field). Companies with no country data in FMP are kept rather than discarded. Non-US comps are excluded upstream and will not appear in this report.</p>
+  <p><strong>End-market scarcity.</strong> For a niche target, comps that match on <em>both</em> size and exact end-market are often scarce, so the set leans on broader same-industry names. Where the closest end-market match falls just outside the Top 10, it is surfaced in the near-miss list (Section 5) and the fit review's substitution suggestions (Section 3) rather than silently dropped.</p>
+</div>
+
+<div class="footer">
+  Generated by PE Comps Pipeline — 2026-07-01 22:28:44 UTC · Prepared by Validation run<br>
+Market data as of 2026-07-01T18:52:53.870754+00:00 · fundamentals as of 2026-06-26T03:00:01.511928+00:00 (cached up to their refresh window, not necessarily the report date).<br>
+  Provenance — config 5b82cb54dd2d · code f44a5dd
+</div>
+
+</body>
+</html>
