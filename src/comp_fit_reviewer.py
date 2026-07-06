@@ -1,20 +1,20 @@
 import hashlib
 import json
 from datetime import datetime, timezone
-from pathlib import Path
 
 import openai
 
-from src import get_logger
+from src import get_logger, json_store
 from src.config_schema import PipelineConfig, TargetCompanyConfig, as_config
 from src.llm_analyzer import _call_openai, _strip_markdown_fences
+from src.paths import project_path
 
 logger = get_logger(__name__)
 
-REVIEW_PATH = Path("outputs/comp_fit_review.json")
+REVIEW_PATH = project_path("outputs", "comp_fit_review.json")
 REVIEW_MAX_OUTPUT_TOKENS = 2500
 
-REVIEW_PROMPT_VERSION = "analyst_memo_v7_scope_checked"
+REVIEW_PROMPT_VERSION = "analyst_memo_v8_score_calibrated"
 
 SYSTEM_PROMPT = """You are a private equity analyst reviewing whether a selected
 public-company comparable set is a good fit for valuing a private target.
@@ -52,6 +52,17 @@ Rules:
   field (ticker and ratio). When stating the largest revenue-scale ratio,
   use that exact number — do not compute your own ratio from the individual
   comp revenue figures, which is error-prone across a list of this size.
+- Score-band calibration:
+  - 80-100 means strong comp-set support with only minor caveats.
+  - 70-79 means useful support, but not banker-grade without analyst review.
+  - 60-69 means mixed directional support with material caveats.
+  - 50-59 means weak/mixed support; use only as a rough screen.
+  - Below 50 means weak support.
+- Do not call a set good if several selected comps have clearly different end
+  markets, if 25% or more of selected comps would require review/exclusion, or
+  if multiple selected comps exceed 5x target revenue. In those cases, scores
+  in the 60-69 range are usually more appropriate unless there are unusually
+  strong offsetting reasons.
 - top_fits and questionable_fits must reference only tickers listed under
   Selected Top Comps. near_miss_upgrades must reference only tickers listed
   under Near-Miss Candidates. Never describe a near-miss ticker as a selected
@@ -115,12 +126,8 @@ def _signature(target_config: TargetCompanyConfig, top_comps: list[dict], near_m
 
 
 def _load_cached(signature: str) -> dict | None:
-    if not REVIEW_PATH.exists():
-        return None
-    try:
-        with open(REVIEW_PATH, encoding="utf-8") as f:
-            cached = json.load(f)
-    except Exception:
+    cached = json_store.load_json(REVIEW_PATH)
+    if not isinstance(cached, dict):
         return None
     if cached.get("input_signature") != signature:
         return None
@@ -129,14 +136,12 @@ def _load_cached(signature: str) -> dict | None:
 
 
 def _save_cached(signature: str, review: dict) -> None:
-    REVIEW_PATH.parent.mkdir(parents=True, exist_ok=True)
     record = {
         "input_signature": signature,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "review": review,
     }
-    with open(REVIEW_PATH, "w", encoding="utf-8") as f:
-        json.dump(record, f, indent=2)
+    json_store.write_json_atomic(REVIEW_PATH, record)
 
 
 def _parse_review(text: str | None) -> dict | None:

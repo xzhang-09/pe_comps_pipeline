@@ -112,8 +112,9 @@
     padding: 10px 14px;
     margin: 16px 0;
   }
-  tr.fit-strong { border-left: 4px solid #2e7d32; }
-  tr.fit-weak { border-left: 4px solid #c0392b; }
+  tr.tier-row-core { border-left: 4px solid #2e7d32; }
+  tr.tier-row-secondary { border-left: 4px solid #1a3a5c; }
+  tr.tier-row-review_exclude { border-left: 4px solid #c0392b; }
   .tier-core { color: #2e7d32; font-weight: bold; }
   .tier-secondary { color: #555555; }
   .tier-review_exclude { color: #c0392b; font-weight: bold; }
@@ -230,7 +231,17 @@
 
 <!-- Section 2: Top 15 Comparable Companies -->
 <h2 id="sec2">2. Top {{ n_comps }} Comparable Companies</h2>
-{% if business_model_alignment %}<p class="note">{% if business_model_alignment.target_business_model %}{% if business_model_alignment.n_matching == business_model_alignment.n_total %}{{ business_model_alignment.n_matching }}/{{ business_model_alignment.n_total }} comps match the target's business model ({{ business_model_alignment.target_business_model }}).{% else %}{{ business_model_alignment.n_matching }}/{{ business_model_alignment.n_total }} comps match the target's business model ({{ business_model_alignment.target_business_model }}). Exceptions: {% for e in business_model_alignment.exceptions %}{{ e.ticker }} ({{ e.business_model }}){% if not loop.last %}, {% endif %}{% endfor %}.{% endif %}{% endif %}{% if business_model_alignment.target_customer_type %} {% if business_model_alignment.n_customer_matching == business_model_alignment.n_total %}{{ business_model_alignment.n_customer_matching }}/{{ business_model_alignment.n_total }} comps match the target's customer base ({{ business_model_alignment.target_customer_type }}).{% else %}{{ business_model_alignment.n_customer_matching }}/{{ business_model_alignment.n_total }} comps match the target's customer base ({{ business_model_alignment.target_customer_type }}). Exceptions: {% for e in business_model_alignment.customer_exceptions %}{{ e.ticker }} ({{ e.customer_type }}){% if not loop.last %}, {% endif %}{% endfor %}.{% endif %}{% endif %} <strong>Rank</strong> orders by <strong>Tier</strong> first (<span class="tier-core">Core</span> / <span class="tier-secondary">Secondary</span> / <span class="tier-review_exclude">Review</span> — see §3), then within each tier by financial distance plus business-model/customer/scale/end-market penalties (§8); <strong>Fin. Dist.</strong> is the financial component alone (lower = closer). † marks a statistical EV/EBITDA outlier (Tukey {{ tukey_fence_multiplier }}× IQR).</p>{% if business_model_alignment.fit_note_exceptions %}<p class="note"><strong>Fit flags:</strong> {% for e in business_model_alignment.fit_note_exceptions %}{{ e.ticker }} — {{ e.fit_notes }}{% if not loop.last %}; {% endif %}{% endfor %}.</p>{% endif %}{% endif %}
+{% if business_model_alignment %}<p class="note">{% if business_model_alignment.target_business_model %}{% if business_model_alignment.n_matching == business_model_alignment.n_total %}{{ business_model_alignment.n_matching }}/{{ business_model_alignment.n_total }} comps match the target's business model ({{ business_model_alignment.target_business_model }}).{% else %}{{ business_model_alignment.n_matching }}/{{ business_model_alignment.n_total }} comps match the target's business model ({{ business_model_alignment.target_business_model }}). Exceptions: {% for e in business_model_alignment.exceptions %}{{ e.ticker }} ({{ e.business_model }}){% if not loop.last %}, {% endif %}{% endfor %}.{% endif %}{% endif %}{% if business_model_alignment.target_customer_type %} {% if business_model_alignment.n_customer_matching == business_model_alignment.n_total %}{{ business_model_alignment.n_customer_matching }}/{{ business_model_alignment.n_total }} comps match the target's customer base ({{ business_model_alignment.target_customer_type }}).{% else %}{{ business_model_alignment.n_customer_matching }}/{{ business_model_alignment.n_total }} comps match the target's customer base ({{ business_model_alignment.target_customer_type }}). Exceptions: {% for e in business_model_alignment.customer_exceptions %}{{ e.ticker }} ({{ e.customer_type }}){% if not loop.last %}, {% endif %}{% endfor %}.{% endif %}{% endif %} <strong>Rank</strong> orders by <strong>Tier</strong> first (<span class="tier-core">Core</span> / <span class="tier-secondary">Secondary</span> / <span class="tier-review_exclude">Review</span> — see §3), then within each tier by financial distance plus business-model/customer/scale/end-market penalties (§8); <strong>Fin. Dist.</strong> is the financial component alone (lower = closer). Table row colors and the Section 4 scatter use the same tier colors. † marks a statistical EV/EBITDA outlier (Tukey {{ tukey_fence_multiplier }}× IQR).</p>{% if business_model_alignment.fit_note_exceptions %}<details class="note"><summary><strong>Fit flags</strong> ({{ business_model_alignment.fit_note_exceptions|length }} comps)</summary><p>{% for e in business_model_alignment.fit_note_exceptions %}{{ e.ticker }} — {{ e.fit_notes }}{% if not loop.last %}; {% endif %}{% endfor %}.</p></details>{% endif %}{% endif %}
+{% if must_include_exclusion_notes %}
+<p class="note"><strong>Analyst-specified exclusions:</strong> {{ must_include_exclusion_notes | join(" ") }}</p>
+{% endif %}
+{% if selection_quality %}
+<p class="note"><strong>Selection quality check:</strong> {{ selection_quality.usable_count }}/{{ selection_quality.n_total }} usable comps after tier review
+  (Core {{ selection_quality.n_core }}, Secondary {{ selection_quality.n_secondary }}, Review / Exclude {{ selection_quality.n_review_exclude }}).{% if selection_quality.max_revenue_ratio %} Max revenue scale gap: {{ "%.1f"|format(selection_quality.max_revenue_ratio) }}x.{% endif %}</p>
+{% endif %}
+{% if substitution_audit %}
+<details class="note"><summary><strong>Replacement audit</strong> ({{ substitution_audit|length }} decisions)</summary><p>{% for item in substitution_audit %}{% if item.decision == "accepted" %}Accepted replacement {{ item.ticker }} ({{ TIER_LABELS[item.tier] }}) — {{ item.reason }}{% else %}Rejected replacement {{ item.ticker }} ({{ TIER_LABELS[item.tier] }}) — {{ item.reason }}{% endif %}{% if not loop.last %}; {% endif %}{% endfor %}.</p></details>
+{% endif %}
 <div class="tier-summary-grid">
   {% for t in tier_summary %}
   <div class="tier-summary-item">
@@ -241,15 +252,16 @@
 
 <table>
   <tr>
-    <th>Rank</th><th>Ticker</th><th>Company</th><th>Tier</th><th>Rev ($M)</th>
+    <th>Rank</th><th>Ticker</th><th>Company</th><th>Source</th><th>Tier</th><th>Rev ($M)</th>
     <th>EV/EBITDA</th><th>EV/Rev</th><th>EV/EBIT</th>
     <th>EBITDA %</th><th>Gross %</th><th>Rev Gr</th><th>ND/EBITDA</th><th>Fin. Dist.</th>
   </tr>
   {% for c in top15 %}
-  <tr class="{{ 'top-rank' if c.rank == 1 else ('row-odd' if loop.index is odd else 'row-even') }}{{ ' low-confidence' if c.low_confidence_flag else '' }}{{ ' fit-strong' if c.fit_flag == 'strong' else (' fit-weak' if c.fit_flag == 'weak' else '') }}">
+  <tr class="{{ 'top-rank' if c.rank == 1 else ('row-odd' if loop.index is odd else 'row-even') }} tier-row-{{ c.tier }}{{ ' low-confidence' if c.low_confidence_flag else '' }}">
     <td>{{ c.rank }}</td>
     <td>{{ c.ticker }}</td>
     <td>{{ c.company_name }}</td>
+    <td>{{ c.candidate_source_label }}</td>
     <td class="tier-{{ c.tier }}">{{ TIER_LABELS[c.tier] }}</td>
     <td>{{ "%.0f"|format(c.revenue_ttm_usd_mm) if c.revenue_ttm_usd_mm is not none else "N/A" }}</td>
     <td>{{ "%.1f"|format(c.ev_ebitda_actual) if c.ev_ebitda_actual is not none else "N/A" }}x{{ "†" if c.outlier_flag else "" }}</td>
@@ -263,7 +275,7 @@
   </tr>
   {% endfor %}
   <tr style="border-top:2px solid #888;font-weight:600;">
-    <td colspan="4">Median</td>
+    <td colspan="5">Median</td>
     <td>{{ "%.0f"|format(top15_medians.revenue_ttm_usd_mm) if top15_medians.revenue_ttm_usd_mm is not none else "—" }}</td>
     <td>{{ "%.1f"|format(top15_medians.ev_ebitda_actual) ~ "x" if top15_medians.ev_ebitda_actual is not none else "—" }}</td>
     <td>{{ "%.1f"|format(top15_medians.ev_revenue) ~ "x" if top15_medians.ev_revenue is not none else "—" }}</td>
@@ -414,10 +426,10 @@
 <p class="note"><strong>Wide multiple spread:</strong> the Top {{ n_comps }} EV/EBITDA range ({{ "%.1f"|format(valuation_multiples.ev_ebitda.p25) }}x–{{ "%.1f"|format(valuation_multiples.ev_ebitda.p75) }}x, P75 over {{ "%.0f"|format(wide_multiple_spread_ratio) }}× P25) is too dispersed for the headline P25–P75 to read as a tight, usable band. The mean ({{ "%.1f"|format(valuation_multiples.ev_ebitda.mean) }}x) sits above the median ({{ "%.1f"|format(valuation_multiples.ev_ebitda.median) }}x), confirming a right skew from a few high-multiple names — weight the median, the size-comparable anchor, and the flagged-excluded case below over the raw range.</p>
 {% endif %}
 
-<h3>Revenue vs. EV/EBITDA (Top {{ n_comps }}-scaled view)</h3>
+<h3>Revenue vs. EV/EBITDA</h3>
 {% if scatter_data %}
 {{ scatter_data.svg }}
-<p class="note">Background dots are the full eligible pool ({{ selection_summary.n_eligible_candidates }} companies) for context. The dashed line marks the target's own revenue — note how far it sits from most of the comp cloud, and how the colored (Top {{ n_comps }}) dots cluster relative to it. The y-axis is scaled to the Top {{ n_comps }}'s own range{% if scatter_data.n_pool_clipped > 0 %}; {{ scatter_data.n_pool_clipped }} eligible-pool comp{{ "s" if scatter_data.n_pool_clipped != 1 else "" }} with an even higher EV/EBITDA multiple are off-chart and not shown{% endif %}.</p>
+<p class="note">Background dots are the full eligible pool ({{ selection_summary.n_eligible_candidates }} companies) for context. The dashed line marks the target's own revenue; colored Top {{ n_comps }} dots use the same tier colors as Section 2. The y-axis is scaled to the usable (Core/Secondary) comps' multiple range{% if scatter_data.n_top_pinned > 0 %}; {{ scatter_data.n_top_pinned }} Review/Exclude comp{{ "s" if scatter_data.n_top_pinned != 1 else "" }} with higher multiples appear as arrows pinned to the top edge{% endif %}{% if scatter_data.n_pool_clipped > 0 %}; {{ scatter_data.n_pool_clipped }} eligible-pool comp{{ "s" if scatter_data.n_pool_clipped != 1 else "" }} above that range are off-chart and not shown{% endif %}.</p>
 {% else %}
 <p>Scatter plot not available — insufficient data.</p>
 {% endif %}
@@ -661,7 +673,8 @@
 
 <div class="footer">
   Generated by PE Comps Pipeline — {{ generated_at }}{% if prepared_by %} · Prepared by {{ prepared_by }}{% endif %}<br>
-  {% if provenance.market_data_as_of %}Market data as of {{ provenance.market_data_as_of }} · fundamentals as of {{ provenance.fundamentals_as_of }} (cached up to their refresh window, not necessarily the report date).{% else %}Underlying data fetched at run time.{% endif %}<br>
+  {% if provenance.market_data_as_of %}Market data as of {{ provenance.market_data_as_of }}{% if provenance.market_data_through and provenance.market_data_through != provenance.market_data_as_of %} to {{ provenance.market_data_through }}{% endif %} · fundamentals as of {{ provenance.fundamentals_as_of }} (cached up to their refresh window, not necessarily the report date).{% else %}Underlying data fetched at run time.{% endif %}<br>
+  {% if provenance.market_data_warning %}{{ provenance.market_data_warning }}<br>{% endif %}
   Provenance — config {{ provenance.config_hash }} · code {{ provenance.code_version }}
 </div>
 

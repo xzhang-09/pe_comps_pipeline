@@ -3,6 +3,13 @@ import json
 import src.comp_fit_reviewer as comp_fit_reviewer
 
 
+def test_review_prompt_contains_score_band_calibration_guidance():
+    assert "Score-band calibration" in comp_fit_reviewer.SYSTEM_PROMPT
+    assert "60-69" in comp_fit_reviewer.SYSTEM_PROMPT
+    assert "material caveats" in comp_fit_reviewer.SYSTEM_PROMPT
+    assert "Do not call a set good" in comp_fit_reviewer.SYSTEM_PROMPT
+
+
 def _target():
     return {
         "name": "Example Manufacturing Co.",

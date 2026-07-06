@@ -117,7 +117,6 @@ def _sample_config():
             "name": "Example Manufacturing Co.",
             "description": "A test target company.",
             "primary_sic_codes": ["3714"],
-            "gics_sector": "20",
             "revenue_usd_mm": 150,
             "ebitda_margin_estimate": 0.18,
         },
@@ -178,6 +177,19 @@ def test_oldest_timestamp_picks_earliest_ignoring_missing():
     assert reporter._oldest_timestamp([], "fetch_timestamp") is None
 
 
+def test_provenance_reports_market_data_range_and_warning(make_config):
+    records = [
+        {"market_data_timestamp": "2026-06-10T00:00:00+00:00", "fetch_timestamp": "2026-06-09T00:00:00+00:00"},
+        {"market_data_timestamp": "2026-06-12T00:00:00+00:00", "fetch_timestamp": "2026-06-08T00:00:00+00:00"},
+    ]
+
+    result = reporter._provenance(make_config(), records)
+
+    assert result["market_data_as_of"] == "2026-06-10T00:00:00+00:00"
+    assert result["market_data_through"] == "2026-06-12T00:00:00+00:00"
+    assert "span more than 1 day" in result["market_data_warning"]
+
+
 def test_report_html_embeds_provenance():
     companies, llm_features, company_scores = _build_sample(n=30, n_matching=15)
     scorer_results = _scorer_results(company_scores)
@@ -236,6 +248,53 @@ def test_csv_file_created():
     )
 
     assert reporter.CSV_PATH.exists()
+
+
+def test_report_marks_analyst_specified_top_comp_in_csv_and_html():
+    companies, llm_features, company_scores = _build_sample(n=2, n_matching=2)
+    companies[0]["candidate_source"] = "analyst_specified"
+    companies[0]["universe_metadata"] = {"candidate_source": "analyst_specified"}
+    scorer_results = _scorer_results(company_scores)
+    config = _sample_config()
+    config["output"]["top_n_comps"] = 2
+    config["universe"]["must_include_tickers"] = [companies[0]["ticker"]]
+
+    result = reporter.generate(
+        scorer_results, companies, llm_features, _llm(business_model="manufacturing"), _imputation_medians(), config,
+    )
+
+    with open(result["csv"], newline="", encoding="utf-8") as f:
+        rows = list(csv.DictReader(f))
+    html = Path(result["html"]).read_text(encoding="utf-8")
+    assert rows[0]["candidate_source"] == "analyst_specified"
+    assert "Analyst-specified" in html
+
+
+def test_report_notes_low_confidence_must_include_exclusion():
+    companies = [
+        _company("KEEP"),
+        _company("MANUAL", candidate_source="analyst_specified", universe_metadata={"candidate_source": "analyst_specified"}),
+    ]
+    llm_features = {
+        "KEEP": _llm(business_model="manufacturing", low_confidence_flag=False),
+        "MANUAL": _llm(business_model="manufacturing", low_confidence_flag=True),
+    }
+    company_scores = pd.DataFrame({
+        "ev_ebitda_actual": {"KEEP": 10.0, "MANUAL": 11.0},
+        "residual_abs": {"KEEP": 0.5, "MANUAL": 0.01},
+    })
+    scorer_results = _scorer_results(company_scores)
+    config = _sample_config()
+    config["output"]["top_n_comps"] = 1
+    config["universe"]["must_include_tickers"] = ["MANUAL"]
+
+    result = reporter.generate(
+        scorer_results, companies, llm_features, _llm(business_model="manufacturing"), _imputation_medians(), config,
+    )
+
+    html = Path(result["html"]).read_text(encoding="utf-8")
+    assert "MANUAL was analyst-specified but excluded" in html
+    assert "low-confidence" in html
 
 
 def test_size_and_customer_type_mismatch_excluded():
@@ -499,6 +558,67 @@ def test_html_report_includes_comp_fit_review_when_available(mocker):
     assert "Different end market." in html_text
 
 
+def test_html_report_downgrades_good_label_when_fit_evidence_has_material_caveats(mocker):
+    mocker.patch("src.reporter.comp_fit_reviewer.review_comp_fit", return_value={
+        "status": "available",
+        "overall_score": 65,
+        "review_confidence": "high",
+        "summary": "Directional set with material caveats.",
+        "strengths": ["Most companies share a broad manufacturing label."],
+        "weaknesses": [
+            "Revenue scale mismatch is significant, with several comps above 5x target revenue.",
+            "End-market fit is weak for several selected comps.",
+        ],
+        "top_fits": [{"ticker": "T000", "score": 80, "reason": "Best selected fit."}],
+        "questionable_fits": [{"ticker": "T001", "score": 50, "reason": "Different end market."}],
+        "near_miss_upgrades": [],
+    })
+    companies, llm_features, company_scores = _build_sample(n=30, n_matching=15)
+    scorer_results = _scorer_results(company_scores)
+    target_llm_features = _llm(business_model="manufacturing", customer_type="B2B")
+
+    reporter.generate(
+        scorer_results, companies, llm_features, target_llm_features, _imputation_medians(), _sample_config(),
+    )
+
+    html_text = reporter.HTML_PATH.read_text(encoding="utf-8")
+    assert "65 / 100 (Mixed / directionally useful with material caveats)" in html_text
+    assert "65 / 100 (Good / directionally supportive)" not in html_text
+
+
+def test_fit_label_downgrades_when_many_selected_comps_are_review_exclude():
+    rows = [
+        {"ticker": "A", "tier": "core", "revenue_ttm_usd_mm": 100.0},
+        {"ticker": "B", "tier": "secondary", "revenue_ttm_usd_mm": 120.0},
+        {"ticker": "C", "tier": "review_exclude", "revenue_ttm_usd_mm": 700.0},
+        {"ticker": "D", "tier": "review_exclude", "revenue_ttm_usd_mm": 800.0},
+    ]
+
+    diagnostics = reporter._fit_quality_diagnostics(rows, target_revenue=100.0, model_diagnostics={})
+
+    assert diagnostics["review_exclude_share"] == pytest.approx(0.5)
+    assert diagnostics["max_revenue_ratio"] == pytest.approx(8.0)
+    assert reporter._fit_label(68, [], diagnostics) == "Mixed / directionally useful with material caveats"
+
+
+def test_selection_quality_summary_counts_tiers_and_revenue_ratios():
+    rows = [
+        {"ticker": "A", "tier": "core", "revenue_ttm_usd_mm": 100.0},
+        {"ticker": "B", "tier": "secondary", "revenue_ttm_usd_mm": 300.0},
+        {"ticker": "C", "tier": "review_exclude", "revenue_ttm_usd_mm": 600.0},
+    ]
+
+    summary = reporter._selection_quality_summary(rows, target_revenue=150.0)
+
+    assert summary["n_total"] == 3
+    assert summary["n_core"] == 1
+    assert summary["n_secondary"] == 1
+    assert summary["n_review_exclude"] == 1
+    assert summary["usable_count"] == 2
+    assert summary["max_revenue_ratio"] == pytest.approx(4.0)
+    assert summary["median_revenue_ratio"] == pytest.approx(2.0)
+
+
 def test_html_report_counts_business_model_alignment_when_top_set_has_exception(mocker):
     mocker.patch("src.reporter.comp_fit_reviewer.review_comp_fit", return_value={
         "status": "available",
@@ -527,6 +647,31 @@ def test_html_report_counts_business_model_alignment_when_top_set_has_exception(
     assert "14/15 comps match the target's customer base (B2B)" in html_text
     assert "Exceptions: T013 (B2C)" in html_text
     assert "All Top 15 comps share" not in html_text
+
+
+def test_html_report_notes_invalid_ticker_references_in_review_narrative(mocker):
+    mocker.patch("src.reporter.comp_fit_reviewer.review_comp_fit", return_value={
+        "status": "available",
+        "overall_score": 65,
+        "review_confidence": "high",
+        "summary": "Directional set.",
+        "strengths": [],
+        "weaknesses": ["One selected comp (HLLO) serves B2C customers."],
+        "top_fits": [],
+        "questionable_fits": [],
+        "near_miss_upgrades": [],
+    })
+    companies, llm_features, company_scores = _build_sample(n=30, n_matching=15)
+    llm_features["T001"] = _llm(customer_type="B2C")
+    scorer_results = _scorer_results(company_scores)
+
+    reporter.generate(
+        scorer_results, companies, llm_features, _llm(business_model="manufacturing", customer_type="B2B"),
+        _imputation_medians(), _sample_config(),
+    )
+
+    html_text = reporter.HTML_PATH.read_text(encoding="utf-8")
+    assert "Review narrative referenced unavailable ticker HLLO" in html_text
 
 
 def test_html_report_filters_comp_fit_review_tickers_to_their_scope(mocker):
@@ -855,7 +1000,7 @@ def test_assign_tier_requires_no_mismatch_for_core():
     assert reporter._assign_tier("strong", False, has_mismatch=True) == "secondary"
     assert reporter._assign_tier("strong", True, has_mismatch=False) == "review_exclude"
     assert reporter._assign_tier("weak", False, has_mismatch=False) == "review_exclude"
-    assert reporter._assign_tier(None, False, has_mismatch=False) == "secondary"
+    assert reporter._assign_tier(None, False, has_mismatch=False) == "core"
 
 
 def test_mismatched_strong_fit_capped_at_secondary_in_csv(mocker):
@@ -892,6 +1037,145 @@ def test_mismatched_strong_fit_capped_at_secondary_in_csv(mocker):
     assert tiers["T000"] == "core"
     assert tiers["T005"] == "secondary"
 
+    html_text = Path(result["html"]).read_text(encoding="utf-8")
+    assert "fit-strong" not in html_text
+    assert "tier-row-core" in html_text
+    assert "tier-row-secondary" in html_text
+    assert "Strongest fit" not in html_text
+    assert "Secondary" in html_text
+
+
+def test_any_subsector_shortfall_blocks_core_even_with_strong_fit(mocker):
+    # Similarity just below the threshold (0.47 vs 0.5). The graded penalty is
+    # tiny (0.4 * 0.03 / 0.5 ≈ 0.02) so the ranking impact is negligible, but
+    # Core requires clearing the similarity bar outright — the old
+    # near-threshold + LLM-strong exception existed only to soften the cliff
+    # penalty, which the graded ramp removed.
+    mocker.patch("src.reporter.comp_fit_reviewer.review_comp_fit", return_value={
+        "status": "available",
+        "overall_score": 80,
+        "review_confidence": "medium",
+        "summary": "Directional set.",
+        "strengths": [],
+        "weaknesses": [],
+        "top_fits": [{"ticker": "T000", "score": 90, "reason": "Best fit."}],
+        "questionable_fits": [],
+        "near_miss_upgrades": [],
+    })
+    mocker.patch(
+        "src.reporter.llm_analyzer.embed_texts",
+        return_value=[[1.0, 0.0], *([[0.47, 0.8832]] * 30)],
+    )
+    companies, llm_features, company_scores = _build_sample(n=30, n_matching=30)
+    target_llm = _llm(business_model="manufacturing", sub_sector_description="target automotive OEM parts")
+    scorer_results = _scorer_results(company_scores)
+
+    result = reporter.generate(
+        scorer_results, companies, llm_features, target_llm,
+        _imputation_medians(), _sample_config(),
+    )
+
+    with open(result["csv"], newline="", encoding="utf-8") as f:
+        rows = list(csv.DictReader(f))
+    row = next(row for row in rows if row["ticker"] == "T000")
+    assert row["tier"] == "secondary"
+    assert "end-market similarity below threshold" in row["fit_notes"]
+    # Graded penalty: shortfall of ~0.03 against max 0.4 → ~0.02, not the cliff 0.4.
+    assert "+0.02 rank penalty" in row["fit_notes"]
+
+
+def test_severe_subsector_penalty_blocks_core_even_with_strong_fit(mocker):
+    mocker.patch("src.reporter.comp_fit_reviewer.review_comp_fit", return_value={
+        "status": "available",
+        "overall_score": 80,
+        "review_confidence": "medium",
+        "summary": "Directional set.",
+        "strengths": [],
+        "weaknesses": [],
+        "top_fits": [{"ticker": "T000", "score": 90, "reason": "Best fit."}],
+        "questionable_fits": [],
+        "near_miss_upgrades": [],
+    })
+    mocker.patch(
+        "src.reporter.llm_analyzer.embed_texts",
+        return_value=[[1.0, 0.0], *([[0.0, 1.0]] * 30)],
+    )
+    companies, llm_features, company_scores = _build_sample(n=30, n_matching=30)
+    target_llm = _llm(business_model="manufacturing", sub_sector_description="target automotive OEM parts")
+    scorer_results = _scorer_results(company_scores)
+
+    result = reporter.generate(
+        scorer_results, companies, llm_features, target_llm,
+        _imputation_medians(), _sample_config(),
+    )
+
+    with open(result["csv"], newline="", encoding="utf-8") as f:
+        rows = list(csv.DictReader(f))
+    row = next(row for row in rows if row["ticker"] == "T000")
+    assert row["tier"] == "secondary"
+    assert "end-market similarity below threshold" in row["fit_notes"]
+
+
+def test_subsector_penalty_blocks_core_without_strong_fit(mocker):
+    mocker.patch(
+        "src.reporter.llm_analyzer.embed_texts",
+        return_value=[[1.0, 0.0], *([[0.0, 1.0]] * 30)],
+    )
+    companies, llm_features, company_scores = _build_sample(n=30, n_matching=30)
+    target_llm = _llm(business_model="manufacturing", sub_sector_description="target automotive OEM parts")
+    scorer_results = _scorer_results(company_scores)
+
+    result = reporter.generate(
+        scorer_results, companies, llm_features, target_llm,
+        _imputation_medians(), _sample_config(),
+    )
+
+    with open(result["csv"], newline="", encoding="utf-8") as f:
+        rows = list(csv.DictReader(f))
+    row = next(row for row in rows if row["ticker"] == "T000")
+    assert row["tier"] == "secondary"
+    assert "end-market similarity below threshold" in row["fit_notes"]
+
+
+def test_revenue_gap_beyond_10x_blocks_core():
+    # T001 is a clean categorical match but 13x the target's revenue
+    # (2000 vs 150, log10 gap ≈ 1.13 > CORE_MAX_LOG10_REVENUE_GAP) — it stays
+    # usable but is capped at secondary. T000 at 200 (1.3x) keeps core.
+    companies, llm_features, company_scores = _build_sample(n=30, n_matching=15)
+    for company in companies:
+        if company["ticker"] == "T001":
+            company["revenue_ttm_usd_mm"] = 2000.0
+    scorer_results = _scorer_results(company_scores)
+
+    result = reporter.generate(
+        scorer_results, companies, llm_features, _llm(business_model="manufacturing"),
+        _imputation_medians(), _sample_config(),
+    )
+
+    with open(result["csv"], newline="", encoding="utf-8") as f:
+        rows = list(csv.DictReader(f))
+    tiers = {row["ticker"]: row["tier"] for row in rows}
+    assert tiers["T000"] == "core"
+    assert tiers["T001"] == "secondary"
+    row = next(row for row in rows if row["ticker"] == "T001")
+    assert "revenue scale mismatch" in row["fit_notes"]
+
+
+def test_subsector_penalty_is_graded_not_cliff():
+    penalties = dict(DEFAULT_PENALTIES)  # threshold 0.5, max penalty 0.4
+    from src.report_selection import _subsector_mismatch_penalty
+
+    assert _subsector_mismatch_penalty(None, penalties) == 0.0
+    assert _subsector_mismatch_penalty(0.55, penalties) == 0.0
+    assert _subsector_mismatch_penalty(0.5, penalties) == 0.0
+    # Linear ramp: halfway to zero similarity costs half the max.
+    assert _subsector_mismatch_penalty(0.25, penalties) == pytest.approx(0.2)
+    assert _subsector_mismatch_penalty(0.0, penalties) == pytest.approx(0.4)
+    # A 0.02 similarity difference moves the penalty by 0.4 * 0.02 / 0.5 = 0.016,
+    # not by the full 0.4 the old cliff applied.
+    near = _subsector_mismatch_penalty(0.48, penalties)
+    assert near == pytest.approx(0.016)
+
 
 def test_report_rows_ordered_tier_first_and_reranked():
     # T000 has the best financial fit but an extreme EV/EBITDA multiple —
@@ -913,6 +1197,71 @@ def test_report_rows_ordered_tier_first_and_reranked():
     tier_order = [reporter.TIER_ORDER[row["tier"]] for row in rows]
     assert tier_order == sorted(tier_order)
     assert [int(row["rank"]) for row in rows] == list(range(1, len(rows) + 1))
+
+
+def test_review_exclude_rows_do_not_consume_usable_comp_slots():
+    companies, llm_features, company_scores = _build_sample(n=30, n_matching=30)
+    company_scores.loc["T000", "ev_ebitda_actual"] = 100.0
+    scorer_results = _scorer_results(company_scores)
+
+    result = reporter.generate(
+        scorer_results, companies, llm_features, _llm(business_model="manufacturing"),
+        _imputation_medians(), _sample_config(),
+    )
+
+    with open(result["csv"], newline="", encoding="utf-8") as f:
+        rows = list(csv.DictReader(f))
+    usable = [row for row in rows if row["tier"] != "review_exclude"]
+
+    assert len(usable) == 15
+    assert rows[-1]["ticker"] == "T000"
+    assert rows[-1]["tier"] == "review_exclude"
+    assert "T015" in {row["ticker"] for row in rows}
+
+
+def test_fill_usable_comp_slots_rejects_review_exclude_replacement():
+    companies, llm_features, company_scores = _build_sample(n=30, n_matching=30)
+    company_scores.loc["T000", "ev_ebitda_actual"] = 100.0
+    company_scores.loc["T015", "ev_ebitda_actual"] = 95.0
+
+    rows, selected, flagged_tickers, substitution_audit = reporter._fill_usable_comp_slots(
+        [f"T{i:03d}" for i in range(15)],
+        15,
+        company_scores,
+        llm_features,
+        {company["ticker"]: company for company in companies},
+        "manufacturing",
+        "B2B",
+        150.0,
+        {},
+        DEFAULT_PENALTIES,
+        set(),
+        set(),
+        {},
+    )
+
+    assert "T015" not in selected
+    assert "T016" in selected
+    assert "T000" in flagged_tickers
+    assert next(row for row in rows if row["ticker"] == "T000")["tier"] == "review_exclude"
+    assert any(item["ticker"] == "T015" and item["decision"] == "rejected" for item in substitution_audit)
+    assert any(item["ticker"] == "T016" and item["decision"] == "accepted" for item in substitution_audit)
+
+
+def test_html_report_shows_selection_quality_and_substitution_audit():
+    companies, llm_features, company_scores = _build_sample(n=30, n_matching=30)
+    company_scores.loc["T000", "ev_ebitda_actual"] = 100.0
+    scorer_results = _scorer_results(company_scores)
+
+    reporter.generate(
+        scorer_results, companies, llm_features, _llm(business_model="manufacturing"),
+        _imputation_medians(), _sample_config(),
+    )
+
+    html_text = reporter.HTML_PATH.read_text(encoding="utf-8")
+    assert "Selection quality check" in html_text
+    assert "usable comps" in html_text
+    assert "Accepted replacement" in html_text
 
 
 def test_small_pool_stamps_warning_on_report_and_return_value():
