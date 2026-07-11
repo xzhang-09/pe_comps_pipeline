@@ -248,9 +248,25 @@ step.
 - The generated report uses run diagnostics and LLM-assisted comp-fit review
   as directional quality signals, not audited ground truth.
 
-Current baseline results and the coverage waterfall are published in
-[`eval/results.md`](eval/results.md). The methodology and discovery-ladder
-analysis are documented in
+The discovery ladder — each rung a separately measured upgrade on the same
+10-deal benchmark — currently stands at:
+
+| Discovery mode | Mean P@15 | Discovery-layer losses | Status |
+| --- | ---: | ---: | --- |
+| `single-sic` | 8.2% | 58 | baseline |
+| `sic+embedding` | 9.8% | 54 | optional |
+| `suggest-sic` | 19.3% | 43 | **recommended** |
+| `suggest-sic+embedding` | 15.3% | 42 | experimental |
+
+The hybrid rung is a deliberate negative result: coverage improved but
+ranking diluted, and a three-point ablation traced the binding constraint to
+semantic ranking quality rather than corpus capacity — the full analysis,
+evaluation caveats, and what was tried and retired are in
+[`docs/known_limitations_and_roadmap.md`](docs/known_limitations_and_roadmap.md).
+
+Per-rung results and coverage waterfalls are published in
+[`eval/results.md`](eval/results.md) and its mode-suffixed siblings. The
+methodology and discovery-ladder analysis are documented in
 [`docs/eval_coverage_analysis.md`](docs/eval_coverage_analysis.md).
 
 ## Scripts
@@ -283,11 +299,13 @@ coverage-by-source table are in [`docs/data_layer.md`](docs/data_layer.md).
 
 ## Scope and Tradeoffs
 
-- **Discovery model**: SIC-code based — explainable and reproducible, but
-  hybrid manufacturing/services targets can need adjacent SIC codes or seed
-  tickers. Guardrails catch zero-yield and over-broad SIC choices before the
-  run burns API calls; description-embedding discovery is the main planned
-  expansion.
+- **Discovery model**: SIC-code based with optional LLM-suggested-SIC and
+  embedding channels (`universe.discovery_mode`) — explainable and
+  reproducible, but hybrid manufacturing/services targets can need adjacent
+  SIC codes or seed tickers. Guardrails catch zero-yield and over-broad SIC
+  choices before the run burns API calls. The embedding channel is measured
+  but experimental — see
+  [`docs/known_limitations_and_roadmap.md`](docs/known_limitations_and_roadmap.md).
 - **Data coverage**: US public companies with EDGAR 10-K filings — reproducible
   on public data, but non-US comps are excluded upstream by the domicile
   filter. Coverage limits and paid-data upgrade paths are in
