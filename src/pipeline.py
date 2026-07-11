@@ -1,5 +1,6 @@
 import argparse
 import json
+import os
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -10,13 +11,20 @@ import pandas as pd
 import yaml
 from pydantic import ValidationError
 
-from src import feature_builder, fetcher, get_logger, llm_analyzer, reporter, scorer, universe_builder
+from src import feature_builder, fetcher, get_logger, json_store, llm_analyzer, reporter, run_lock, scorer, universe_builder
 from src.config_schema import PipelineConfig
+from src.paths import project_path
 from src.records import CompanyRecord
 
 logger = get_logger(__name__)
 
-REQUIRED_DIRECTORIES = ("data/cache", "data/checkpoints", "outputs", "logs", "eval")
+REQUIRED_DIRECTORIES = (
+    project_path("data", "cache"),
+    project_path("data", "checkpoints"),
+    project_path("outputs"),
+    project_path("logs"),
+    project_path("eval"),
+)
 
 
 def _ensure_directories() -> None:
@@ -65,17 +73,22 @@ def save_universe(universe: EnrichedUniverse, dir_path: str | Path) -> None:
     matrix's label column that scorer recomputes anyway."""
     dir_path = Path(dir_path)
     dir_path.mkdir(parents=True, exist_ok=True)
-    universe.feature_matrix.to_parquet(dir_path / "feature_matrix.parquet")
-    (dir_path / "companies.json").write_text(json.dumps(universe.companies, indent=2), encoding="utf-8")
-    (dir_path / "llm_features.json").write_text(json.dumps(universe.llm_features, indent=2), encoding="utf-8")
-    (dir_path / "imputation_medians.json").write_text(json.dumps(universe.imputation_medians, indent=2), encoding="utf-8")
+    # Same tmp+os.replace discipline as json_store, so an interrupted save
+    # can't leave a truncated parquet next to a valid manifest.
+    parquet_tmp = dir_path / ".feature_matrix.parquet.tmp"
+    universe.feature_matrix.to_parquet(parquet_tmp)
+    os.replace(parquet_tmp, dir_path / "feature_matrix.parquet")
+    json_store.write_json_atomic(dir_path / "companies.json", universe.companies)
+    json_store.write_json_atomic(dir_path / "llm_features.json", universe.llm_features)
+    json_store.write_json_atomic(dir_path / "imputation_medians.json", universe.imputation_medians)
     manifest = {
         "schema_version": UNIVERSE_SCHEMA_VERSION,
         "created_at": datetime.now(timezone.utc).isoformat(),
         "n_companies": len(universe.companies),
         "n_feature_rows": int(universe.feature_matrix.shape[0]),
     }
-    (dir_path / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    # Manifest last: its presence implies every sibling artifact is complete.
+    json_store.write_json_atomic(dir_path / "manifest.json", manifest)
 
 
 def load_universe(dir_path: str | Path) -> EnrichedUniverse:
@@ -118,6 +131,10 @@ def enrich_universe(config: PipelineConfig) -> EnrichedUniverse:
     companies = universe_builder.filter_by_market_cap(companies)
     if len(companies) != before_market_cap_filter:
         logger.info(f"Market cap filter: kept {len(companies)}/{before_market_cap_filter} companies")
+    before_financial_filter = len(companies)
+    companies = universe_builder.filter_by_financials(companies, config)
+    if len(companies) != before_financial_filter:
+        logger.info(f"Financial filter: kept {len(companies)}/{before_financial_filter} companies")
     before_domicile_filter = len(companies)
     companies = universe_builder.filter_by_domicile(companies)
     if len(companies) != before_domicile_filter:
@@ -192,26 +209,30 @@ def run_pipeline(
     _ensure_directories()
     config = _load_config(config_path)
 
-    if reuse_universe is not None:
-        logger.info(f"Reusing enriched universe from {reuse_universe} (skipping steps 1-4)")
-        universe = load_universe(reuse_universe)
-    else:
-        try:
-            universe = enrich_universe(config)
-        except Exception:
-            logger.error("Pipeline failed during universe enrichment (steps 1-4)", exc_info=True)
-            print("Pipeline failed during universe enrichment — see logs/pipeline.log for details.")
-            raise
-        if save_universe_to is not None:
-            save_universe(universe, save_universe_to)
-            logger.info(f"Saved enriched universe to {save_universe_to}")
+    # Cross-process single-runner guard: CLI and UI share outputs/, the fetch
+    # cache, and the LLM checkpoint, so a second concurrent run would corrupt
+    # this one's artifacts. Held for the whole run (see src/run_lock.py).
+    with run_lock.RunLock():
+        if reuse_universe is not None:
+            logger.info(f"Reusing enriched universe from {reuse_universe} (skipping steps 1-4)")
+            universe = load_universe(reuse_universe)
+        else:
+            try:
+                universe = enrich_universe(config)
+            except Exception:
+                logger.error("Pipeline failed during universe enrichment (steps 1-4)", exc_info=True)
+                print("Pipeline failed during universe enrichment — see logs/pipeline.log for details.")
+                raise
+            if save_universe_to is not None:
+                save_universe(universe, save_universe_to)
+                logger.info(f"Saved enriched universe to {save_universe_to}")
 
-    try:
-        output_paths = score_and_report(universe, config)
-    except Exception:
-        logger.error("Pipeline failed during scoring/report (steps 5-6)", exc_info=True)
-        print("Pipeline failed during scoring/report — see logs/pipeline.log for details.")
-        raise
+        try:
+            output_paths = score_and_report(universe, config)
+        except Exception:
+            logger.error("Pipeline failed during scoring/report (steps 5-6)", exc_info=True)
+            print("Pipeline failed during scoring/report — see logs/pipeline.log for details.")
+            raise
 
     if "n_comps" in output_paths:
         n_comps = int(output_paths["n_comps"])
@@ -252,9 +273,8 @@ def _print_sic_code_suggestions(config_path: str) -> None:
         return
 
     print(
-        "Advisory only — SIC codes are a fixed SEC list and the model may misremember\n"
-        "specific 4-digit codes. Verify each one at https://www.sec.gov/info/edgar/siccodes.htm\n"
-        "before adding it to config.yaml's primary_sic_codes / adjacent_sic_codes.\n"
+        "Advisory only — suggestions below were validated against SEC's official SIC list,\n"
+        "but the primary/adjacent classification still needs analyst judgment before use.\n"
     )
     for s in suggestions:
         bucket = s.get("bucket") or "unknown"

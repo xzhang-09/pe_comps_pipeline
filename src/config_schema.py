@@ -1,4 +1,19 @@
-from pydantic import BaseModel, ConfigDict, Field
+from typing import Literal
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+
+def _normalize_tickers(tickers: list[str] | None) -> list[str]:
+    if not tickers:
+        return []
+    normalized = []
+    seen = set()
+    for ticker in tickers:
+        clean = str(ticker).strip().upper()
+        if clean and clean not in seen:
+            seen.add(clean)
+            normalized.append(clean)
+    return normalized
 
 
 class TargetCompanyConfig(BaseModel):
@@ -24,9 +39,6 @@ class TargetCompanyConfig(BaseModel):
     revenue_cagr_3yr_estimate: float | None = None
     net_debt_ebitda_estimate: float | None = None
     capex_revenue_estimate: float | None = None
-    # Reference only; not read by any pipeline logic (see README).
-    gics_sector: str | None = None
-    gics_industry: str | None = None
     geography: str | None = None
 
 
@@ -35,10 +47,17 @@ class UniverseConfig(BaseModel):
 
     max_candidates: int
     primary_allocation_pct: float = 0.5
-    # Optional filtering fields; pipeline code does not enforce them.
     min_revenue_usd_mm: float | None = None
     max_revenue_usd_mm: float | None = None
     min_ebitda_margin: float | None = None
+    discovery_mode: Literal["sic", "sic+embedding", "suggest-sic+embedding"] = "sic"
+    embedding_top_n: int = 40
+    embedding_min_similarity: float = 0.35
+    embedding_candidate_limit: int = 120
+    seed_tickers: list[str] = Field(default_factory=list)
+    must_include_tickers: list[str] = Field(default_factory=list)
+    analyst_approved_tickers: list[str] = Field(default_factory=list)
+    exclude_tickers: list[str] = Field(default_factory=list)
     sic_clusters: dict[str, str] = Field(default_factory=dict)
     # SIC preflight escape hatch (see universe_builder.build /
     # sic_universe_builder.preflight_sic_codes): a SIC code matching more
@@ -49,6 +68,11 @@ class UniverseConfig(BaseModel):
     # to the target. Zero-result codes always abort; there is no override
     # for a code that finds nothing.
     allow_broad_sic_codes: bool = False
+
+    @field_validator("seed_tickers", "must_include_tickers", "analyst_approved_tickers", "exclude_tickers")
+    @classmethod
+    def normalize_tickers(cls, value: list[str] | None) -> list[str]:
+        return _normalize_tickers(value)
 
 
 class LLMConfig(BaseModel):
@@ -98,27 +122,43 @@ class RankingPenaltiesConfig(BaseModel):
     # reporter._penalty_breakdown(). These are in the SAME units as residual_abs
     # (the standardized financial-feature distance to the target), because
     # they're added to that distance, not to an ordinal rank. residual_abs
-    # typically spans ~0.3-2.0 across a comp pool, so a penalty of ~0.4-0.6 is a
-    # "moderate financial gap" worth of demotion — enough to drop a categorically
-    # mismatched comp below a comparably-close peer, without letting one flag
-    # leapfrog a much closer comp the way the old rank-unit penalties (~10-15)
-    # did. eval/evaluator.py's _select_top_k reads the same values (passed
+    # typically spans ~0.3-2.0 across a comp pool. Business/customer penalties
+    # are moderate demotions; the end-market penalty is larger because a
+    # financially close company in the wrong industry should not lead the comp
+    # set. eval/evaluator.py's _select_top_k reads the same values (passed
     # through from this config) so the evaluation harness and the production
     # report can't drift apart the way two independently hardcoded copies could.
     business_model_penalty: float = 0.6
     customer_type_penalty: float = 0.5
     # Below this cosine similarity between the target's and a candidate's
-    # sub_sector_description, the sub-sector mismatch penalty applies.
-    # Uncalibrated judgment call — no labeled "good"/"bad" pairs exist yet
-    # to tune it against; revisit if it's excluding/including obviously
-    # wrong companies in practice.
-    subsector_similarity_threshold: float = 0.5
-    subsector_mismatch_penalty: float = 0.4
+    # sub_sector_description, a graded end-market penalty ramps in:
+    #   penalty = subsector_mismatch_penalty * (threshold - similarity) / threshold
+    # so subsector_mismatch_penalty is the maximum, reached only at similarity
+    # 0 (a completely unrelated end market). A cliff (full penalty the moment
+    # similarity dips below the threshold) made rankings knife-edge sensitive
+    # to embedding noise: two comps 0.02 apart in cosine similarity — noise
+    # level for short text-embedding-3-small descriptions — could differ by
+    # the entire penalty. The ramp keeps mild drift mild (e.g. threshold 0.48,
+    # max 2.0: similarity 0.44 costs 0.17, similarity 0.30 costs 0.75) while a
+    # true end-market miss still outweighs a business_model mismatch. The
+    # threshold is calibrated to the observed similarity distribution for
+    # text-embedding-3-small on one-sentence business descriptions (roughly
+    # 0.25-0.6 between different companies).
+    subsector_similarity_threshold: float = 0.48
+    subsector_mismatch_penalty: float = 2.0
     # Companies within 10x of the target's revenue (either direction) get
     # no size penalty; each further order of magnitude adds
     # size_penalty_per_extra_log10 (in residual-distance units).
     size_penalty_free_log10_range: float = 1.0
     size_penalty_per_extra_log10: float = 1.0
+
+
+class LLMRerankConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    enabled: bool = False
+    model: str = "gpt-4.1"
+    rerank_window: int = 30
 
 
 class ScorerConfig(BaseModel):
@@ -133,6 +173,7 @@ class ScorerConfig(BaseModel):
     # unweighted Euclidean distance.
     feature_weights: dict[str, dict[str, float]] = Field(default_factory=dict)
     ranking_penalties: RankingPenaltiesConfig = Field(default_factory=RankingPenaltiesConfig)
+    llm_rerank: LLMRerankConfig = Field(default_factory=LLMRerankConfig)
 
 
 class ValuationConfig(BaseModel):

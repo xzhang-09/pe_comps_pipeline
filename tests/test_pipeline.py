@@ -14,7 +14,6 @@ def _write_config(tmp_path: Path) -> Path:
         "target_company": {
             "name": "Example Manufacturing Co.",
             "description": "A test target company.",
-            "gics_sector": "20",
             "revenue_usd_mm": 150,
             "ebitda_margin_estimate": 0.18,
             "primary_sic_codes": ["3714"],
@@ -49,7 +48,7 @@ def _mock_all_steps(mocker, tmp_path):
     }
 
     def _fake_generate(*args, **kwargs):
-        outputs_dir = tmp_path / "outputs"
+        outputs_dir = pipeline.reporter.OUTPUTS_DIR
         outputs_dir.mkdir(parents=True, exist_ok=True)
         csv_path = outputs_dir / "comps_report.csv"
         html_path = outputs_dir / "comps_report.html"
@@ -101,18 +100,38 @@ def test_pipeline_logs_step_headers(mocker, tmp_path):
         assert f"STEP {i}/6" in new_content
 
 
+def test_enrich_universe_applies_financial_filter_after_market_cap(mocker, make_config):
+    fetched = [{"ticker": "AAA"}, {"ticker": "BBB"}, {"ticker": "CCC"}]
+    market_cap_filtered = [{"ticker": "AAA"}, {"ticker": "BBB"}]
+    financial_filtered = [{"ticker": "AAA"}]
+    mocker.patch("src.pipeline.universe_builder.build", return_value=["AAA", "BBB", "CCC"])
+    mocker.patch("src.pipeline.fetcher.fetch_batch", return_value=fetched)
+    filter_market_cap = mocker.patch("src.pipeline.universe_builder.filter_by_market_cap", return_value=market_cap_filtered)
+    filter_financials = mocker.patch("src.pipeline.universe_builder.filter_by_financials", return_value=financial_filtered)
+    analyze_batch = mocker.patch("src.pipeline.llm_analyzer.analyze_batch", return_value={"AAA": {"extraction_failed": False}})
+    mocker.patch("src.pipeline.feature_builder.build", return_value=(pd.DataFrame(index=["AAA"]), pd.Series(dtype=float), {}))
+
+    pipeline.enrich_universe(make_config())
+
+    filter_market_cap.assert_called_once_with(fetched)
+    filter_financials.assert_called_once()
+    assert filter_financials.call_args.args[0] == market_cap_filtered
+    analyze_batch.assert_called_once()
+    assert analyze_batch.call_args.args[0] == financial_filtered
+
+
 def test_pipeline_creates_required_directories(mocker, tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     config_path = _write_config(tmp_path)
     _mock_all_steps(mocker, tmp_path)
 
-    assert not (tmp_path / "outputs").exists()
     assert not (tmp_path / "logs").exists()
+    assert all(path.is_absolute() for path in pipeline.REQUIRED_DIRECTORIES)
 
     pipeline.run_pipeline(str(config_path))
 
-    assert (tmp_path / "outputs").exists()
-    assert (tmp_path / "logs").exists()
+    assert not (tmp_path / "logs").exists()
+    assert all(path.is_absolute() for path in pipeline.REQUIRED_DIRECTORIES)
 
 
 def test_main_suggest_sic_codes_prints_suggestions_without_running_pipeline(mocker, tmp_path, monkeypatch, capsys):
@@ -130,6 +149,7 @@ def test_main_suggest_sic_codes_prints_suggestions_without_running_pipeline(mock
     pipeline.main()
 
     output = capsys.readouterr().out
+    assert "validated against SEC's official SIC list" in output
     assert "SIC 3714" in output
     assert "Motor Vehicle Parts" in output
     mock_suggest.assert_called_once()

@@ -1,16 +1,20 @@
+import hashlib
 import json
 import re
-from pathlib import Path
 
 import openai
+from pydantic import BaseModel
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_fixed
 
-from src import get_logger
+from src import get_logger, json_store, sic_codes
 from src.config_schema import PipelineConfig, as_config
+from src.llm_schemas import BusinessModelExtraction, JudgeVerdict, SicSuggestions
+from src.paths import project_path
 
 logger = get_logger(__name__)
 
-CHECKPOINT_PATH = Path("data/checkpoints/llm_checkpoint.json")
+CHECKPOINT_PATH = project_path("data", "checkpoints", "llm_checkpoint.json")
+PROMPT_VERSION = "structured_outputs_v1"
 
 MIN_DESCRIPTION_LENGTH = 100
 
@@ -18,7 +22,6 @@ SYSTEM_PROMPT = """You are a private equity analyst extracting structured inform
 company business descriptions to support comparable company analysis.
 
 Rules:
-- Output ONLY valid JSON. No explanation, no markdown fences, no preamble.
 - Use null for any field where the description provides insufficient
   information to make a reliable determination.
 - Base ALL answers strictly on the provided text.
@@ -35,18 +38,7 @@ USER_PROMPT_TEMPLATE = """Extract structured fields from this company business d
 
 Company: {company_name}
 Description: {business_description}
-
-Return JSON with exactly these fields:
-{{
-  "business_model": "manufacturing"|"services"|"SaaS"|"distribution"|"marketplace"|"other",
-  "revenue_recurrence": "high"|"medium"|"low",
-  "customer_type": "B2B"|"B2C"|"B2G"|"mixed",
-  "capital_intensity": "asset_heavy"|"moderate"|"asset_light",
-  "primary_value_driver": "technology"|"scale"|"relationships"|"brand"|"other",
-  "sub_sector_description": "<one sentence describing specific sub-sector>",
-  "evidence_quote": "<verbatim passage from the description supporting business_model, or null>",
-  "confidence": <integer 1-5>
-}}"""
+"""
 
 JUDGE_PROMPT_TEMPLATE = """You are reviewing a business model extraction for accuracy.
 
@@ -59,9 +51,7 @@ Rate the accuracy of the extraction on a scale of 1-5:
 3 = Partially accurate, some fields unclear or questionable
 2 = Several fields appear inaccurate or unsupported
 1 = Extraction is largely inaccurate or hallucinated
-
-Return ONLY this JSON (no other text):
-{{"score": <integer 1-5>, "reason": "<one sentence>"}}"""
+"""
 
 EXTRACTION_FIELDS = (
     "business_model", "revenue_recurrence", "customer_type",
@@ -69,21 +59,28 @@ EXTRACTION_FIELDS = (
     "evidence_quote", "confidence",
 )
 
+CORE_PROFILE_FIELDS = (
+    "business_model",
+    "customer_type",
+    "capital_intensity",
+    "primary_value_driver",
+    "sub_sector_description",
+)
+
 SIC_SUGGESTION_SYSTEM_PROMPT = """You are an SEC filings analyst helping a private equity analyst find
 plausible SIC (Standard Industrial Classification) codes for a target company,
 to use as SEC EDGAR search filters for finding public comparable companies.
 
 Rules:
-- Output ONLY valid JSON. No explanation, no markdown fences, no preamble.
 - SIC codes are a fixed, official 4-digit SEC list. You may misremember
   specific codes — this is a known limitation of language models, not a
   reflection of how well the company's industry is understood. Set
   "confidence" honestly: "high" only if you are confident this exact
   4-digit code is correct, "low" if you are recalling it from general
   knowledge and it should be verified before use.
-- These are suggestions for a human analyst to verify against SEC's
-  official SIC code list before using them — do not present them as
-  certain."""
+- Suggestions are programmatically validated against SEC's official SIC
+  code list after you respond, but the analyst still decides whether each
+  validated code is a good business fit."""
 
 SIC_SUGGESTION_PROMPT_TEMPLATE = """Suggest 6-12 candidate SIC codes for SEC EDGAR comparable-company
 discovery, based on this target company description.
@@ -93,19 +90,7 @@ Description: {description}
 For each suggestion, classify it as "primary" (the company's actual
 business) or "adjacent" (a related industry that could add useful
 comparables but isn't the company's core business).
-
-Return ONLY this JSON:
-{{
-  "suggestions": [
-    {{
-      "sic_code": "<4-digit code>",
-      "title": "<standard SEC industry title for this code>",
-      "bucket": "primary"|"adjacent",
-      "reason": "<one sentence>",
-      "confidence": "high"|"medium"|"low"
-    }}
-  ]
-}}"""
+"""
 
 SIC_SUGGESTION_FIELDS = ("sic_code", "title", "bucket", "reason", "confidence")
 
@@ -115,6 +100,58 @@ WHITESPACE_RE = re.compile(r"\s+")
 
 def _normalize_for_matching(text: str) -> str:
     return WHITESPACE_RE.sub(" ", text).strip().lower()
+
+
+def _description_fingerprint(description: str | None) -> str | None:
+    """Content key for checkpoint invalidation: hash of the whitespace-
+    normalized description, so an extraction result is only reused while the
+    text it was extracted FROM is unchanged. Normalized the same way as
+    evidence-quote matching, so cosmetic whitespace churn in a refetched
+    filing doesn't needlessly re-extract every company."""
+    if not description:
+        return None
+    return hashlib.sha256(_normalize_for_matching(description).encode("utf-8")).hexdigest()[:16]
+
+
+def _usable_description(description) -> bool:
+    return isinstance(description, str) and len(description) >= MIN_DESCRIPTION_LENGTH
+
+
+def _checkpoint_entry_reusable(entry: dict, description: str | None, extraction_model: str) -> bool:
+    """
+    Whether a checkpoint entry may stand in for re-extracting this company.
+
+    - A failed entry is reusable only while the input is still unusable
+      (missing/too-short description) — the failure would just repeat. Once a
+      usable description exists, retry: a company whose description was
+      missing last quarter (or whose extraction hit an API blip) must not be
+      excluded from every future comp pool by a permanently cached failure.
+    - A successful entry is reusable only if it was extracted from the same
+      description text (content hash) by the same extraction model. A company
+      that rewrote its 10-K business section, or a config that switched
+      models, invalidates the entry — previously it was reused forever, so
+      reports could silently rank comps on stale business-model tags.
+    - A legacy entry with no stamps (pre-invalidation / pre-structured-output
+      checkpoint) is re-extracted once so old free-form JSON results do not
+      silently survive an output-contract change.
+    """
+    if entry.get("extraction_failed"):
+        return not _usable_description(description)
+
+    if not _usable_description(description):
+        # A good extraction whose source description is now missing/short is a
+        # fetch-side data gap, not a content change — keep the prior result
+        # rather than downgrading the company to a permanent failure.
+        return True
+
+    stored_hash = entry.get("description_sha256")
+    if stored_hash is None:
+        return False
+    if stored_hash != _description_fingerprint(description):
+        return False
+    stored_model = entry.get("extraction_model")
+    stored_prompt_version = entry.get("prompt_version")
+    return (stored_model is None or stored_model == extraction_model) and stored_prompt_version == PROMPT_VERSION
 
 
 def _evidence_quote_verified(evidence_quote: str | None, business_description: str) -> bool:
@@ -128,6 +165,10 @@ def _evidence_quote_verified(evidence_quote: str | None, business_description: s
     if not evidence_quote or not isinstance(evidence_quote, str):
         return False
     return _normalize_for_matching(evidence_quote) in _normalize_for_matching(business_description)
+
+
+def _core_profile_complete(result: dict) -> bool:
+    return all(result.get(field) is not None for field in CORE_PROFILE_FIELDS)
 
 
 def _strip_markdown_fences(text: str) -> str:
@@ -155,16 +196,14 @@ def _parse_json_response(text: str | None, ticker: str) -> dict | None:
 
 
 def _load_checkpoint() -> dict:
-    if not CHECKPOINT_PATH.exists():
-        return {}
-    with open(CHECKPOINT_PATH, encoding="utf-8") as f:
-        return json.load(f)
+    # Corrupt checkpoint -> {} (json_store logs it): the run re-extracts from
+    # scratch, which costs API calls but keeps the run alive — strictly better
+    # than crashing on json.load with no hint of which file is broken.
+    return json_store.load_json(CHECKPOINT_PATH, default={})
 
 
 def _save_checkpoint(checkpoint: dict) -> None:
-    CHECKPOINT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    with open(CHECKPOINT_PATH, "w", encoding="utf-8") as f:
-        json.dump(checkpoint, f, indent=2)
+    json_store.write_json_atomic(CHECKPOINT_PATH, checkpoint)
 
 
 def _log_rate_limit_retry(retry_state):
@@ -193,6 +232,39 @@ def _call_openai(client, model: str, instructions: str | None, input_text: str,
     return response.output_text
 
 
+@retry(
+    retry=retry_if_exception_type(openai.RateLimitError),
+    wait=wait_fixed(60),
+    stop=stop_after_attempt(3),
+    before_sleep=_log_rate_limit_retry,
+    reraise=True,
+)
+def _call_openai_structured(
+    client,
+    model: str,
+    instructions: str | None,
+    input_text: str,
+    temperature: float,
+    max_tokens: int,
+    schema: type[BaseModel],
+) -> BaseModel:
+    kwargs = {
+        "model": model,
+        "input": input_text,
+        "temperature": temperature,
+        "max_output_tokens": max_tokens,
+        "text_format": schema,
+    }
+    if instructions is not None:
+        kwargs["instructions"] = instructions
+
+    response = client.responses.parse(**kwargs)
+    parsed = getattr(response, "output_parsed", None)
+    if parsed is None:
+        raise ValueError("structured OpenAI response did not include output_parsed")
+    return parsed
+
+
 def _failed_result() -> dict:
     return {
         "business_model": None,
@@ -219,17 +291,15 @@ def _extract_and_judge(client, ticker: str, company_name: str, business_descript
     )
 
     try:
-        extraction_text = _call_openai(
+        extraction_model = _call_openai_structured(
             client, llm_config.extraction_model, SYSTEM_PROMPT, user_prompt,
-            llm_config.temperature, llm_config.max_tokens,
+            llm_config.temperature, llm_config.max_tokens, BusinessModelExtraction,
         )
     except Exception as e:
         logger.warning(f"{ticker} — extraction API call failed: {e}")
         return _failed_result()
 
-    extraction = _parse_json_response(extraction_text, ticker)
-    if extraction is None:
-        return _failed_result()
+    extraction = extraction_model.model_dump()
 
     judge_prompt = JUDGE_PROMPT_TEMPLATE.format(
         description_excerpt=business_description[:500],
@@ -238,11 +308,11 @@ def _extract_and_judge(client, ticker: str, company_name: str, business_descript
 
     judge_result = None
     try:
-        judge_text = _call_openai(
+        judge_model = _call_openai_structured(
             client, llm_config.judge_model, None, judge_prompt,
-            llm_config.temperature, llm_config.max_tokens,
+            llm_config.temperature, llm_config.max_tokens, JudgeVerdict,
         )
-        judge_result = _parse_json_response(judge_text, ticker)
+        judge_result = judge_model.model_dump()
     except Exception as e:
         logger.warning(f"{ticker} — judge API call failed: {e}")
 
@@ -262,11 +332,16 @@ def _extract_and_judge(client, ticker: str, company_name: str, business_descript
     if not evidence_verified:
         logger.warning(f"{ticker} — evidence_quote not found verbatim in source description")
 
+    core_profile_complete = _core_profile_complete(result)
+    if not core_profile_complete:
+        logger.warning(f"{ticker} — LLM extraction missing one or more core business-profile fields")
+
     result["evidence_verified"] = evidence_verified
     result["judge_score"] = judge_score
     result["judge_reason"] = judge_reason
     result["low_confidence_flag"] = (
         not evidence_verified
+        or not core_profile_complete
         or (judge_score is not None and judge_score < judge_threshold)
     )
     result["extraction_failed"] = False
@@ -283,49 +358,77 @@ def analyze_batch(companies: list[dict], config: PipelineConfig | dict) -> dict[
         config: full config dict
 
     Returns:
-        dict mapping ticker -> extraction result dict
+        dict mapping ticker -> extraction result dict, covering exactly the
+        requested companies. (Previously this returned the entire checkpoint,
+        so tickers left over from earlier runs / other targets leaked into
+        the caller's counts — e.g. the report's low-confidence tally.)
         Tickers that were skipped or failed have extraction_failed=True
 
     Side effects:
-        Writes/updates data/checkpoints/llm_checkpoint.json
+        Writes/updates data/checkpoints/llm_checkpoint.json. Checkpoint
+        entries are keyed by ticker but invalidated by content — see
+        _checkpoint_entry_reusable for the description-hash/model/retry rules.
         Logs progress to pipeline.log
     """
     cfg = as_config(config)
     checkpoint = _load_checkpoint()
     batch_size = cfg.llm.batch_size
+    extraction_model = cfg.llm.extraction_model
     client = openai.OpenAI()
 
+    results: dict[str, dict] = {}
     processed_since_save = 0
+    checkpoint_dirty = False
 
     for company in companies:
         ticker = company["ticker"]
-
-        if ticker in checkpoint:
-            logger.debug(f"{ticker} — skipped (already in checkpoint)")
-            continue
-
         description = company.get("business_description")
-        if description is None:
-            logger.debug(f"{ticker} — skipped (no description)")
-            checkpoint[ticker] = _failed_result()
-            continue
-        if len(description) < MIN_DESCRIPTION_LENGTH:
-            logger.debug(f"{ticker} — skipped (description too short)")
-            checkpoint[ticker] = _failed_result()
+
+        entry = checkpoint.get(ticker)
+        if entry is not None and _checkpoint_entry_reusable(entry, description, extraction_model):
+            if not entry.get("extraction_failed") and entry.get("description_sha256") is None:
+                # Legacy entry from before content-keyed invalidation: stamp it
+                # so future description/model changes are detectable.
+                entry["description_sha256"] = _description_fingerprint(description)
+                entry["extraction_model"] = extraction_model
+                entry["prompt_version"] = PROMPT_VERSION
+                checkpoint_dirty = True
+            if not entry.get("extraction_failed") and not _core_profile_complete(entry):
+                entry["low_confidence_flag"] = True
+                checkpoint_dirty = True
+            logger.debug(f"{ticker} — skipped (already in checkpoint)")
+            results[ticker] = entry
             continue
 
+        if not _usable_description(description):
+            logger.debug(f"{ticker} — skipped (no description)" if description is None
+                         else f"{ticker} — skipped (description too short)")
+            checkpoint[ticker] = _failed_result()
+            results[ticker] = checkpoint[ticker]
+            checkpoint_dirty = True
+            continue
+
+        if entry is not None:
+            logger.info(f"{ticker} — checkpoint entry stale (description/model changed, or retryable failure); re-analyzing")
         logger.info(f"Analyzing {ticker}...")
-        checkpoint[ticker] = _extract_and_judge(
+        result = _extract_and_judge(
             client, ticker, company.get("company_name", ticker), description, cfg,
         )
+        result["description_sha256"] = _description_fingerprint(description)
+        result["extraction_model"] = extraction_model
+        result["prompt_version"] = PROMPT_VERSION
+        checkpoint[ticker] = result
+        results[ticker] = result
+        checkpoint_dirty = True
 
         processed_since_save += 1
         if processed_since_save >= batch_size:
             _save_checkpoint(checkpoint)
             processed_since_save = 0
 
-    _save_checkpoint(checkpoint)
-    return checkpoint
+    if checkpoint_dirty:
+        _save_checkpoint(checkpoint)
+    return results
 
 
 def analyze_target(config: PipelineConfig | dict) -> dict:
@@ -338,6 +441,9 @@ def analyze_target(config: PipelineConfig | dict) -> dict:
     target = cfg.target_company
     client = openai.OpenAI()
     return _extract_and_judge(client, "TARGET", target.name, target.description, cfg)
+
+
+SIC_SUGGESTION_MIN_MAX_TOKENS = 1200
 
 
 def suggest_sic_codes(config: PipelineConfig | dict) -> list[dict]:
@@ -358,27 +464,22 @@ def suggest_sic_codes(config: PipelineConfig | dict) -> list[dict]:
 
     prompt = SIC_SUGGESTION_PROMPT_TEMPLATE.format(description=target.description)
     try:
-        text = _call_openai(
+        parsed = _call_openai_structured(
             client, llm_config.extraction_model, SIC_SUGGESTION_SYSTEM_PROMPT, prompt,
-            llm_config.temperature, llm_config.max_tokens,
+            llm_config.temperature, llm_config.max_tokens, SicSuggestions,
         )
     except Exception as e:
         logger.warning(f"SIC code suggestion API call failed: {e}")
         return []
 
-    parsed = _parse_json_response(text, "SIC_SUGGESTION")
-    if parsed is None:
-        return []
+    suggestions = parsed.model_dump()["suggestions"]
 
-    suggestions = parsed.get("suggestions")
-    if not isinstance(suggestions, list):
-        logger.warning(f"SIC code suggestion response missing 'suggestions' list: {parsed!r}")
-        return []
-
-    return [
+    raw_suggestions = [
         {field: s.get(field) for field in SIC_SUGGESTION_FIELDS}
         for s in suggestions if isinstance(s, dict)
     ]
+    validated = [sic_codes.validate_sic_suggestion(s) for s in raw_suggestions]
+    return [s for s in validated if s is not None]
 
 
 # Fallback only for direct calls that don't go through config (e.g. tests,
