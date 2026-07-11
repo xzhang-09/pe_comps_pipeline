@@ -99,8 +99,57 @@ def test_candidate_tickers_prioritizes_seed_sics_and_stops_at_limit(mocker):
         side_effect=[["SEED1", "SEED2"], ["EXP1"]],
     )
 
+    # Seed tier fills the whole budget before the expansion tier is sampled;
+    # truncation detection needs the full enumeration, so both SICs are listed.
     assert embedding_universe_builder._candidate_tickers(["2222"], limit=2) == (["SEED1", "SEED2"], True)
-    discover.assert_called_once_with(["2222"])
+    assert discover.call_args_list == [mocker.call(["2222"]), mocker.call(["1111"])]
+
+
+def test_candidate_tickers_round_robin_prevents_first_sic_hogging_budget(mocker):
+    mocker.patch(
+        "src.embedding_universe_builder._expanded_sics",
+        return_value=["9999", "1111", "2222", "3333"],
+    )
+    mocker.patch(
+        "src.embedding_universe_builder.sic_universe_builder.preflight_sic_codes",
+        side_effect=lambda sics: {sic: 1 for sic in sics},
+    )
+    by_sic = {
+        "9999": ["S1"],
+        "1111": ["A1", "A2", "A3", "A4"],
+        "2222": ["B1", "B2"],
+        "3333": ["C1", "C2"],
+    }
+    mocker.patch(
+        "src.embedding_universe_builder.sic_universe_builder.discover_tickers_by_sic",
+        side_effect=lambda sics: by_sic[sics[0]],
+    )
+
+    tickers, truncated = embedding_universe_builder._candidate_tickers(["9999"], limit=5)
+
+    # Seed SIC 9999 first, then sequential enumeration would spend the rest of
+    # the budget on A1-A4; round-robin samples every expansion SIC before
+    # going deeper into any single one.
+    assert tickers == ["S1", "A1", "B1", "C1", "A2"]
+    assert truncated is True
+
+
+def test_candidate_tickers_round_robin_dedups_and_reports_no_truncation(mocker):
+    mocker.patch("src.embedding_universe_builder._expanded_sics", return_value=["1111", "2222"])
+    mocker.patch(
+        "src.embedding_universe_builder.sic_universe_builder.preflight_sic_codes",
+        side_effect=lambda sics: {sic: 1 for sic in sics},
+    )
+    by_sic = {"1111": ["AAA", "DUP"], "2222": ["DUP", "BBB"]}
+    mocker.patch(
+        "src.embedding_universe_builder.sic_universe_builder.discover_tickers_by_sic",
+        side_effect=lambda sics: by_sic[sics[0]],
+    )
+
+    tickers, truncated = embedding_universe_builder._candidate_tickers(["1111"], limit=10)
+
+    assert tickers == ["AAA", "DUP", "BBB"]
+    assert truncated is False
 
 
 def test_unenumerated_stage_distinguishes_candidate_limit_from_taxonomy(mocker):

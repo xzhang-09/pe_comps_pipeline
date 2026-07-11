@@ -29,11 +29,10 @@
 | --- | ---: |
 | hit | 7 |
 | ranked_but_not_top_k | 2 |
-| low_confidence_filtered | 8 |
+| low_confidence_filtered | 9 |
 | no_valid_ev_ebitda | 2 |
 | financial_filtered | 10 |
 | truncated_by_embedding_candidate_limit | 12 |
-| below_similarity_threshold | 1 |
 | outside_candidate_set_top_n | 2 |
 | outside_expanded_taxonomy | 27 |
 
@@ -49,7 +48,7 @@
 - Excluded delisted banker comps: HEES
 - Excluded non-US-filer banker comps: CGCBV.HE, PAL.VI, 6395.T, AHT.L
 - Scored pool: 29 companies (21 selectable)
-- Discovery SIC codes: primary 3559, 3537, 3531; adjacent 3713, 3714, 3569
+- Discovery SIC codes: primary 3559, 3537, 3531; adjacent 3713, 3714, 5084, 3569
 - Loss stages: HRI=outside_expanded_taxonomy, MTW=ranked_but_not_top_k, TEX=financial_filtered, URI=outside_expanded_taxonomy
 
 ### pgt-innovations-2024 — PGTI (PGT Innovations, Inc.)
@@ -72,7 +71,7 @@
 - Excluded delisted banker comps: TGI
 - Excluded non-US-filer banker comps: SMIN.L, IMI.L, ROR.L
 - Scored pool: 42 companies (29 selectable)
-- Discovery SIC codes: primary 3490, 3561, 3728; adjacent 3829, 5084, 3714, 3531, 3443, 3724
+- Discovery SIC codes: primary 3490, 3561, 3728; adjacent 5084, 3829, 3714, 3531, 3443, 3724
 - Loss stages: CR=low_confidence_filtered, CW=truncated_by_embedding_candidate_limit, FLS=ranked_but_not_top_k, ITT=low_confidence_filtered, MOG-A=truncated_by_embedding_candidate_limit, WWD=outside_expanded_taxonomy
 
 ### kaman-2024 — KAMN (Kaman Corporation)
@@ -82,8 +81,8 @@
 - Missed before universe/scoring: TDG, RRX, RBC, HWM, HXL, AIN, DCO
 - Missed after ranking: HEI
 - Excluded delisted banker comps: B, SPR, TGI
-- Scored pool: 24 companies (19 selectable)
-- Discovery SIC codes: primary 3728; adjacent 3812, 3724, 3714, 3721
+- Scored pool: 25 companies (19 selectable)
+- Discovery SIC codes: primary 3728; adjacent 3724, 3812, 3714, 3721, 3452
 - Loss stages: AIN=outside_expanded_taxonomy, DCO=financial_filtered, HEI=low_confidence_filtered, HWM=outside_expanded_taxonomy, HXL=outside_expanded_taxonomy, RBC=outside_expanded_taxonomy, RRX=outside_expanded_taxonomy, TDG=financial_filtered
 
 ### barnes-group-2024 — B (Barnes Group Inc.)
@@ -93,9 +92,9 @@
 - Missed before universe/scoring: AIN, ACA, BRC, CW, DCO, ESE, MOG-A, RBC, SPXC, TRS, WWD
 - Missed after ranking: CR
 - Excluded delisted banker comps: HI, TGI
-- Scored pool: 33 companies (22 selectable)
-- Discovery SIC codes: primary 3490, 3728, 3724, 3569; adjacent 3714, 3812, 3829, 3537
-- Loss stages: ACA=truncated_by_embedding_candidate_limit, AIN=outside_expanded_taxonomy, BRC=outside_expanded_taxonomy, CR=low_confidence_filtered, CW=truncated_by_embedding_candidate_limit, DCO=financial_filtered, ESE=outside_expanded_taxonomy, MOG-A=truncated_by_embedding_candidate_limit, RBC=truncated_by_embedding_candidate_limit, SPXC=truncated_by_embedding_candidate_limit, TRS=truncated_by_embedding_candidate_limit, WWD=outside_expanded_taxonomy
+- Scored pool: 34 companies (23 selectable)
+- Discovery SIC codes: primary 3490, 3728, 3724, 3569; adjacent 3714, 3812, 3829
+- Loss stages: ACA=outside_candidate_set_top_n, AIN=outside_expanded_taxonomy, BRC=outside_expanded_taxonomy, CR=low_confidence_filtered, CW=truncated_by_embedding_candidate_limit, DCO=financial_filtered, ESE=outside_expanded_taxonomy, MOG-A=truncated_by_embedding_candidate_limit, RBC=truncated_by_embedding_candidate_limit, SPXC=truncated_by_embedding_candidate_limit, TRS=truncated_by_embedding_candidate_limit, WWD=outside_expanded_taxonomy
 
 ### haynes-international-2024 — HAYN (Haynes International, Inc.)
 - Source: Jefferies LLC, 2024-03-18 — https://www.sec.gov/Archives/edgar/data/858655/000110465924035231/tm248086-1_defm14a.htm
@@ -105,8 +104,8 @@
 - Missed after ranking: none
 - Excluded delisted banker comps: USAP
 - Excluded non-US-filer banker comps: ACX.MC, APAM.AS
-- Scored pool: 15 companies (11 selectable) — selection trivial (pool <= K, precision measures coverage only)
-- Discovery SIC codes: primary 3310; adjacent 3357, 3728, 3334, 3312
+- Scored pool: 16 companies (11 selectable) — selection trivial (pool <= K, precision measures coverage only)
+- Discovery SIC codes: primary 3310; adjacent 3357, 3728, 3312, 3334
 - Loss stages: HWM=financial_filtered
 
 ### universal-stainless-2024 — USAP (Universal Stainless & Alloy Products, Inc.)
@@ -117,8 +116,8 @@
 - Missed after ranking: none
 - Excluded delisted banker comps: none
 - Excluded non-US-filer banker comps: ACX.MC, APAM.AS
-- Scored pool: 4 companies (3 selectable) — selection trivial (pool <= K, precision measures coverage only)
-- Discovery SIC codes: primary 3312; adjacent 3317
+- Scored pool: 5 companies (3 selectable) — selection trivial (pool <= K, precision measures coverage only)
+- Discovery SIC codes: primary 3312; adjacent 3317, 3357
 - Loss stages: ATI=financial_filtered, MTUS=no_valid_ev_ebitda
 
 ### l-s-starrett-2024 — SCX (The L.S. Starrett Company)
@@ -129,7 +128,7 @@
 - Missed after ranking: none
 - Excluded delisted banker comps: none
 - Excluded non-US-filer banker comps: 6971.T, 002444.SZ, 6136.T
-- Scored pool: 16 companies (12 selectable) — selection trivial (pool <= K, precision measures coverage only)
+- Scored pool: 16 companies (11 selectable) — selection trivial (pool <= K, precision measures coverage only)
 - Discovery SIC codes: primary 3420, 3823, 3829; adjacent 3541, 3569
 - Loss stages: SNA=financial_filtered, SWK=financial_filtered, WOR=outside_expanded_taxonomy
 
@@ -148,10 +147,10 @@
 - Source: Perella Weinberg Partners LP, 2023-08-31 — https://www.sec.gov/Archives/edgar/data/830524/000114036123041904/ny20009924x2_defm14a.htm
 - Precision@15: 6.2% (reachable: 100.0%)
 - Hits: CSW
-- Missed before universe/scoring: AVD, HWKN, NGVT, IOSP, MATV, SCL, UFPT, ASH, BCPC, CBT, ESI, FUL, KWR, ROG
-- Missed after ranking: AVNT
+- Missed before universe/scoring: AVD, HWKN, NGVT, IOSP, MATV, SCL, UFPT, ASH, BCPC, ESI, FUL, KWR, ROG
+- Missed after ranking: AVNT, CBT
 - Excluded delisted banker comps: none
-- Scored pool: 18 companies (14 selectable) — selection trivial (pool <= K, precision measures coverage only)
-- Discovery SIC codes: primary 2891; adjacent 3081, 2821, 2851, 3714
-- Loss stages: ASH=outside_expanded_taxonomy, AVD=truncated_by_embedding_candidate_limit, AVNT=low_confidence_filtered, BCPC=outside_candidate_set_top_n, CBT=truncated_by_embedding_candidate_limit, ESI=truncated_by_embedding_candidate_limit, FUL=no_valid_ev_ebitda, HWKN=outside_expanded_taxonomy, IOSP=below_similarity_threshold, KWR=outside_expanded_taxonomy, MATV=outside_expanded_taxonomy, NGVT=outside_candidate_set_top_n, ROG=financial_filtered, SCL=truncated_by_embedding_candidate_limit, UFPT=outside_expanded_taxonomy
+- Scored pool: 9 companies (5 selectable) — selection trivial (pool <= K, precision measures coverage only)
+- Discovery SIC codes: primary 2891; adjacent 3081, 2821, 5065, 2851
+- Loss stages: ASH=outside_expanded_taxonomy, AVD=outside_candidate_set_top_n, AVNT=low_confidence_filtered, BCPC=truncated_by_embedding_candidate_limit, CBT=low_confidence_filtered, ESI=truncated_by_embedding_candidate_limit, FUL=no_valid_ev_ebitda, HWKN=outside_expanded_taxonomy, IOSP=truncated_by_embedding_candidate_limit, KWR=outside_expanded_taxonomy, MATV=outside_expanded_taxonomy, NGVT=truncated_by_embedding_candidate_limit, ROG=financial_filtered, SCL=truncated_by_embedding_candidate_limit, UFPT=outside_expanded_taxonomy
 

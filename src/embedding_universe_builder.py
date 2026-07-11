@@ -49,22 +49,50 @@ def _candidate_sics(seed_sics: list[str]) -> list[str]:
     return list(dict.fromkeys(clean_seed_sics + _expanded_sics(seed_sics)))
 
 
+def _round_robin(sics: list[str], tickers_by_sic: dict[str, list[str]], seen: set[str]) -> list[str]:
+    """One ticker per SIC per round, so no single early/large SIC can consume
+    the whole candidate budget — the corpus stays a representative sample of
+    every code in the tier."""
+    queues = [list(tickers_by_sic.get(sic, ())) for sic in sics]
+    picked: list[str] = []
+    while any(queues):
+        for queue in queues:
+            while queue:
+                ticker = queue.pop(0)
+                if ticker not in seen:
+                    seen.add(ticker)
+                    picked.append(ticker)
+                    break
+    return picked
+
+
 def _candidate_tickers(seed_sics: list[str], limit: int | None = None) -> tuple[list[str], bool]:
-    tickers = []
-    seen = set()
-    for sic in _filter_broad_sics(_candidate_sics(seed_sics)):
+    """Stratified candidate enumeration: the seed SICs themselves (including
+    suggested codes in hybrid mode) are sampled round-robin first, then the
+    same-2-digit-family expansion codes fill the remaining budget, also
+    round-robin. Replaces sequential enumeration, whose truncation at the
+    budget was dominated by whichever SIC happened to enumerate first."""
+    seed_set = {str(sic).strip().zfill(4) for sic in seed_sics if str(sic or "").strip()}
+    all_sics = _filter_broad_sics(_candidate_sics(seed_sics))
+    seed_tier = [sic for sic in all_sics if sic in seed_set]
+    expansion_tier = [sic for sic in all_sics if sic not in seed_set]
+
+    tickers_by_sic: dict[str, list[str]] = {}
+    for sic in seed_tier + expansion_tier:
         try:
-            for ticker in sic_universe_builder.discover_tickers_by_sic([sic]):
-                if ticker in seen:
-                    continue
-                seen.add(ticker)
-                tickers.append(ticker)
-                if limit and len(tickers) >= limit:
-                    logger.info(f"Embedding discovery candidate ticker limit reached: {limit}")
-                    return tickers, True
+            tickers_by_sic[sic] = list(sic_universe_builder.discover_tickers_by_sic([sic]))
         except Exception as e:
             logger.warning(f"SIC {sic} — embedding discovery ticker enumeration failed: {e}")
-    return tickers, False
+
+    seen: set[str] = set()
+    ordered = _round_robin(seed_tier, tickers_by_sic, seen) + _round_robin(expansion_tier, tickers_by_sic, seen)
+    if limit and len(ordered) > limit:
+        logger.info(
+            f"Embedding discovery candidate ticker limit reached: {limit} "
+            f"(round-robin across {len(tickers_by_sic)} SIC codes, {len(ordered)} enumerable)"
+        )
+        return ordered[:limit], True
+    return ordered, False
 
 
 def _description_for_ticker(ticker: str) -> tuple[str | None, dict]:
