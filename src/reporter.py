@@ -229,6 +229,12 @@ NARRATIVE_TICKER_ALLOWLIST = {
     "SEC",
 }
 
+VALUATION_ROLE_LABELS = {
+    "valuation_anchor": "Valuation Anchor",
+    "broad_reference": "Broad Reference",
+    "review_sensitivity": "Review / Sensitivity Only",
+}
+
 
 def _has_severe_scale_caveat(weaknesses: list[str] | None) -> bool:
     if not weaknesses:
@@ -504,6 +510,7 @@ def _top15_table(companies_by_ticker: dict, llm_features: dict, company_scores: 
             "description_source": company.get("description_source"),
             "candidate_source": candidate_source,
             "candidate_source_label": _candidate_source_label(candidate_source),
+            "analyst_approved": False,
         })
     return rows
 
@@ -525,6 +532,24 @@ def _must_include_exclusion_notes(cfg: PipelineConfig, top_tickers: list[str], l
             notes.append(f"{ticker} was analyst-specified but excluded by the low-confidence source-support filter.")
         elif ticker not in company_scores.index:
             notes.append(f"{ticker} was analyst-specified but did not reach scoring after fetch/data filters.")
+    return notes
+
+
+def _analyst_approval_notes(cfg: PipelineConfig, top_rows: list[dict]) -> list[str]:
+    if not cfg.universe.analyst_approved_tickers:
+        return []
+
+    rows_by_ticker = {row["ticker"]: row for row in top_rows}
+    notes = []
+    for ticker in cfg.universe.analyst_approved_tickers:
+        row = rows_by_ticker.get(ticker)
+        if row is None:
+            notes.append(f"{ticker} was analyst-approved but is not in the selected comp set.")
+            continue
+        row["analyst_approved"] = True
+        notes.append(
+            f"{ticker} retained as analyst-approved ({TIER_LABELS[row['tier']]}); model tier/caveats still shown."
+        )
     return notes
 
 
@@ -565,7 +590,7 @@ def _business_model_alignment_summary(rows: list[dict], target_business_model: s
         if target_customer_type else []
     )
     fit_note_exceptions = [
-        {"ticker": row["ticker"], "fit_notes": row.get("fit_notes")}
+        {"ticker": row["ticker"], "tier": row.get("tier"), "fit_notes": row.get("fit_notes")}
         for row in rows
         if row.get("fit_notes") and row.get("fit_notes") != "No material fit flags"
     ]
@@ -650,6 +675,70 @@ def _fit_notes(reasons: list[str], fit_flag: str | None, outlier_flag: bool, rev
     if outlier_flag:
         notes.append("EV/EBITDA statistical outlier")
     return "; ".join(notes) if notes else "No material fit flags"
+
+
+def _valuation_role(row: dict) -> str:
+    if row.get("tier") == "review_exclude":
+        return "review_sensitivity"
+    if row.get("tier") == "core":
+        return "valuation_anchor"
+    return "broad_reference"
+
+
+def _annotate_valuation_roles(rows: list[dict]) -> dict:
+    for row in rows:
+        row["valuation_role"] = _valuation_role(row)
+        row["valuation_role_label"] = VALUATION_ROLE_LABELS[row["valuation_role"]]
+
+    return {
+        role: {
+            "label": label,
+            "n": sum(1 for row in rows if row.get("valuation_role") == role),
+            "tickers": [row["ticker"] for row in rows if row.get("valuation_role") == role],
+        }
+        for role, label in VALUATION_ROLE_LABELS.items()
+    }
+
+
+def _replacement_rejection_reason(candidate_row: dict) -> str | None:
+    if candidate_row["tier"] == "review_exclude":
+        return "candidate also classified as Review / Exclude"
+    return None
+
+
+def _secondary_replacement_is_better(candidate_row: dict, review_rows: list[dict]) -> bool:
+    if candidate_row["tier"] != "secondary" or not review_rows:
+        return False
+    if candidate_row.get("fit_flag") == "weak" or candidate_row.get("outlier_flag"):
+        return False
+    notes = candidate_row.get("fit_notes") or ""
+    hard_mismatches = ("business model mismatch", "customer type mismatch")
+    return not any(mismatch in notes for mismatch in hard_mismatches)
+
+
+def _replacement_acceptance_reason(candidate_row: dict, review_rows: list[dict]) -> str | None:
+    if candidate_row["tier"] == "core":
+        return "accepted as Core replacement for a Review / Exclude slot"
+    if _secondary_replacement_is_better(candidate_row, review_rows):
+        replaced = ", ".join(row["ticker"] for row in review_rows[:3])
+        suffix = f" over {replaced}" if replaced else ""
+        return f"accepted as better Secondary replacement{suffix}"
+    return None
+
+
+def _substitution_audit_summary(substitution_audit: list[dict], rejected_limit: int = 5) -> dict | None:
+    if not substitution_audit:
+        return None
+    accepted = [item for item in substitution_audit if item.get("decision") == "accepted"]
+    rejected = [item for item in substitution_audit if item.get("decision") == "rejected"]
+    displayed_rejected = rejected[:rejected_limit]
+    return {
+        "n_total": len(substitution_audit),
+        "n_accepted": len(accepted),
+        "n_rejected": len(rejected),
+        "displayed": accepted + displayed_rejected,
+        "hidden_rejected_count": max(0, len(rejected) - len(displayed_rejected)),
+    }
 
 
 def _annotate_top_rows(
@@ -755,6 +844,7 @@ def _fill_usable_comp_slots(
         if usable_count >= top_n:
             return rows, selected, flagged_tickers, substitution_audit
 
+        review_rows = [row for row in rows if row["tier"] == "review_exclude"]
         selected_set = set(selected)
         accepted_replacement = None
         while next_idx < len(ranked_tickers):
@@ -772,13 +862,25 @@ def _fill_usable_comp_slots(
                 strong_tickers, weak_tickers, review_reasons,
             )
             candidate_row = next(row for row in tentative_rows if row["ticker"] == candidate)
-            if candidate_row["tier"] == "review_exclude":
+            rejection_reason = _replacement_rejection_reason(candidate_row)
+            if rejection_reason:
                 substitution_audit.append({
                     "ticker": candidate,
                     "company_name": candidate_row.get("company_name", candidate),
                     "decision": "rejected",
                     "tier": candidate_row["tier"],
-                    "reason": "candidate also classified as Review / Exclude",
+                    "reason": rejection_reason,
+                })
+                continue
+
+            acceptance_reason = _replacement_acceptance_reason(candidate_row, review_rows)
+            if not acceptance_reason:
+                substitution_audit.append({
+                    "ticker": candidate,
+                    "company_name": candidate_row.get("company_name", candidate),
+                    "decision": "rejected",
+                    "tier": candidate_row["tier"],
+                    "reason": f"candidate not clearly better than the Review / Exclude slot: {candidate_row.get('fit_notes')}",
                 })
                 continue
 
@@ -788,7 +890,7 @@ def _fill_usable_comp_slots(
                 "company_name": candidate_row.get("company_name", candidate),
                 "decision": "accepted",
                 "tier": candidate_row["tier"],
-                "reason": "filled usable comp slot",
+                "reason": acceptance_reason,
             })
             break
         if accepted_replacement is None:
@@ -1058,7 +1160,23 @@ def generate(
 
     top15 = _select_top_15(
         company_scores, llm_features, companies_by_ticker,
-        target_business_model, target_customer_type, target_revenue, subsector_similarities, penalties, k=top_n,
+        target_business_model, target_customer_type, target_revenue, subsector_similarities, penalties,
+        llm_rerank={
+            **cfg.scorer.llm_rerank.model_dump(),
+            "temperature": cfg.llm.temperature,
+            "max_tokens": cfg.llm.max_tokens,
+        },
+        rerank_context={
+            "target_profile": {
+                "name": target_config.get("name"),
+                "description": target_config.get("description"),
+                **target_llm_features,
+                "revenue_usd_mm": target_revenue,
+            },
+            "llm_features": llm_features,
+            "companies_by_ticker": companies_by_ticker,
+        },
+        k=top_n,
     )
 
     top15_rows = _top15_table(companies_by_ticker, llm_features, company_scores, top15)
@@ -1126,6 +1244,9 @@ def generate(
     top15_rows.sort(key=lambda row: TIER_ORDER[row["tier"]])
     for rank, row in enumerate(top15_rows, start=1):
         row["rank"] = rank
+    valuation_role_summary = _annotate_valuation_roles(top15_rows)
+    analyst_approval_notes = _analyst_approval_notes(cfg, top15_rows)
+    substitution_audit_summary = _substitution_audit_summary(substitution_audit)
 
     tier_summary = [
         {
@@ -1224,6 +1345,7 @@ def generate(
         "target_description": target_config.get("description"),
         "small_sample_warning": small_sample_warning,
         "must_include_exclusion_notes": must_include_exclusion_notes,
+        "analyst_approval_notes": analyst_approval_notes,
         "valuation_multiples": valuation_multiples,
         "implied_valuation": implied_valuation,
         "implied_valuation_excl_flagged": implied_valuation_excl_flagged,
@@ -1237,8 +1359,10 @@ def generate(
         "description_sources_vary": description_sources_vary,
         "description_source_common": description_source_common,
         "tier_summary": tier_summary,
+        "valuation_role_summary": valuation_role_summary,
         "selection_quality": selection_quality,
         "substitution_audit": substitution_audit,
+        "substitution_audit_summary": substitution_audit_summary,
         "TIER_LABELS": TIER_LABELS,
         "DESCRIPTION_SOURCE_LABELS": DESCRIPTION_SOURCE_LABELS,
         "executive_summary": _executive_summary(

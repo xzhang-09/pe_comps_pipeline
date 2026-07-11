@@ -6,7 +6,8 @@ import openai
 
 from src import get_logger, json_store
 from src.config_schema import PipelineConfig, TargetCompanyConfig, as_config
-from src.llm_analyzer import _call_openai, _strip_markdown_fences
+from src.llm_analyzer import _call_openai_structured, _strip_markdown_fences
+from src.llm_schemas import CompFitReview
 from src.paths import project_path
 
 logger = get_logger(__name__)
@@ -20,7 +21,6 @@ SYSTEM_PROMPT = """You are a private equity analyst reviewing whether a selected
 public-company comparable set is a good fit for valuing a private target.
 
 Rules:
-- Output ONLY valid JSON. No markdown fences, no prose outside JSON.
 - Use only the data provided in the prompt. Do not use outside knowledge.
 - Write in concise, investment-professional language for a PE analyst.
 - Treat this as a directional qualitative review, not a final diligence view.
@@ -86,24 +86,7 @@ Score the Top Comps as a set and call out strongest/weakest fits. Consider:
 - revenue_scale_fit (0-15)
 - financial_profile_fit (0-15)
 - data_confidence (0-5)
-
-Return ONLY this JSON object:
-{{
-  "overall_score": <integer 0-100>,
-  "review_confidence": "low"|"medium"|"high",
-  "summary": "<one concise paragraph>",
-  "strengths": ["<bullet>", "..."],
-  "weaknesses": ["<bullet>", "..."],
-  "top_fits": [
-    {{"ticker": "<ticker>", "score": <integer 0-100>, "reason": "<one sentence>"}}
-  ],
-  "questionable_fits": [
-    {{"ticker": "<ticker>", "score": <integer 0-100>, "reason": "<one sentence>"}}
-  ],
-  "near_miss_upgrades": [
-    {{"ticker": "<ticker>", "score": <integer 0-100>, "reason": "<one sentence>"}}
-  ]
-}}"""
+"""
 
 
 def _canonical_json(data) -> str:
@@ -251,18 +234,14 @@ def review_comp_fit(
     )
 
     try:
-        text = _call_openai(
+        parsed = _call_openai_structured(
             openai.OpenAI(), llm_config.judge_model, SYSTEM_PROMPT, prompt,
-            llm_config.temperature, max(REVIEW_MAX_OUTPUT_TOKENS, llm_config.max_tokens),
+            llm_config.temperature, max(REVIEW_MAX_OUTPUT_TOKENS, llm_config.max_tokens), CompFitReview,
         )
     except Exception as e:
         logger.warning(f"Comp-fit review API call failed: {e}")
         return {"status": "unavailable", "reason": "LLM comp-fit review API call failed"}
 
-    parsed = _parse_review(text)
-    if parsed is None:
-        return {"status": "unavailable", "reason": "LLM comp-fit review returned invalid JSON"}
-
-    review = _normalize_review(parsed)
+    review = _normalize_review(parsed.model_dump())
     _save_cached(signature, review)
     return review

@@ -231,16 +231,41 @@
 
 <!-- Section 2: Top 15 Comparable Companies -->
 <h2 id="sec2">2. Top {{ n_comps }} Comparable Companies</h2>
-{% if business_model_alignment %}<p class="note">{% if business_model_alignment.target_business_model %}{% if business_model_alignment.n_matching == business_model_alignment.n_total %}{{ business_model_alignment.n_matching }}/{{ business_model_alignment.n_total }} comps match the target's business model ({{ business_model_alignment.target_business_model }}).{% else %}{{ business_model_alignment.n_matching }}/{{ business_model_alignment.n_total }} comps match the target's business model ({{ business_model_alignment.target_business_model }}). Exceptions: {% for e in business_model_alignment.exceptions %}{{ e.ticker }} ({{ e.business_model }}){% if not loop.last %}, {% endif %}{% endfor %}.{% endif %}{% endif %}{% if business_model_alignment.target_customer_type %} {% if business_model_alignment.n_customer_matching == business_model_alignment.n_total %}{{ business_model_alignment.n_customer_matching }}/{{ business_model_alignment.n_total }} comps match the target's customer base ({{ business_model_alignment.target_customer_type }}).{% else %}{{ business_model_alignment.n_customer_matching }}/{{ business_model_alignment.n_total }} comps match the target's customer base ({{ business_model_alignment.target_customer_type }}). Exceptions: {% for e in business_model_alignment.customer_exceptions %}{{ e.ticker }} ({{ e.customer_type }}){% if not loop.last %}, {% endif %}{% endfor %}.{% endif %}{% endif %} <strong>Rank</strong> orders by <strong>Tier</strong> first (<span class="tier-core">Core</span> / <span class="tier-secondary">Secondary</span> / <span class="tier-review_exclude">Review</span> — see §3), then within each tier by financial distance plus business-model/customer/scale/end-market penalties (§8); <strong>Fin. Dist.</strong> is the financial component alone (lower = closer). Table row colors and the Section 4 scatter use the same tier colors. † marks a statistical EV/EBITDA outlier (Tukey {{ tukey_fence_multiplier }}× IQR).</p>{% if business_model_alignment.fit_note_exceptions %}<details class="note"><summary><strong>Fit flags</strong> ({{ business_model_alignment.fit_note_exceptions|length }} comps)</summary><p>{% for e in business_model_alignment.fit_note_exceptions %}{{ e.ticker }} — {{ e.fit_notes }}{% if not loop.last %}; {% endif %}{% endfor %}.</p></details>{% endif %}{% endif %}
+{% if business_model_alignment %}<p class="note">{% if business_model_alignment.target_business_model %}{% if business_model_alignment.n_matching == business_model_alignment.n_total %}{{ business_model_alignment.n_matching }}/{{ business_model_alignment.n_total }} comps match the target's business model ({{ business_model_alignment.target_business_model }}).{% else %}{{ business_model_alignment.n_matching }}/{{ business_model_alignment.n_total }} comps match the target's business model ({{ business_model_alignment.target_business_model }}). Exceptions: {% for e in business_model_alignment.exceptions %}{{ e.ticker }} ({{ e.business_model }}){% if not loop.last %}, {% endif %}{% endfor %}.{% endif %}{% endif %}{% if business_model_alignment.target_customer_type %} {% if business_model_alignment.n_customer_matching == business_model_alignment.n_total %}{{ business_model_alignment.n_customer_matching }}/{{ business_model_alignment.n_total }} comps match the target's customer base ({{ business_model_alignment.target_customer_type }}).{% else %}{{ business_model_alignment.n_customer_matching }}/{{ business_model_alignment.n_total }} comps match the target's customer base ({{ business_model_alignment.target_customer_type }}). Exceptions: {% for e in business_model_alignment.customer_exceptions %}{{ e.ticker }} ({{ e.customer_type }}){% if not loop.last %}, {% endif %}{% endfor %}.{% endif %}{% endif %} <strong>Rank</strong> orders by <strong>Tier</strong> first (<span class="tier-core">Core</span> / <span class="tier-secondary">Secondary</span> / <span class="tier-review_exclude">Review</span> — see §3), then within each tier by financial distance plus business-model/customer/scale/end-market penalties (§8); <strong>Fin. Dist.</strong> is the financial component alone (lower = closer). Table row colors and the Section 4 scatter use the same tier colors. † marks a statistical EV/EBITDA outlier (Tukey {{ tukey_fence_multiplier }}× IQR).</p>{% if business_model_alignment.fit_note_exceptions %}<details class="note"><summary><strong>Fit flags</strong> ({{ business_model_alignment.fit_note_exceptions|length }} comps)</summary><table><tr><th>Ticker</th><th>Tier</th><th>Primary flags</th></tr>{% for e in business_model_alignment.fit_note_exceptions %}<tr class="{{ 'row-odd' if loop.index is odd else 'row-even' }}"><td>{{ e.ticker }}</td><td class="tier-{{ e.tier }}">{{ TIER_LABELS[e.tier] }}</td><td>{{ e.fit_notes }}</td></tr>{% endfor %}</table></details>{% endif %}{% endif %}
 {% if must_include_exclusion_notes %}
 <p class="note"><strong>Analyst-specified exclusions:</strong> {{ must_include_exclusion_notes | join(" ") }}</p>
+{% endif %}
+{% if analyst_approval_notes %}
+<p class="note"><strong>Analyst-approved comps:</strong> {{ analyst_approval_notes | join(" ") }}</p>
 {% endif %}
 {% if selection_quality %}
 <p class="note"><strong>Selection quality check:</strong> {{ selection_quality.usable_count }}/{{ selection_quality.n_total }} usable comps after tier review
   (Core {{ selection_quality.n_core }}, Secondary {{ selection_quality.n_secondary }}, Review / Exclude {{ selection_quality.n_review_exclude }}).{% if selection_quality.max_revenue_ratio %} Max revenue scale gap: {{ "%.1f"|format(selection_quality.max_revenue_ratio) }}x.{% endif %}</p>
 {% endif %}
-{% if substitution_audit %}
-<details class="note"><summary><strong>Replacement audit</strong> ({{ substitution_audit|length }} decisions)</summary><p>{% for item in substitution_audit %}{% if item.decision == "accepted" %}Accepted replacement {{ item.ticker }} ({{ TIER_LABELS[item.tier] }}) — {{ item.reason }}{% else %}Rejected replacement {{ item.ticker }} ({{ TIER_LABELS[item.tier] }}) — {{ item.reason }}{% endif %}{% if not loop.last %}; {% endif %}{% endfor %}.</p></details>
+{% if valuation_role_summary %}
+<p class="note"><strong>Valuation use:</strong>
+  Valuation anchor comps ({{ valuation_role_summary.valuation_anchor.n }}): {{ valuation_role_summary.valuation_anchor.tickers | join(", ") if valuation_role_summary.valuation_anchor.tickers else "none" }}.
+  Broad reference comps ({{ valuation_role_summary.broad_reference.n }}): {{ valuation_role_summary.broad_reference.tickers | join(", ") if valuation_role_summary.broad_reference.tickers else "none" }}.
+  Review / sensitivity only ({{ valuation_role_summary.review_sensitivity.n }}): {{ valuation_role_summary.review_sensitivity.tickers | join(", ") if valuation_role_summary.review_sensitivity.tickers else "none" }}.
+</p>
+{% endif %}
+{% if substitution_audit_summary %}
+<details class="note"><summary><strong>Replacement decisions</strong> ({{ substitution_audit_summary.n_accepted }} accepted, {{ substitution_audit_summary.n_rejected }} rejected)</summary>
+<table>
+  <tr><th>Decision</th><th>Ticker</th><th>Tier</th><th>Reason</th></tr>
+  {% for item in substitution_audit_summary.displayed %}
+  <tr class="{{ 'row-odd' if loop.index is odd else 'row-even' }}">
+    <td>{{ "Accepted" if item.decision == "accepted" else "Rejected" }}</td>
+    <td>{{ item.ticker }}</td>
+    <td class="tier-{{ item.tier }}">{{ TIER_LABELS[item.tier] }}</td>
+    <td>{{ item.reason }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% if substitution_audit_summary.hidden_rejected_count %}
+<p class="note">Additional rejected candidates: {{ substitution_audit_summary.hidden_rejected_count }} not shown.</p>
+{% endif %}
+</details>
 {% endif %}
 <div class="tier-summary-grid">
   {% for t in tier_summary %}
@@ -532,7 +557,8 @@
 {% endif %}
 {% endif %}
 {% if size_adjusted_valuation %}
-<p><strong>Directional size-adjusted cross-check:</strong> not a substitute for the ranges above — the regression below is {% if size_adjusted_valuation.is_significant %}statistically significant{% else %}<strong>not statistically significant</strong> at this sample size{% endif %}, so treat the implied EV as directional only.</p>
+{% if size_adjusted_valuation.is_significant %}
+<p><strong>Directional size-adjusted cross-check:</strong> not a substitute for the ranges above — the regression below is statistically significant, so treat the implied EV as a directional cross-check only.</p>
 <table>
   <tr><th>Pool size (n)</th><th>Slope (EV/EBITDA per log10 revenue)</th><th>R²</th><th>Significant (p&lt;0.05)</th><th>Implied EV (directional)</th></tr>
   <tr class="row-odd">
@@ -544,6 +570,9 @@
   </tr>
 </table>
 <p class="note">Regresses EV/EBITDA on log10(revenue) across the full eligible pool ({{ size_adjusted_valuation.n }} companies, not just the Top {{ n_comps }}) to quantify whether this industry's multiples scale with company size, then reads off the predicted multiple at the target's own revenue.</p>
+{% else %}
+<p class="note"><strong>Size-adjusted regression tested but not used:</strong> revenue and EV/EBITDA did not show a statistically reliable relationship in the eligible pool (n={{ size_adjusted_valuation.n }}, R² {{ "%.2f"|format(size_adjusted_valuation.r_squared) }}, p-value {{ "%.2f"|format(size_adjusted_valuation.p_value) }}). The valuation ranges above rely on selected comps, size-screened comps, and flagged-excluded sensitivity instead.</p>
+{% endif %}
 {% endif %}
 {% else %}
 <p>Implied valuation not available — target revenue or EBITDA estimate is missing from config.</p>

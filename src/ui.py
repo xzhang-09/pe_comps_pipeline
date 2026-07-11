@@ -12,11 +12,20 @@ from typing import Any
 import yaml
 
 from src import llm_analyzer
+from src.defaults import DEFAULT_LLM_CONFIG
+from src.paths import project_path
 from src.pipeline import run_pipeline
 
-RUNS_DIR = Path("outputs/ui_runs")
-DEFAULT_CONFIG_PATH = Path("config.yaml")
+RUNS_DIR = project_path("outputs", "ui_runs")
+DEFAULT_CONFIG_PATH = project_path("config.yaml")
 SIC_SUGGESTION_HEADERS = ["Bucket", "SIC code", "Industry title", "Confidence", "Reason"]
+RUN_FORM_FIELDS = [
+    "target_name", "target_description", "revenue_usd_mm", "ebitda_margin_pct",
+    "gross_margin_pct", "revenue_cagr_3yr_pct", "net_debt_ebitda", "capex_revenue_pct",
+    "primary_sic_codes", "adjacent_sic_codes", "seed_tickers", "must_include_tickers", "exclude_tickers",
+    "max_candidates", "primary_allocation_pct", "top_n_comps", "size_marketability_discount_pct",
+    "prepared_by", "confidential",
+]
 
 APP_CSS = """
 .gradio-container,
@@ -35,12 +44,9 @@ APP_CSS = """
     padding: 0 24px;
 }
 
-#report-preview {
-    min-height: 520px;
-    border: 1px solid var(--border-color-primary);
-    border-radius: 8px;
-    padding: 16px;
-    overflow: auto;
+#run-panel {
+    position: sticky;
+    top: 16px;
 }
 """
 
@@ -124,6 +130,9 @@ def build_config_dict(
     capex_revenue_pct: float | str | None,
     primary_sic_codes: str,
     adjacent_sic_codes: str,
+    seed_tickers: str,
+    must_include_tickers: str,
+    exclude_tickers: str,
     max_candidates: int,
     primary_allocation_pct: float,
     top_n_comps: int,
@@ -136,15 +145,7 @@ def build_config_dict(
     config.setdefault("universe", {})
     config.setdefault(
         "llm",
-        {
-            "extraction_model": "gpt-4.1",
-            "judge_model": "gpt-4.1-mini",
-            "embedding_model": "text-embedding-3-small",
-            "temperature": 0,
-            "max_tokens": 500,
-            "batch_size": 20,
-            "judge_threshold": 3,
-        },
+        copy.deepcopy(DEFAULT_LLM_CONFIG),
     )
     config.setdefault("output", {})
     config.setdefault("valuation", {})
@@ -168,6 +169,9 @@ def build_config_dict(
         {
             "max_candidates": int(max_candidates),
             "primary_allocation_pct": float(primary_allocation_pct) / 100,
+            "seed_tickers": parse_sic_codes(seed_tickers),
+            "must_include_tickers": parse_sic_codes(must_include_tickers),
+            "exclude_tickers": parse_sic_codes(exclude_tickers),
         }
     )
     config["output"].update(
@@ -231,15 +235,7 @@ def _sic_suggestion_config(description: str) -> dict[str, Any]:
     config["universe"].setdefault("max_candidates", 300)
     config.setdefault(
         "llm",
-        {
-            "extraction_model": "gpt-4.1",
-            "judge_model": "gpt-4.1-mini",
-            "embedding_model": "text-embedding-3-small",
-            "temperature": 0,
-            "max_tokens": 500,
-            "batch_size": 20,
-            "judge_threshold": 3,
-        },
+        copy.deepcopy(DEFAULT_LLM_CONFIG),
     )
     config["llm"]["max_tokens"] = max(int(config["llm"].get("max_tokens", 500)), 1200)
     return _drop_none_values(config)
@@ -275,32 +271,14 @@ def suggest_sic_codes_from_description(description: str | None) -> tuple[str, li
     primary_codes = _suggested_code_text(suggestions, "primary")
     adjacent_codes = _suggested_code_text(suggestions, "adjacent")
     status = (
-        "Advisory only: populated Primary and Adjacent SIC codes from LLM-suggested candidates. "
-        "Verify each 4-digit SIC code against the SEC SIC list before adding it to Primary or Adjacent SIC codes."
+        "Advisory only: populated Primary and Adjacent SIC codes from LLM-suggested candidates "
+        "validated against the SEC SIC list. Review the primary/adjacent classification before running."
     )
     return status, rows, primary_codes, adjacent_codes
 
 
 def run_from_form(*form_values: Any) -> tuple[str, str | None, str | None, str | None]:
-    field_names = [
-        "target_name",
-        "target_description",
-        "revenue_usd_mm",
-        "ebitda_margin_pct",
-        "gross_margin_pct",
-        "revenue_cagr_3yr_pct",
-        "net_debt_ebitda",
-        "capex_revenue_pct",
-        "primary_sic_codes",
-        "adjacent_sic_codes",
-        "max_candidates",
-        "primary_allocation_pct",
-        "top_n_comps",
-        "size_marketability_discount_pct",
-        "prepared_by",
-        "confidential",
-    ]
-    form_data = dict(zip(field_names, form_values, strict=True))
+    form_data = dict(zip(RUN_FORM_FIELDS, form_values, strict=True))
     validation_error = _validate_required_form_values(
         form_data["target_name"],
         form_data["target_description"],
@@ -329,11 +307,22 @@ def run_from_form(*form_values: Any) -> tuple[str, str | None, str | None, str |
 
     html_path = _copy_output(output_paths.get("html"), run_dir)
     csv_path = _copy_output(output_paths.get("csv"), run_dir)
-    html_preview = Path(html_path).read_text(encoding="utf-8") if html_path else ""
     status = f"Run complete: {run_id}\nHTML: {html_path or 'not generated'}\nCSV: {csv_path or 'not generated'}"
     if output_paths.get("small_sample_warning"):
         status += f"\nWARNING: {output_paths['small_sample_warning']}"
-    return status, html_preview, html_path, csv_path
+    report_actions = _report_actions_text(html_path, csv_path)
+    return status, report_actions, html_path, csv_path
+
+
+def _report_actions_text(html_path: str | None, csv_path: str | None) -> str:
+    if not html_path and not csv_path:
+        return "No report files were generated for this run."
+    lines = ["Run outputs"]
+    if html_path:
+        lines.append("HTML report ready. Open or download the file below for the full report.")
+    if csv_path:
+        lines.append("CSV report ready. Download the file below for spreadsheet analysis.")
+    return "\n\n".join(lines)
 
 
 def _copy_output(source_path: str | None, run_dir: Path) -> str | None:
@@ -358,7 +347,7 @@ def build_app():
     output_defaults = base_config.get("output", {})
     valuation_defaults = base_config.get("valuation", {})
 
-    with gr.Blocks(title="PE Comps Pipeline", fill_width=True, css=APP_CSS) as app:
+    with gr.Blocks(title="PE Comps Pipeline", fill_width=True) as app:
         with gr.Column(elem_id="pe-comps-shell"):
             gr.Markdown("# PE Comps Pipeline")
             gr.Markdown(
@@ -367,75 +356,86 @@ def build_app():
             )
 
             with gr.Row():
-                target_name = gr.Textbox(label="Target company", value="", placeholder="Enter target company name")
-                prepared_by = gr.Textbox(label="Prepared by", value="", placeholder="Analyst or deal team name")
-                confidential = gr.Checkbox(label="Confidential", value=bool(output_defaults.get("confidential", False)))
+                with gr.Column(scale=2):
+                    with gr.Row():
+                        target_name = gr.Textbox(label="Target company", value="", placeholder="Enter target company name")
+                        prepared_by = gr.Textbox(label="Prepared by", value="", placeholder="Analyst or deal team name")
+                        confidential = gr.Checkbox(label="Confidential", value=bool(output_defaults.get("confidential", False)))
 
-            target_description = gr.Textbox(
-                label="Business description",
-                lines=5,
-                value="",
-                placeholder="Enter the target business description",
-            )
-            with gr.Accordion("Reference example", open=False):
-                gr.Markdown(_reference_text(target_defaults, output_defaults))
-
-            with gr.Row():
-                revenue_usd_mm = gr.Textbox(label="Revenue ($mm)", value="")
-                ebitda_margin_pct = gr.Textbox(label="EBITDA margin (%)", value="")
-                gross_margin_pct = gr.Textbox(label="Gross margin (%)", value=_ratio_to_pct_text(target_defaults.get("gross_margin_estimate")))
-
-            with gr.Row():
-                revenue_cagr_3yr_pct = gr.Textbox(label="3-year revenue CAGR (%)", value=_ratio_to_pct_text(target_defaults.get("revenue_cagr_3yr_estimate")))
-                net_debt_ebitda = gr.Textbox(label="Net debt / EBITDA", value=_optional_float_text(target_defaults.get("net_debt_ebitda_estimate")))
-                capex_revenue_pct = gr.Textbox(label="Capex / revenue (%)", value=_ratio_to_pct_text(target_defaults.get("capex_revenue_estimate")))
-
-            with gr.Row():
-                primary_sic_codes = gr.Textbox(
-                    label="Primary SIC codes",
-                    value="",
-                    lines=2,
-                )
-                adjacent_sic_codes = gr.Textbox(
-                    label="Adjacent SIC codes",
-                    value="",
-                    lines=2,
-                )
-
-            with gr.Row():
-                suggest_sic_button = gr.Button("Suggest SIC codes", variant="secondary")
-                sic_suggestion_status = gr.Textbox(label="SIC suggestion status", interactive=False)
-            sic_suggestions = gr.Dataframe(
-                headers=SIC_SUGGESTION_HEADERS,
-                datatype=["str", "str", "str", "str", "str"],
-                label="LLM-suggested SIC candidates",
-                interactive=False,
-                wrap=True,
-            )
-
-            with gr.Accordion("Advanced settings", open=False):
-                with gr.Row():
-                    max_candidates = gr.Slider(25, 500, value=universe_defaults.get("max_candidates", 300), step=25, label="Max candidates")
-                    primary_allocation_pct = gr.Slider(
-                        10,
-                        100,
-                        value=_ratio_to_pct(universe_defaults.get("primary_allocation_pct", 0.5)),
-                        step=5,
-                        label="Primary allocation (%)",
+                    target_description = gr.Textbox(
+                        label="Business description",
+                        lines=5,
+                        value="",
+                        placeholder="Enter the target business description",
                     )
-                    top_n_comps = gr.Slider(5, 30, value=output_defaults.get("top_n_comps", 15), step=1, label="Top comps")
-                size_marketability_discount_pct = gr.Slider(
-                    0, 60, value=_ratio_to_pct(valuation_defaults.get("size_marketability_discount", 0.25)), step=1, label="Private-company discount (%)"
-                )
+                    with gr.Accordion("Reference example", open=False):
+                        gr.Markdown(_reference_text(target_defaults, output_defaults))
 
-            run_button = gr.Button("Run analysis", variant="primary")
-            with gr.Row():
-                with gr.Column(scale=1):
+                    with gr.Row():
+                        revenue_usd_mm = gr.Textbox(label="Revenue ($mm)", value="")
+                        ebitda_margin_pct = gr.Textbox(label="EBITDA margin (%)", value="")
+                        gross_margin_pct = gr.Textbox(label="Gross margin (%)", value=_ratio_to_pct_text(target_defaults.get("gross_margin_estimate")))
+
+                    with gr.Row():
+                        revenue_cagr_3yr_pct = gr.Textbox(
+                            label="3-year revenue CAGR (%)",
+                            value=_ratio_to_pct_text(target_defaults.get("revenue_cagr_3yr_estimate")),
+                        )
+                        net_debt_ebitda = gr.Textbox(label="Net debt / EBITDA", value=_optional_float_text(target_defaults.get("net_debt_ebitda_estimate")))
+                        capex_revenue_pct = gr.Textbox(label="Capex / revenue (%)", value=_ratio_to_pct_text(target_defaults.get("capex_revenue_estimate")))
+
+                    with gr.Row():
+                        primary_sic_codes = gr.Textbox(
+                            label="Primary SIC codes",
+                            value="",
+                            lines=2,
+                        )
+                        adjacent_sic_codes = gr.Textbox(
+                            label="Adjacent SIC codes",
+                            value="",
+                            lines=2,
+                        )
+                    with gr.Row():
+                        seed_tickers = gr.Textbox(label="Seed tickers", value="", lines=1)
+                        must_include_tickers = gr.Textbox(label="Must-include tickers", value="", lines=1)
+                        exclude_tickers = gr.Textbox(label="Exclude tickers", value="", lines=1)
+
+                    with gr.Row():
+                        suggest_sic_button = gr.Button("Suggest SIC codes", variant="secondary")
+                        sic_suggestion_status = gr.Textbox(label="SIC suggestion status", interactive=False)
+                    sic_suggestions = gr.Dataframe(
+                        headers=SIC_SUGGESTION_HEADERS,
+                        datatype=["str", "str", "str", "str", "str"],
+                        label="LLM-suggested SIC candidates",
+                        interactive=False,
+                        wrap=True,
+                    )
+
+                    with gr.Accordion("Advanced settings", open=False):
+                        with gr.Row():
+                            max_candidates = gr.Slider(25, 500, value=universe_defaults.get("max_candidates", 300), step=25, label="Max candidates")
+                            primary_allocation_pct = gr.Slider(
+                                10,
+                                100,
+                                value=_ratio_to_pct(universe_defaults.get("primary_allocation_pct", 0.5)),
+                                step=5,
+                                label="Primary allocation (%)",
+                            )
+                            top_n_comps = gr.Slider(5, 30, value=output_defaults.get("top_n_comps", 15), step=1, label="Top comps")
+                        size_marketability_discount_pct = gr.Slider(
+                            0,
+                            60,
+                            value=_ratio_to_pct(valuation_defaults.get("size_marketability_discount", 0.25)),
+                            step=1,
+                            label="Private-company discount (%)",
+                        )
+
+                with gr.Column(scale=1, elem_id="run-panel"):
+                    run_button = gr.Button("Run analysis", variant="primary")
                     status = gr.Textbox(label="Status", lines=6, interactive=False)
+                    report_actions = gr.Markdown("Run outputs will appear here after analysis.")
                     html_file = gr.File(label="HTML report")
                     csv_file = gr.File(label="CSV report")
-                with gr.Column(scale=2):
-                    html_preview = gr.HTML(label="HTML report preview", elem_id="report-preview")
 
             inputs = [
                 target_name,
@@ -448,6 +448,9 @@ def build_app():
                 capex_revenue_pct,
                 primary_sic_codes,
                 adjacent_sic_codes,
+                seed_tickers,
+                must_include_tickers,
+                exclude_tickers,
                 max_candidates,
                 primary_allocation_pct,
                 top_n_comps,
@@ -458,7 +461,7 @@ def build_app():
             run_button.click(
                 fn=run_from_form,
                 inputs=inputs,
-                outputs=[status, html_preview, html_file, csv_file],
+                outputs=[status, report_actions, html_file, csv_file],
                 show_progress="full",
             )
             suggest_sic_button.click(
@@ -468,6 +471,7 @@ def build_app():
                 show_progress="full",
             )
 
+    app.css = APP_CSS
     return app
 
 
@@ -479,7 +483,7 @@ def main() -> None:
     args = parser.parse_args()
 
     app = build_app()
-    app.queue(default_concurrency_limit=1).launch(server_name=args.host, server_port=args.port)
+    app.queue(default_concurrency_limit=1).launch(server_name=args.host, server_port=args.port, css=APP_CSS)
 
 
 if __name__ == "__main__":

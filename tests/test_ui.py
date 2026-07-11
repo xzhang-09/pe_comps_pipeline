@@ -49,6 +49,9 @@ def test_build_config_dict_validates_form_values_without_api_keys():
         capex_revenue_pct="",
         primary_sic_codes="3714,3569",
         adjacent_sic_codes="3490\n3562",
+        seed_tickers="aaa bbb",
+        must_include_tickers="aaa, bbb",
+        exclude_tickers="ccc\nddd",
         max_candidates=50,
         primary_allocation_pct=60,
         top_n_comps=10,
@@ -67,6 +70,9 @@ def test_build_config_dict_validates_form_values_without_api_keys():
     assert validated.target_company.capex_revenue_estimate is None
     assert validated.target_company.primary_sic_codes == ["3714", "3569"]
     assert validated.target_company.adjacent_sic_codes == ["3490", "3562"]
+    assert validated.universe.seed_tickers == ["AAA", "BBB"]
+    assert validated.universe.must_include_tickers == ["AAA", "BBB"]
+    assert validated.universe.exclude_tickers == ["CCC", "DDD"]
     assert validated.universe.sic_clusters == {"1111": "base_cluster"}
     assert validated.universe.primary_allocation_pct == 0.6
     assert validated.output.top_n_comps == 10
@@ -77,7 +83,7 @@ def test_build_config_dict_validates_form_values_without_api_keys():
     assert "FMP_API_KEY" not in str(config)
 
 
-def test_run_from_form_copies_outputs_and_returns_html_preview(tmp_path, mocker, monkeypatch):
+def test_run_from_form_copies_outputs_and_returns_report_actions(tmp_path, mocker, monkeypatch):
     monkeypatch.setattr(ui, "RUNS_DIR", tmp_path / "ui_runs")
     source_dir = tmp_path / "source_outputs"
     source_dir.mkdir()
@@ -87,7 +93,7 @@ def test_run_from_form_copies_outputs_and_returns_html_preview(tmp_path, mocker,
     csv_report.write_text("rank,ticker\n1,AAA\n", encoding="utf-8")
     mocker.patch("src.ui.run_pipeline", return_value={"html": str(html_report), "csv": str(csv_report)})
 
-    status, html_preview, html_file, csv_file = ui.run_from_form(
+    status, report_actions, html_file, csv_file = ui.run_from_form(
         "Acme Parts",
         "Manufacturer of engineered parts for automotive OEMs.",
         150,
@@ -98,6 +104,9 @@ def test_run_from_form_copies_outputs_and_returns_html_preview(tmp_path, mocker,
         None,
         "3714",
         "3569",
+        "",
+        "",
+        "",
         50,
         60,
         10,
@@ -107,7 +116,9 @@ def test_run_from_form_copies_outputs_and_returns_html_preview(tmp_path, mocker,
     )
 
     assert "Run complete" in status
-    assert "Report Body" in html_preview
+    assert "Report Body" not in report_actions
+    assert "HTML report ready" in report_actions
+    assert "CSV report ready" in report_actions
     assert html_file.endswith("comps_report.html")
     assert csv_file.endswith("comps_report.csv")
     assert (tmp_path / "ui_runs").exists()
@@ -135,6 +146,9 @@ def test_run_from_form_surfaces_small_sample_warning_in_status(tmp_path, mocker,
         None,
         "3714",
         "3569",
+        "",
+        "",
+        "",
         50,
         60,
         10,
@@ -162,6 +176,9 @@ def test_run_from_form_failure_writes_error_log_and_reports_reason(tmp_path, moc
         None,
         "3714",
         "3569",
+        "",
+        "",
+        "",
         50,
         60,
         10,
@@ -196,6 +213,9 @@ def test_run_from_form_validates_required_target_description_and_sic_codes(mocke
         None,
         None,
         None,
+        "",
+        "",
+        "",
         "",
         "",
         50,
@@ -233,8 +253,8 @@ def test_build_app_keeps_demo_values_as_reference_not_input_defaults():
 
     config_text = str(app.config)
     assert "Reference example" in config_text
-    assert "Example Manufacturing Co." in config_text
-    assert "PE Comps Pipeline (demo)" in config_text
+    assert "Precision Motion Components Co." in config_text
+    assert "PE Comps Pipeline Demo" in config_text
 
 
 def test_suggest_sic_codes_from_description_returns_rows_and_advisory_status(mocker):
@@ -264,6 +284,7 @@ def test_suggest_sic_codes_from_description_returns_rows_and_advisory_status(moc
 
     assert "Advisory only" in status
     assert "populated Primary and Adjacent SIC codes" in status
+    assert "validated against the SEC SIC list" in status
     assert rows == [
         ["primary", "3714", "Motor Vehicle Parts and Accessories", "high", "Matches the target's parts manufacturing focus."],
         ["adjacent", "3569", "General Industrial Machinery", "medium", "Can broaden the candidate pool."],
@@ -295,12 +316,11 @@ def test_main_launches_with_host_and_port_args(mocker, monkeypatch):
             self.default_concurrency_limit = default_concurrency_limit
             return self
 
-        # Signature mirrors gradio's Blocks.launch(), which takes no css
-        # kwarg — CSS is passed to gr.Blocks() in build_app() instead
-        # (a css kwarg here previously masked a TypeError on real launch).
-        def launch(self, server_name, server_port):
+        # Signature mirrors gradio's Blocks.launch(), where CSS is passed.
+        def launch(self, server_name, server_port, css):
             self.server_name = server_name
             self.server_port = server_port
+            self.css = css
 
     fake_app = FakeApp()
     mocker.patch("src.ui.build_app", return_value=fake_app)
@@ -311,6 +331,7 @@ def test_main_launches_with_host_and_port_args(mocker, monkeypatch):
     assert fake_app.default_concurrency_limit == 1
     assert fake_app.server_name == "0.0.0.0"
     assert fake_app.server_port == 8015
+    assert fake_app.css == ui.APP_CSS
 
 
 def test_build_app_applies_full_width_css():
@@ -332,6 +353,15 @@ def test_build_app_uses_full_width_layout():
 
     assert app.fill_width is True
     assert "max-width: none" in ui.APP_CSS
+
+
+def test_build_app_links_reports_without_full_html_preview():
+    app = ui.build_app()
+    config_text = str(app.config)
+
+    assert "Run outputs" in config_text
+    assert "HTML report preview" not in config_text
+    assert "report-preview" not in config_text
 
 
 def test_ui_source_has_no_chinese_copy():

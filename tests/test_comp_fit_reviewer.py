@@ -1,6 +1,5 @@
-import json
-
 import src.comp_fit_reviewer as comp_fit_reviewer
+from src.llm_schemas import CompFitReview
 
 
 def test_review_prompt_contains_score_band_calibration_guidance():
@@ -43,7 +42,7 @@ def _top_comp(ticker="AAA"):
 
 def test_review_comp_fit_parses_and_caches_llm_response(mocker, tmp_path, make_config):
     mocker.patch.object(comp_fit_reviewer, "REVIEW_PATH", tmp_path / "comp_fit_review.json")
-    response = json.dumps({
+    response = CompFitReview.model_validate({
         "overall_score": 82,
         "review_confidence": "medium",
         "summary": "The selected comps are directionally reasonable.",
@@ -55,7 +54,7 @@ def test_review_comp_fit_parses_and_caches_llm_response(mocker, tmp_path, make_c
     })
     client = mocker.MagicMock()
     mocker.patch("src.comp_fit_reviewer.openai.OpenAI", return_value=client)
-    mocker.patch("src.comp_fit_reviewer._call_openai", return_value=response)
+    mocker.patch("src.comp_fit_reviewer._call_openai_structured", return_value=response)
 
     result = comp_fit_reviewer.review_comp_fit(_target(), [_top_comp()], [], make_config())
 
@@ -66,24 +65,24 @@ def test_review_comp_fit_parses_and_caches_llm_response(mocker, tmp_path, make_c
     cached_result = comp_fit_reviewer.review_comp_fit(_target(), [_top_comp()], [], make_config())
 
     assert cached_result["status"] == "available"
-    assert comp_fit_reviewer._call_openai.call_count == 1
+    assert comp_fit_reviewer._call_openai_structured.call_count == 1
 
 
-def test_review_comp_fit_returns_unavailable_on_invalid_json(mocker, tmp_path, make_config):
+def test_review_comp_fit_returns_unavailable_on_structured_response_failure(mocker, tmp_path, make_config):
     mocker.patch.object(comp_fit_reviewer, "REVIEW_PATH", tmp_path / "comp_fit_review.json")
     mocker.patch("src.comp_fit_reviewer.openai.OpenAI")
-    mocker.patch("src.comp_fit_reviewer._call_openai", return_value="not json")
+    mocker.patch("src.comp_fit_reviewer._call_openai_structured", side_effect=ValueError("invalid structured response"))
 
     result = comp_fit_reviewer.review_comp_fit(_target(), [_top_comp()], [], make_config())
 
     assert result["status"] == "unavailable"
-    assert "invalid JSON" in result["reason"]
+    assert "API call failed" in result["reason"]
 
 
 def test_review_comp_fit_refreshes_when_signature_changes(mocker, tmp_path, make_config):
     mocker.patch.object(comp_fit_reviewer, "REVIEW_PATH", tmp_path / "comp_fit_review.json")
     responses = [
-        json.dumps({
+        CompFitReview.model_validate({
             "overall_score": 70,
             "review_confidence": "low",
             "summary": "First",
@@ -93,7 +92,7 @@ def test_review_comp_fit_refreshes_when_signature_changes(mocker, tmp_path, make
             "questionable_fits": [],
             "near_miss_upgrades": [],
         }),
-        json.dumps({
+        CompFitReview.model_validate({
             "overall_score": 80,
             "review_confidence": "medium",
             "summary": "Second",
@@ -105,7 +104,7 @@ def test_review_comp_fit_refreshes_when_signature_changes(mocker, tmp_path, make
         }),
     ]
     mocker.patch("src.comp_fit_reviewer.openai.OpenAI")
-    call = mocker.patch("src.comp_fit_reviewer._call_openai", side_effect=responses)
+    call = mocker.patch("src.comp_fit_reviewer._call_openai_structured", side_effect=responses)
 
     first = comp_fit_reviewer.review_comp_fit(_target(), [_top_comp("AAA")], [], make_config())
     second = comp_fit_reviewer.review_comp_fit(_target(), [_top_comp("BBB")], [], make_config())

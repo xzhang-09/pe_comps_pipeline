@@ -1,20 +1,22 @@
 """
-Golden-fixture test pinning the Top-N selection ranking shared (by deliberate
-mirroring, not import) between reporter._select_top_15 and
-evaluator._select_top_k. The two functions have intentionally different
-*eligibility* rules (reporter drops the "training" bucket; the evaluator drops
-the target itself), so this fixture neutralizes those asymmetries and isolates
-the shared *ranking* algorithm: residual_abs + the four soft penalties, all
-added to the continuous financial distance (never the ordinal rank).
+Golden-fixture test pinning the Top-N selection ranking shared between
+reporter._select_top_15 and evaluator._select_top_k. Both entry points use
+src.report_selection._ranked_candidates for ranking, while retaining
+intentionally different *eligibility* rules (reporter drops the "training"
+bucket; the evaluator drops the target itself). This fixture neutralizes
+those asymmetries and pins the shared ranking semantics — residual_abs + the
+four soft penalties, all added to the continuous financial distance (never
+the ordinal rank).
 
-If anyone changes one function's penalty math without the other — exactly the
-drift the mirrored-copy comments in both files worry about — the golden order
-below stops matching and this test fails.
+The GOLDEN_ORDER is hand-derived: it would catch a change to the penalty
+math itself (deliberate or not), not just disagreement between the two
+callers.
 """
 import pandas as pd
 
 import eval.evaluator as evaluator
 import src.reporter as reporter
+from src import report_selection
 
 TARGET = "TGT"
 
@@ -108,6 +110,36 @@ def test_selection_ranking_matches_golden_order():
     assert evaluator_order == GOLDEN_ORDER
     # 2. The literal "mirror" invariant the comments promise.
     assert reporter_order == evaluator_order
+
+
+def test_llm_rerank_disabled_keeps_deterministic_order(mocker):
+    rerank = mocker.patch("src.report_selection.llm_reranker.rerank")
+    ranked = [{"ticker": ticker} for ticker in GOLDEN_ORDER]
+
+    order = report_selection._select_ranked_tickers(
+        ranked,
+        k=3,
+        llm_rerank={"enabled": False, "model": "gpt-4.1", "rerank_window": 5},
+    )
+
+    assert order == GOLDEN_ORDER[:3]
+    rerank.assert_not_called()
+
+
+def test_llm_rerank_valid_order_applied_and_invalid_order_falls_back(mocker):
+    ranked = [{"ticker": ticker} for ticker in ["AAA", "BBB", "CCC", "DDD"]]
+    rerank = mocker.patch(
+        "src.report_selection.llm_reranker.rerank",
+        side_effect=[(["CCC", "AAA", "BBB"], []), None],
+    )
+    config = {"enabled": True, "model": "gpt-4.1", "rerank_window": 3}
+
+    applied = report_selection._select_ranked_tickers(ranked, k=4, llm_rerank=config)
+    fallback = report_selection._select_ranked_tickers(ranked, k=4, llm_rerank=config)
+
+    assert applied == ["CCC", "AAA", "BBB", "DDD"]
+    assert fallback == ["AAA", "BBB", "CCC", "DDD"]
+    assert rerank.call_count == 2
 
 
 def test_penalty_is_in_distance_units_not_ordinal_rank():

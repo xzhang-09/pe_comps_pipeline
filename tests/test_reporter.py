@@ -831,7 +831,7 @@ def test_football_field_rows_order_and_contents():
     }
     discounted = {"discount": 0.25, "by_ebitda": {"p25": 150.0, "median": 195.0, "p75": 240.0}, "by_revenue": None}
     size_anchor = {"n": 4, "median_ev_ebitda": 9.0, "implied_ev": 180.0}
-    size_adjusted = {"implied_ev": 210.0}
+    size_adjusted = {"implied_ev": 210.0, "is_significant": True}
 
     rows = reporter._football_field_rows(implied, None, discounted, size_adjusted, size_anchor)
     labels = [r["label"] for r in rows]
@@ -846,6 +846,18 @@ def test_football_field_rows_order_and_contents():
     # The discounted row uses the EV/EBITDA basis (by_revenue was None).
     disc_row = next(r for r in rows if r["label"].startswith("After"))
     assert disc_row["mid"] == pytest.approx(195.0)
+
+
+def test_football_field_excludes_non_significant_size_adjusted_regression():
+    implied = {
+        "by_ebitda": {"p25": 200.0, "median": 260.0, "p75": 320.0},
+        "by_revenue": None,
+    }
+    size_adjusted = {"implied_ev": 210.0, "is_significant": False}
+
+    rows = reporter._football_field_rows(implied, None, None, size_adjusted, None)
+
+    assert "Size-adjusted (regr.)" not in [r["label"] for r in rows]
 
 
 def test_football_field_svg_renders_when_a_range_exists():
@@ -950,6 +962,30 @@ def test_html_report_includes_private_company_adjusted_range():
     html_text = reporter.HTML_PATH.read_text(encoding="utf-8")
     assert "Private-company-adjusted" in html_text
     assert "25% net size/marketability discount" in html_text
+
+
+def test_html_report_downgrades_non_significant_size_adjusted_regression(mocker):
+    mocker.patch("src.reporter._size_adjusted_valuation", return_value={
+        "n": 30,
+        "slope": 0.12,
+        "r_squared": 0.03,
+        "p_value": 0.42,
+        "is_significant": False,
+        "predicted_multiple": 9.5,
+        "implied_ev": 256.0,
+    })
+    companies, llm_features, company_scores = _build_sample(n=30, n_matching=15)
+    scorer_results = _scorer_results(company_scores)
+    target_llm_features = _llm(business_model="manufacturing")
+
+    reporter.generate(
+        scorer_results, companies, llm_features, target_llm_features, _imputation_medians(), _sample_config(),
+    )
+
+    html_text = reporter.HTML_PATH.read_text(encoding="utf-8")
+    assert "Size-adjusted regression tested but not used" in html_text
+    assert "Implied EV (directional)" not in html_text
+    assert "Size-adjusted (regr.)" not in html_text
 
 
 def test_html_report_flags_low_margin_comp():
@@ -1248,6 +1284,39 @@ def test_fill_usable_comp_slots_rejects_review_exclude_replacement():
     assert any(item["ticker"] == "T016" and item["decision"] == "accepted" for item in substitution_audit)
 
 
+def test_fill_usable_comp_slots_accepts_secondary_replacement_when_better_than_review_slot():
+    companies, llm_features, company_scores = _build_sample(n=30, n_matching=30)
+    company_scores.loc["T000", "ev_ebitda_actual"] = 100.0
+    companies[15]["revenue_ttm_usd_mm"] = 3000.0
+    company_scores.loc["T015", "residual_abs"] = 0.01
+
+    rows, selected, flagged_tickers, substitution_audit = reporter._fill_usable_comp_slots(
+        [f"T{i:03d}" for i in range(15)],
+        15,
+        company_scores,
+        llm_features,
+        {company["ticker"]: company for company in companies},
+        "manufacturing",
+        "B2B",
+        150.0,
+        {},
+        DEFAULT_PENALTIES,
+        set(),
+        set(),
+        {},
+    )
+
+    assert "T015" in selected
+    assert "T000" in flagged_tickers
+    assert any(
+        item["ticker"] == "T015"
+        and item["decision"] == "accepted"
+        and item["tier"] == "secondary"
+        and "better Secondary replacement" in item["reason"]
+        for item in substitution_audit
+    )
+
+
 def test_html_report_shows_selection_quality_and_substitution_audit():
     companies, llm_features, company_scores = _build_sample(n=30, n_matching=30)
     company_scores.loc["T000", "ev_ebitda_actual"] = 100.0
@@ -1261,7 +1330,78 @@ def test_html_report_shows_selection_quality_and_substitution_audit():
     html_text = reporter.HTML_PATH.read_text(encoding="utf-8")
     assert "Selection quality check" in html_text
     assert "usable comps" in html_text
-    assert "Accepted replacement" in html_text
+    assert "Replacement decisions" in html_text
+    assert "<th>Decision</th><th>Ticker</th><th>Tier</th><th>Reason</th>" in html_text
+
+
+def test_substitution_audit_summary_limits_rejected_rows():
+    audit = [
+        {"ticker": "A", "decision": "accepted", "tier": "core", "reason": "ok"},
+        *[
+            {"ticker": f"R{i}", "decision": "rejected", "tier": "secondary", "reason": "no"}
+            for i in range(7)
+        ],
+    ]
+
+    summary = reporter._substitution_audit_summary(audit, rejected_limit=5)
+
+    assert summary["n_accepted"] == 1
+    assert summary["n_rejected"] == 7
+    assert [item["ticker"] for item in summary["displayed"]] == ["A", "R0", "R1", "R2", "R3", "R4"]
+    assert summary["hidden_rejected_count"] == 2
+
+
+def test_html_report_formats_fit_flags_as_table():
+    companies, llm_features, company_scores = _build_sample(n=30, n_matching=15)
+    llm_features["T000"] = _llm(business_model="services")
+    scorer_results = _scorer_results(company_scores)
+
+    reporter.generate(
+        scorer_results, companies, llm_features, _llm(business_model="manufacturing"),
+        _imputation_medians(), _sample_config(),
+    )
+
+    html_text = reporter.HTML_PATH.read_text(encoding="utf-8")
+    assert "<summary><strong>Fit flags</strong>" in html_text
+    assert "<th>Ticker</th><th>Tier</th><th>Primary flags</th>" in html_text
+
+
+def test_html_report_shows_valuation_role_summary():
+    companies, llm_features, company_scores = _build_sample(n=30, n_matching=30)
+    companies[1]["revenue_ttm_usd_mm"] = 3000.0
+    company_scores.loc["T001", "residual_abs"] = 0.01
+    scorer_results = _scorer_results(company_scores)
+
+    reporter.generate(
+        scorer_results, companies, llm_features, _llm(business_model="manufacturing"),
+        _imputation_medians(), _sample_config(),
+    )
+
+    html_text = reporter.HTML_PATH.read_text(encoding="utf-8")
+    assert "Valuation anchor comps" in html_text
+    assert "Broad reference comps" in html_text
+    assert "Review / sensitivity only" in html_text
+
+
+def test_html_report_notes_analyst_approved_comps_without_overriding_tier():
+    companies, llm_features, company_scores = _build_sample(n=30, n_matching=30)
+    companies[1]["revenue_ttm_usd_mm"] = 3000.0
+    company_scores.loc["T001", "residual_abs"] = 0.01
+    scorer_results = _scorer_results(company_scores)
+    config = _sample_config()
+    config["universe"]["analyst_approved_tickers"] = ["T001"]
+
+    reporter.generate(
+        scorer_results, companies, llm_features, _llm(business_model="manufacturing"),
+        _imputation_medians(), config,
+    )
+
+    html_text = reporter.HTML_PATH.read_text(encoding="utf-8")
+    assert "Analyst-approved comps" in html_text
+    assert "T001" in html_text
+    assert "model tier/caveats still shown" in html_text
+    assert "T001</td>" in html_text
+    assert "Secondary Comps" in html_text
 
 
 def test_small_pool_stamps_warning_on_report_and_return_value():
