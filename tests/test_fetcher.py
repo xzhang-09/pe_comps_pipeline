@@ -546,6 +546,65 @@ def test_business_description_none_when_both_sources_fail(mocker, sample_config)
     assert record["description_source"] is None
 
 
+def test_fmp_daily_profile_budget_skips_excess_calls(monkeypatch, mocker, sample_config, caplog):
+    monkeypatch.setenv("FMP_DAILY_PROFILE_BUDGET", "1")
+    mocker.patch("src.fetcher.edgar.Company", return_value=_healthy_company(mocker))
+    get_profile = mocker.patch("src.fetcher.fmp_client.get_profile", return_value={
+        "marketCap": 1_000_000_000, "sector": "Industrials",
+    })
+
+    results = fetcher.fetch_batch(["BUD1", "BUD2"], sample_config)
+
+    assert get_profile.call_count == 1
+    assert results[0]["market_cap_usd_mm"] == 1000
+    assert results[1]["market_cap_usd_mm"] is None
+    assert "FMP daily profile budget exhausted" in caplog.text
+
+
+def test_parallel_edgar_fetch_preserves_order_and_caches(monkeypatch, mocker, sample_config):
+    """EDGAR_FETCH_WORKERS > 1 exercises the ThreadPoolExecutor branch: results
+    must come back in candidate order (not completion order) and behave
+    identically to the serial path — same records, same cache writes."""
+    monkeypatch.setenv("EDGAR_FETCH_WORKERS", "4")
+    mocker.patch("src.fetcher.edgar.Company", return_value=_healthy_company(mocker))
+    mocker.patch("src.fetcher.fmp_client.get_profile", return_value={
+        "marketCap": 1_000_000_000, "sector": "Industrials",
+    })
+
+    tickers = ["PAR1", "PAR2", "PAR3", "PAR4"]
+    results = fetcher.fetch_batch(tickers, sample_config)
+
+    assert [r["ticker"] for r in results] == tickers
+    for ticker in tickers:
+        assert (fetcher.CACHE_DIR / f"{ticker}.json").exists()
+    assert all(r["market_cap_usd_mm"] == 1000 for r in results)
+
+
+def test_parallel_edgar_fetch_records_per_ticker_failures(monkeypatch, mocker, sample_config):
+    """A failure inside a worker must degrade only that ticker (empty record +
+    failed_tickers.csv row), exactly as in the serial path."""
+    monkeypatch.setenv("EDGAR_FETCH_WORKERS", "4")
+    mocker.patch("time.sleep")  # skip tenacity retry backoff
+
+    def _company_for(ticker):
+        if ticker == "BAD1":
+            raise ValueError(f"No annual financials (10-K/20-F/40-F) available for {ticker}")
+        return _healthy_company(mocker)
+
+    mocker.patch("src.fetcher.edgar.Company", side_effect=_company_for)
+    mocker.patch("src.fetcher.fmp_client.get_profile", return_value={
+        "marketCap": 1_000_000_000, "sector": "Industrials",
+    })
+
+    results = fetcher.fetch_batch(["OK1", "BAD1", "OK2"], sample_config)
+
+    assert [r["ticker"] for r in results] == ["OK1", "BAD1", "OK2"]
+    assert results[1]["revenue_ttm_usd_mm"] is None
+    assert results[0]["market_cap_usd_mm"] == 1000
+    failed_csv = fetcher.FAILED_TICKERS_CSV.read_text(encoding="utf-8")
+    assert "BAD1" in failed_csv
+
+
 def test_edgar_identity_uses_environment_variable(monkeypatch, mocker):
     mock_set_identity = mocker.patch("src.fetcher.edgar.set_identity")
     monkeypatch.setenv("SEC_IDENTITY", "PE Comps test@example.com")
@@ -553,6 +612,16 @@ def test_edgar_identity_uses_environment_variable(monkeypatch, mocker):
     importlib.reload(fetcher)
 
     mock_set_identity.assert_called_with("PE Comps test@example.com")
+
+
+def test_edgar_identity_default_logs_warning(monkeypatch, mocker, caplog):
+    mock_set_identity = mocker.patch("src.fetcher.edgar.set_identity")
+    monkeypatch.delenv("SEC_IDENTITY", raising=False)
+
+    importlib.reload(fetcher)
+
+    mock_set_identity.assert_called_with(fetcher.DEFAULT_SEC_IDENTITY)
+    assert "SEC_IDENTITY is not set" in caplog.text
 
 
 def test_fetch_batch_preserves_structured_universe_metadata(mocker, sample_config):

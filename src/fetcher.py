@@ -1,7 +1,7 @@
 import csv
-import json
 import os
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -9,18 +9,21 @@ import edgar
 import pandas as pd
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
-from src import fmp_client, get_logger
+from src import fmp_client, get_logger, json_store
 from src.config_schema import PipelineConfig, as_config
+from src.defaults import DEFAULT_SEC_IDENTITY as _DEFAULT_SEC_IDENTITY
+from src.defaults import sec_identity
+from src.paths import project_path
 from src.records import CompanyRecord
 
 logger = get_logger(__name__)
 
-CACHE_DIR = Path("data/cache")
-OUTPUTS_DIR = Path("outputs")
+CACHE_DIR = project_path("data", "cache")
+OUTPUTS_DIR = project_path("outputs")
 FAILED_TICKERS_CSV = OUTPUTS_DIR / "failed_tickers.csv"
 
-DEFAULT_SEC_IDENTITY = "PE-Comps-Pipeline research@example.com"
-EDGAR_IDENTITY = os.environ.get("SEC_IDENTITY", DEFAULT_SEC_IDENTITY)
+DEFAULT_SEC_IDENTITY = _DEFAULT_SEC_IDENTITY
+EDGAR_IDENTITY = sec_identity()
 edgar.set_identity(EDGAR_IDENTITY)
 
 BUSINESS_DESCRIPTION_MAX_CHARS = 1500
@@ -28,12 +31,14 @@ BUSINESS_DESCRIPTION_MAX_CHARS = 1500
 # Revenue, EBITDA, gross profit, capex, and net_debt_ebitda all come from
 # SEC XBRL via edgartools (see _fetch_single). FMP is only ever called for
 # get_profile() (market cap, sector, description fallback) — by design, see
-# README's "Using a paid FMP plan" note. EV/EBITDA/EV-Revenue are then
+# docs/data_layer.md's "Using a paid FMP plan" note. EV/EBITDA/EV-Revenue are then
 # derived from that market cap plus the EDGAR-sourced figures above (see
 # _enrich_with_fmp_data) rather than pulled directly from FMP's key-metrics/
 # enterprise-values endpoints, which return 402 on FMP's free tier for
 # anything beyond a handful of demo mega-caps.
 FMP_REQUEST_DELAY_SECONDS = 1
+FMP_DAILY_PROFILE_BUDGET_ENV = "FMP_DAILY_PROFILE_BUDGET"
+EDGAR_FETCH_WORKERS_ENV = "EDGAR_FETCH_WORKERS"
 
 # Cache freshness, split by how fast each layer changes. Fundamentals come from
 # annual 10-K XBRL and only move when a new annual report is filed, so they are
@@ -125,18 +130,49 @@ def _cache_path(ticker: str) -> Path:
     return CACHE_DIR / f"{ticker}.json"
 
 
-def _load_cache(ticker: str) -> CompanyRecord | None:
-    path = _cache_path(ticker)
-    if not path.exists():
+def _fmp_daily_profile_budget() -> int | None:
+    raw = os.environ.get(FMP_DAILY_PROFILE_BUDGET_ENV)
+    if not raw:
         return None
-    with open(path, encoding="utf-8") as f:
-        return json.load(f)
+    try:
+        budget = int(raw)
+    except ValueError:
+        logger.warning(f"{FMP_DAILY_PROFILE_BUDGET_ENV}={raw!r} is not an integer; ignoring FMP budget")
+        return None
+    if budget < 0:
+        logger.warning(f"{FMP_DAILY_PROFILE_BUDGET_ENV}={raw!r} is negative; ignoring FMP budget")
+        return None
+    return budget
+
+
+def _fmp_budget_exhausted(fmp_calls_made: int, budget: int | None) -> bool:
+    return budget is not None and fmp_calls_made >= budget
+
+
+def _edgar_fetch_workers() -> int:
+    raw = os.environ.get(EDGAR_FETCH_WORKERS_ENV)
+    if not raw:
+        return 1
+    try:
+        workers = int(raw)
+    except ValueError:
+        logger.warning(f"{EDGAR_FETCH_WORKERS_ENV}={raw!r} is not an integer; using 1 worker")
+        return 1
+    if workers < 1:
+        logger.warning(f"{EDGAR_FETCH_WORKERS_ENV}={raw!r} is below 1; using 1 worker")
+        return 1
+    return workers
+
+
+def _load_cache(ticker: str) -> CompanyRecord | None:
+    # Corrupt cache file -> None (json_store logs it), i.e. an ordinary cache
+    # miss that refetches the one affected ticker, instead of a JSONDecodeError
+    # aborting the whole batch.
+    return json_store.load_json(_cache_path(ticker))
 
 
 def _save_cache(ticker: str, record: CompanyRecord) -> None:
-    CACHE_DIR.mkdir(parents=True, exist_ok=True)
-    with open(_cache_path(ticker), "w", encoding="utf-8") as f:
-        json.dump(record, f, indent=2)
+    json_store.write_json_atomic(_cache_path(ticker), record)
 
 
 def _candidate_ticker(candidate: str | dict) -> str:
@@ -151,6 +187,7 @@ def _candidate_metadata(candidate: str | dict) -> dict:
         for key in (
             "matched_sic_codes", "primary_matched_sic_codes", "adjacent_matched_sic_codes",
             "source_bucket", "sic_2_digit", "sic_3_digit", "industry_cluster", "candidate_source",
+            "embedding_similarity",
         )
         if candidate.get(key) is not None
     }
@@ -165,7 +202,7 @@ def _attach_universe_metadata(record: CompanyRecord, candidate: str | dict) -> C
     existing = record.get("universe_metadata") or {}
     merged = {**existing, **metadata}
     record["universe_metadata"] = merged
-    for key in ("source_bucket", "sic_2_digit", "sic_3_digit", "industry_cluster"):
+    for key in ("source_bucket", "sic_2_digit", "sic_3_digit", "industry_cluster", "candidate_source"):
         if merged.get(key) is not None:
             record[key] = merged[key]
     return record
@@ -564,7 +601,7 @@ def _enrich_with_fmp_data(record: CompanyRecord, ticker: str, config: PipelineCo
     record (net debt, minority interest, preferred equity, and optionally
     operating leases — see _ev_from_bridge), rather than pulled directly from
     FMP's key-metrics/enterprise-values endpoints (paid-tier only on FMP —
-    see README's "Using a paid FMP plan" note if you have access to them).
+    see docs/data_layer.md's "Using a paid FMP plan" note if you have access to them).
     """
     if sleep_before:
         time.sleep(FMP_REQUEST_DELAY_SECONDS)
@@ -713,9 +750,12 @@ def fetch_batch(tickers: list[str | dict], config: PipelineConfig | dict) -> lis
     Writes failures to outputs/failed_tickers.csv.
     """
     cfg = as_config(config)
-    results = []
+    results: list[CompanyRecord | None] = [None] * len(tickers)
     total = len(tickers)
     fmp_calls_made = 0
+    fmp_budget = _fmp_daily_profile_budget()
+    edgar_workers = _edgar_fetch_workers()
+    refetches: list[tuple[int, str | dict, str]] = []
 
     _reset_failed_tickers_csv()
 
@@ -733,28 +773,65 @@ def fetch_batch(tickers: list[str | dict], config: PipelineConfig | dict) -> lis
                 # fast-moving market layer (one FMP call, no EDGAR re-pull) so
                 # EV/EBITDA reflects a current market cap, not a frozen one.
                 logger.info(f"{ticker} — refreshing stale market data (fundamentals still cached)")
-                _enrich_with_fmp_data(cached, ticker, cfg, sleep_before=fmp_calls_made > 0)
-                fmp_calls_made += 1
+                if _fmp_budget_exhausted(fmp_calls_made, fmp_budget):
+                    logger.warning(
+                        f"{ticker} — FMP daily profile budget exhausted "
+                        f"({fmp_calls_made}/{fmp_budget}); leaving stale/missing market data unchanged."
+                    )
+                else:
+                    _enrich_with_fmp_data(cached, ticker, cfg, sleep_before=fmp_calls_made > 0)
+                    fmp_calls_made += 1
                 cached = _validate(cached, ticker)
                 _save_cache(ticker, cached)
-            results.append(cached)
+            results[i - 1] = cached
             continue
 
-        # No cache, or fundamentals past their TTL — refetch the whole record.
+        # No cache, or fundamentals past their TTL — refetch the whole record
+        # after the cache pass. EDGAR fundamentals can be parallelized; the FMP
+        # market layer stays serialized below so its rate limit/budget remains
+        # easy to reason about.
+        refetches.append((i - 1, candidate, ticker))
+
+    if edgar_workers > 1 and refetches:
+        logger.info(f"Fetching EDGAR fundamentals with {edgar_workers} workers for {len(refetches)} stale/missing records")
+
+    def _fetch_refetch(item: tuple[int, str | dict, str]) -> tuple[int, str | dict, str, CompanyRecord | None, Exception | None]:
+        index, candidate, ticker = item
         try:
             record = _fetch_single(ticker)
         except Exception as e:
-            logger.error(f"{ticker} — failed after 3 retries: {e}")
-            _record_failed_ticker(ticker, type(e).__name__, str(e))
-            results.append(_attach_universe_metadata(_empty_record(ticker), candidate))
-            continue
+            return index, candidate, ticker, None, e
+        return index, candidate, ticker, record, None
 
+    fetched_refetches: list[tuple[int, str | dict, str, CompanyRecord | None, Exception | None]]
+    if edgar_workers > 1 and len(refetches) > 1:
+        fetched_refetches = []
+        with ThreadPoolExecutor(max_workers=edgar_workers) as executor:
+            futures = [executor.submit(_fetch_refetch, item) for item in refetches]
+            for future in as_completed(futures):
+                fetched_refetches.append(future.result())
+        fetched_refetches.sort(key=lambda row: row[0])
+    else:
+        fetched_refetches = [_fetch_refetch(item) for item in refetches]
+
+    for index, candidate, ticker, record, error in fetched_refetches:
+        if error is not None or record is None:
+            logger.error(f"{ticker} — failed after 3 retries: {error}")
+            _record_failed_ticker(ticker, type(error).__name__, str(error))
+            results[index] = _attach_universe_metadata(_empty_record(ticker), candidate)
+            continue
         record = _attach_universe_metadata(record, candidate)
-        _enrich_with_fmp_data(record, ticker, cfg, sleep_before=fmp_calls_made > 0)
-        fmp_calls_made += 1
+        if _fmp_budget_exhausted(fmp_calls_made, fmp_budget):
+            logger.warning(
+                f"{ticker} — FMP daily profile budget exhausted "
+                f"({fmp_calls_made}/{fmp_budget}); leaving market data as None."
+            )
+        else:
+            _enrich_with_fmp_data(record, ticker, cfg, sleep_before=fmp_calls_made > 0)
+            fmp_calls_made += 1
 
         record = _validate(record, ticker)
         _save_cache(ticker, record)
-        results.append(record)
+        results[index] = record
 
-    return results
+    return [record for record in results if record is not None]

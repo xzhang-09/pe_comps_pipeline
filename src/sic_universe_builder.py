@@ -1,17 +1,18 @@
-import json
-import os
 import re
 import time
 from pathlib import Path
 
 import requests
 
-from src import get_logger
+from src import get_logger, json_store
+from src.defaults import DEFAULT_SEC_IDENTITY as _DEFAULT_SEC_IDENTITY
+from src.defaults import sec_identity
+from src.paths import project_path
 
 logger = get_logger(__name__)
 
-DEFAULT_SEC_IDENTITY = "PE-Comps-Pipeline research@example.com"
-SEC_IDENTITY = os.environ.get("SEC_IDENTITY", DEFAULT_SEC_IDENTITY)
+DEFAULT_SEC_IDENTITY = _DEFAULT_SEC_IDENTITY
+SEC_IDENTITY = sec_identity()
 HEADERS = {"User-Agent": SEC_IDENTITY}
 REQUEST_TIMEOUT_SECONDS = 10
 
@@ -20,13 +21,14 @@ SEC_REQUEST_DELAY_SECONDS = 0.2
 
 BROWSE_EDGAR_URL = "https://www.sec.gov/cgi-bin/browse-edgar"
 SUBMISSIONS_URL = "https://data.sec.gov/submissions/CIK{cik:010d}.json"
+COMPANY_TICKERS_URL = "https://www.sec.gov/files/company_tickers.json"
 
 # Each browse-edgar page returns at most 100 entries; an empty/partial page
 # means we've reached the end.
 PAGE_SIZE = 100
 MAX_PAGES_PER_SIC = 20
 
-CACHE_DIR = Path("data/cache")
+CACHE_DIR = project_path("data", "cache")
 
 
 def _cache_path(sic: str) -> Path:
@@ -34,17 +36,13 @@ def _cache_path(sic: str) -> Path:
 
 
 def _load_cache(sic: str) -> list[str] | None:
-    path = _cache_path(sic)
-    if not path.exists():
-        return None
-    with open(path, encoding="utf-8") as f:
-        return json.load(f)
+    # Corrupt cache -> None (json_store logs it): re-enumerate this one SIC
+    # code instead of crashing universe discovery.
+    return json_store.load_json(_cache_path(sic))
 
 
 def _save_cache(sic: str, tickers: list[str]) -> None:
-    CACHE_DIR.mkdir(parents=True, exist_ok=True)
-    with open(_cache_path(sic), "w", encoding="utf-8") as f:
-        json.dump(tickers, f, indent=2)
+    json_store.write_json_atomic(_cache_path(sic), tickers)
 
 
 def _fetch_ciks_for_sic(sic: str, max_pages: int = MAX_PAGES_PER_SIC) -> list[int]:
@@ -106,6 +104,28 @@ def _fetch_company_tickers(cik: int) -> list[str]:
     if profile is None:
         return []
     return [t for t in profile.get("tickers", []) if t]
+
+
+def _fetch_cik_for_ticker(ticker: str) -> int | None:
+    resp = requests.get(COMPANY_TICKERS_URL, headers=HEADERS, timeout=REQUEST_TIMEOUT_SECONDS)
+    resp.raise_for_status()
+    ticker_upper = ticker.strip().upper()
+    for row in resp.json().values():
+        if str(row.get("ticker") or "").strip().upper() == ticker_upper:
+            return int(row["cik_str"])
+    return None
+
+
+def fetch_sic_for_ticker(ticker: str) -> str | None:
+    """Resolve a public ticker to its current SEC SIC code via SEC metadata."""
+    cik = _fetch_cik_for_ticker(ticker)
+    if cik is None:
+        return None
+    profile = fetch_company_profile(cik)
+    if profile is None:
+        return None
+    sic = profile.get("sic")
+    return str(sic) if sic else None
 
 
 # Above this many SEC filers, a SIC code is almost certainly broader than

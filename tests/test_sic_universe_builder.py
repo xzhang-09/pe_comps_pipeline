@@ -137,9 +137,39 @@ def test_fetch_company_profile_404_returns_none(mocker):
     assert sic_universe_builder.fetch_company_profile(999) is None
 
 
+def test_fetch_sic_for_ticker_uses_company_tickers_index_then_profile(mocker):
+    mocker.patch(
+        "src.sic_universe_builder.requests.get",
+        side_effect=[
+            _FakeResponse(json_data={"0": {"ticker": "AAA", "cik_str": 123}}),
+            _FakeResponse(json_data={"tickers": ["AAA"], "sic": "3569", "name": "AAA Inc."}),
+        ],
+    )
+
+    assert sic_universe_builder.fetch_sic_for_ticker("aaa") == "3569"
+
+
+def test_fetch_sic_for_ticker_returns_none_when_ticker_missing(mocker):
+    mocker.patch(
+        "src.sic_universe_builder.requests.get",
+        return_value=_FakeResponse(json_data={"0": {"ticker": "BBB", "cik_str": 456}}),
+    )
+
+    assert sic_universe_builder.fetch_sic_for_ticker("AAA") is None
+
+
 def test_sec_headers_use_environment_identity(monkeypatch):
     monkeypatch.setenv("SEC_IDENTITY", "PE Comps test@example.com")
 
     module = importlib.reload(sic_universe_builder)
 
     assert module.HEADERS["User-Agent"] == "PE Comps test@example.com"
+
+
+def test_sec_headers_default_identity_logs_warning(monkeypatch, caplog):
+    monkeypatch.delenv("SEC_IDENTITY", raising=False)
+
+    module = importlib.reload(sic_universe_builder)
+
+    assert module.HEADERS["User-Agent"] == module.DEFAULT_SEC_IDENTITY
+    assert "SEC_IDENTITY is not set" in caplog.text

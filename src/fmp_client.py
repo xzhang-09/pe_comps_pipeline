@@ -38,8 +38,8 @@ def get_profile(ticker: str) -> dict | None:
     the free tier for anything beyond a handful of demo mega-caps. EV/EBITDA
     is instead derived from this profile's market cap plus SEC EDGAR XBRL
     fundamentals (see fetcher._enrich_with_fmp_data). If you have a paid FMP
-    plan, see README's "Using a paid FMP plan" note for how to get direct
-    multiples from key-metrics/enterprise-values instead.
+    plan, see docs/data_layer.md's "Using a paid FMP plan" note for how to get
+    direct multiples from key-metrics/enterprise-values instead.
     """
     resp = _profile_request(ticker, _api_key())
     try:
