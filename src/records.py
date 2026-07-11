@@ -15,10 +15,8 @@ enrichment fills market data later), and consumers read it defensively with
 .get(), so every key is treated as optional here rather than asserting a
 field is always present at a given stage.
 
-NOTE: no type checker runs in CI yet (only ruff, which does not type-check), so
-this currently serves as documentation + opt-in IDE/static checking. Wiring up
-mypy to give it teeth is a deliberate follow-up — it will surface a batch of
-pre-existing typing issues worth handling on their own.
+Mypy runs a small, explicit contract-checking scope in CI. Keep widening that
+scope as dynamic dict consumers are typed.
 """
 from typing import TypedDict
 
@@ -79,7 +77,7 @@ class CompanyRecord(TypedDict, total=False):
 
     # Provenance carried down from universe_builder's candidate record. The
     # nested map plus the flattened SIC fields reporter/feature_builder read.
-    universe_metadata: dict
+    universe_metadata: dict[str, object]
     source_bucket: str | None
     sic_2_digit: str | None
     sic_3_digit: str | None
@@ -91,7 +89,32 @@ class CompanyRecord(TypedDict, total=False):
     # fetch_timestamp is when the slow EDGAR fundamentals were built;
     # market_data_timestamp is when the fast-moving FMP market layer (market cap
     # and the EV multiples derived from it) was last refreshed.
-    raw_fmp_profile: dict | None
+    raw_fmp_profile: dict[str, object] | None
     missing_flags: dict[str, bool]
     fetch_timestamp: str
     market_data_timestamp: str | None
+
+
+class LLMFeatureRecord(TypedDict, total=False):
+    """Authoritative shape of llm_features[ticker].
+
+    The extractor, feature builder, scorer, reporter, and eval harness all read
+    this JSON-serializable dict. Keeping the field list here makes additions
+    explicit even before every dynamic consumer is fully typed.
+    """
+
+    business_model: str | None
+    revenue_recurrence: str | None
+    customer_type: str | None
+    capital_intensity: str | None
+    primary_value_driver: str | None
+    sub_sector_description: str | None
+    evidence_quote: str | None
+    confidence: int | None
+    evidence_verified: bool
+    judge_score: int | None
+    judge_reason: str | None
+    low_confidence_flag: bool
+    extraction_failed: bool
+    description_sha256: str | None
+    extraction_model: str | None

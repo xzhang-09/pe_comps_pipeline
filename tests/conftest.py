@@ -67,8 +67,6 @@ def sample_config():
         "target_company": {
             "name": "Example Manufacturing Co.",
             "description": "Industrial parts manufacturer serving automotive OEMs.",
-            "gics_sector": "20",
-            "gics_industry": "2010",
             "revenue_usd_mm": 150,
             "ebitda_margin_estimate": 0.18,
             "geography": "north_america",

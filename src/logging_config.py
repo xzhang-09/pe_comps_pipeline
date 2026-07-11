@@ -1,8 +1,9 @@
 import logging
 from logging.handlers import RotatingFileHandler
-from pathlib import Path
 
-LOG_PATH = Path("logs/pipeline.log")
+from src.paths import project_path
+
+LOG_PATH = project_path("logs", "pipeline.log")
 LOG_FORMAT = "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
 MAX_BYTES = 5 * 1024 * 1024
 BACKUP_COUNT = 7
