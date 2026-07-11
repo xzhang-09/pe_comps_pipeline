@@ -19,7 +19,7 @@ All rungs run against the same 10-deal fairness-opinion benchmark
 | `suggest-sic` | 19.3% | 17.7% | 85% | 43 | **recommended** |
 | `suggest-sic+embedding` | 15.3% | 7.0% | 78.6% | 42 | experimental |
 
-`suggest-sic+embedding` (hybrid) did not meet its acceptance gate: it wins
+`suggest-sic+embedding` (hybrid) did not earn the recommended slot: it wins
 on paper coverage (42 vs 43 discovery losses — noise at this sample size)
 but loses 6 of 10 deals head-to-head against `suggest-sic`, because the
 larger candidate pool dilutes ranking (banker comps pushed out of Top-15)
@@ -29,15 +29,18 @@ and feeds more marginal candidates into the low-confidence filter.
 
 Three rounds of instrumented fixes, each verified by the same benchmark:
 
-1. **Correctness fixes (P0)** — candidate-filtered Top-N (historical vectors
-   could crowd out the current run), content-keyed vector invalidation, and
-   per-ticker discovery-stage attribution. Behavior-preserving by design.
-2. **Hybrid mode (P1)** — promoting the eval-only suggest-SIC expansion into
-   a production discovery mode, layered under embedding retrieval. Coverage
-   moved (cross-industry banker comps finally entered the universe), but
-   precision dropped: the bottleneck shifted downstream to ranking.
-3. **Sampling/budget ablation (P2)** — three points: sequential enumeration
-   at budget 120, stratified round-robin at 120, stratified at 300.
+1. **Correctness fixes first** — candidate-filtered Top-N (historical
+   vectors could crowd out the current run), content-keyed vector
+   invalidation, and per-ticker discovery-stage attribution.
+   Behavior-preserving by design.
+2. **Then the hybrid mode** — promoting the eval-only suggest-SIC expansion
+   into a production discovery mode, layered under embedding retrieval.
+   Coverage moved (cross-industry banker comps finally entered the
+   universe), but precision dropped: the bottleneck shifted downstream to
+   ranking.
+3. **Then a sampling/budget ablation** — three points: sequential
+   enumeration at budget 120, stratified round-robin at 120, stratified
+   at 300.
    - Stratified sampling alone was **distribution-neutral**: it reshuffled
      *which* companies got truncated (12 → 12 losses), so budget capacity,
      not enumeration order, was the real constraint.
