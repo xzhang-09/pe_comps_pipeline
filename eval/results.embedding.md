@@ -1,11 +1,5 @@
 # Manual Ground Truth Evaluation
 
-This file holds the **single-sic** discovery-ladder rung; the sibling
-[`results.suggest-sic.md`](results.suggest-sic.md) holds the **suggest-sic**
-rung — compare the two to see what the LLM-suggested-SIC discovery upgrade is
-worth. The coverage analysis behind the waterfall/ladder design is in
-[`docs/eval_coverage_analysis.md`](../docs/eval_coverage_analysis.md).
-
 ## Methodology
 
 - Ground truth: fairness-opinion Selected Companies Analysis lists, audited against the filings
@@ -23,36 +17,36 @@ worth. The coverage analysis behind the waterfall/ladder design is in
   the scored pool — since a comp lost at discovery says nothing about ranking quality.
 
 ## Precision@15
-- Mean: 8.2%
-- Median: 3.1%
+- Mean: 9.8%
+- Median: 0.0%
 - Deals: 10
-- Discovery mode: single-sic (ladder: single-sic baseline -> suggest-sic expansion; compare runs by mode, the delta is the measured value of each discovery upgrade)
+- Discovery mode: sic+embedding (ladder: single-sic baseline -> suggest-sic expansion; compare runs by mode, the delta is the measured value of each discovery upgrade)
 - Mean reachable (ranking-layer) precision: 100.0%
 
 ## Coverage Waterfall (all eligible banker comps)
 
 | Stage | Count |
 | --- | ---: |
-| hit | 5 |
-| low_confidence_filtered | 1 |
+| hit | 4 |
+| low_confidence_filtered | 5 |
 | no_valid_ev_ebitda | 2 |
-| financial_filtered | 5 |
-| not_in_sic_universe | 58 |
+| financial_filtered | 6 |
+| not_in_sic_universe | 54 |
 
-5 of 71 eligible comps reached the scored pool; stages above the pair hit/ranked_but_not_top_k are ranking outcomes, everything below is a coverage loss (discovery, filters, or data gaps). `missing_market_cap` usually means an FMP quota/coverage miss — re-run after the quota resets before reading it as a data gap.
+4 of 71 eligible comps reached the scored pool; stages above the pair hit/ranked_but_not_top_k are ranking outcomes, everything below is a coverage loss (discovery, filters, or data gaps). `missing_market_cap` usually means an FMP quota/coverage miss — re-run after the quota resets before reading it as a data gap.
 
 ## Deal Detail
 ### manitex-2024 — MNTX (Manitex International, Inc.)
 - Source: Brown Gibbons Lang & Company, 2024-11-12 — https://www.sec.gov/Archives/edgar/data/1302028/000119312524262120/d887136ddefm14a.htm
-- Precision@15: 0.0% (no comp reached ranking)
-- Hits: none
-- Missed before universe/scoring: MTW, TEX, HRI, URI
+- Precision@15: 25.0% (reachable: 100.0%)
+- Hits: MTW
+- Missed before universe/scoring: TEX, HRI, URI
 - Missed after ranking: none
 - Excluded delisted banker comps: HEES
 - Excluded non-US-filer banker comps: CGCBV.HE, PAL.VI, 6395.T, AHT.L
-- Scored pool: 7 companies (6 selectable) — selection trivial (pool <= K, precision measures coverage only)
+- Scored pool: 13 companies (10 selectable) — selection trivial (pool <= K, precision measures coverage only)
 - Discovery SIC codes: primary 3559; adjacent none
-- Loss stages: HRI=not_in_sic_universe, MTW=not_in_sic_universe, TEX=not_in_sic_universe, URI=not_in_sic_universe
+- Loss stages: HRI=not_in_sic_universe, TEX=financial_filtered, URI=not_in_sic_universe
 
 ### pgt-innovations-2024 — PGTI (PGT Innovations, Inc.)
 - Source: Evercore Group L.L.C., 2024-02-14 — https://www.sec.gov/Archives/edgar/data/1354327/000119312524036596/d728177ddefm14a.htm
@@ -61,21 +55,21 @@ worth. The coverage analysis behind the waterfall/ladder design is in
 - Missed before universe/scoring: APOG, FBIN, JHX, JELD, NX, TGLS, TREX
 - Missed after ranking: GFF
 - Excluded delisted banker comps: DOOR, AZEK
-- Scored pool: 2 companies (1 selectable) — selection trivial (pool <= K, precision measures coverage only)
+- Scored pool: 3 companies (2 selectable) — selection trivial (pool <= K, precision measures coverage only)
 - Discovery SIC codes: primary 3442; adjacent none
 - Loss stages: APOG=not_in_sic_universe, FBIN=not_in_sic_universe, GFF=low_confidence_filtered, JELD=not_in_sic_universe, JHX=not_in_sic_universe, NX=not_in_sic_universe, TGLS=not_in_sic_universe, TREX=not_in_sic_universe
 
 ### circor-international-2023 — CIK1091883 (CIRCOR International, Inc.)
 - Source: Evercore Group L.L.C. / J.P. Morgan Securities LLC (identical selected-companies sets), 2023-07-17 — https://www.sec.gov/Archives/edgar/data/1091883/000114036123034666/ny20009611x2_defm14a.htm
-- Precision@15: 14.3% (reachable: 100.0%)
-- Hits: CR
+- Precision@15: 0.0% (no comp reached ranking)
+- Hits: none
 - Missed before universe/scoring: WWD, CW, ITT, FLS, MOG-A, GRC
-- Missed after ranking: none
+- Missed after ranking: CR
 - Excluded delisted banker comps: TGI
 - Excluded non-US-filer banker comps: SMIN.L, IMI.L, ROR.L
-- Scored pool: 5 companies (5 selectable) — selection trivial (pool <= K, precision measures coverage only)
+- Scored pool: 7 companies (3 selectable) — selection trivial (pool <= K, precision measures coverage only)
 - Discovery SIC codes: primary 3490; adjacent none
-- Loss stages: CW=not_in_sic_universe, FLS=not_in_sic_universe, GRC=not_in_sic_universe, ITT=not_in_sic_universe, MOG-A=not_in_sic_universe, WWD=not_in_sic_universe
+- Loss stages: CR=low_confidence_filtered, CW=not_in_sic_universe, FLS=not_in_sic_universe, GRC=not_in_sic_universe, ITT=not_in_sic_universe, MOG-A=not_in_sic_universe, WWD=not_in_sic_universe
 
 ### kaman-2024 — KAMN (Kaman Corporation)
 - Source: J.P. Morgan Securities LLC, 2024-03-08 — https://www.sec.gov/Archives/edgar/data/54381/000114036124012403/ny20021849x2_defm14a.htm
@@ -84,32 +78,32 @@ worth. The coverage analysis behind the waterfall/ladder design is in
 - Missed before universe/scoring: TDG, HEI, RRX, RBC, HWM, HXL, AIN, DCO
 - Missed after ranking: none
 - Excluded delisted banker comps: B, SPR, TGI
-- Scored pool: 3 companies (3 selectable) — selection trivial (pool <= K, precision measures coverage only)
+- Scored pool: 7 companies (6 selectable) — selection trivial (pool <= K, precision measures coverage only)
 - Discovery SIC codes: primary 3728; adjacent none
 - Loss stages: AIN=not_in_sic_universe, DCO=financial_filtered, HEI=not_in_sic_universe, HWM=not_in_sic_universe, HXL=not_in_sic_universe, RBC=not_in_sic_universe, RRX=not_in_sic_universe, TDG=financial_filtered
 
 ### barnes-group-2024 — B (Barnes Group Inc.)
 - Source: Jefferies LLC (selected public companies analyses); Goldman Sachs & Co. LLC (separate opinion, no public-comps analysis), 2024-12-06 — https://www.sec.gov/Archives/edgar/data/9984/000114036124048581/ny20037086x2_defm14a.htm
-- Precision@15: 7.7% (reachable: 100.0%)
-- Hits: CR
-- Missed before universe/scoring: AIN, ACA, ATRO, BRC, CW, DCO, ESE, MOG-A, RBC, SPXC, TRS, WWD
-- Missed after ranking: none
+- Precision@15: 0.0% (no comp reached ranking)
+- Hits: none
+- Missed before universe/scoring: AIN, ACA, ATRO, BRC, CW, DCO, ESE, MOG-A, RBC, SPXC, WWD
+- Missed after ranking: CR, TRS
 - Excluded delisted banker comps: HI, TGI
-- Scored pool: 5 companies (5 selectable) — selection trivial (pool <= K, precision measures coverage only)
+- Scored pool: 8 companies (4 selectable) — selection trivial (pool <= K, precision measures coverage only)
 - Discovery SIC codes: primary 3490; adjacent none
-- Loss stages: ACA=not_in_sic_universe, AIN=not_in_sic_universe, ATRO=not_in_sic_universe, BRC=not_in_sic_universe, CW=not_in_sic_universe, DCO=not_in_sic_universe, ESE=not_in_sic_universe, MOG-A=not_in_sic_universe, RBC=not_in_sic_universe, SPXC=not_in_sic_universe, TRS=not_in_sic_universe, WWD=not_in_sic_universe
+- Loss stages: ACA=not_in_sic_universe, AIN=not_in_sic_universe, ATRO=not_in_sic_universe, BRC=not_in_sic_universe, CR=low_confidence_filtered, CW=not_in_sic_universe, DCO=not_in_sic_universe, ESE=not_in_sic_universe, MOG-A=not_in_sic_universe, RBC=not_in_sic_universe, SPXC=not_in_sic_universe, TRS=low_confidence_filtered, WWD=not_in_sic_universe
 
 ### haynes-international-2024 — HAYN (Haynes International, Inc.)
 - Source: Jefferies LLC, 2024-03-18 — https://www.sec.gov/Archives/edgar/data/858655/000110465924035231/tm248086-1_defm14a.htm
-- Precision@15: 0.0% (no comp reached ranking)
-- Hits: none
-- Missed before universe/scoring: ATI, CRS, HWM
+- Precision@15: 33.3% (reachable: 100.0%)
+- Hits: CRS
+- Missed before universe/scoring: ATI, HWM
 - Missed after ranking: none
 - Excluded delisted banker comps: USAP
 - Excluded non-US-filer banker comps: ACX.MC, APAM.AS
-- Scored pool: 2 companies (2 selectable) — selection trivial (pool <= K, precision measures coverage only)
+- Scored pool: 3 companies (2 selectable) — selection trivial (pool <= K, precision measures coverage only)
 - Discovery SIC codes: primary 3310; adjacent none
-- Loss stages: ATI=not_in_sic_universe, CRS=not_in_sic_universe, HWM=not_in_sic_universe
+- Loss stages: ATI=not_in_sic_universe, HWM=not_in_sic_universe
 
 ### universal-stainless-2024 — USAP (Universal Stainless & Alloy Products, Inc.)
 - Source: TD Cowen (TD Securities (USA) LLC), 2024-11-27 — https://www.sec.gov/Archives/edgar/data/931584/000119312524267249/d842335ddefm14a.htm
@@ -119,7 +113,7 @@ worth. The coverage analysis behind the waterfall/ladder design is in
 - Missed after ranking: none
 - Excluded delisted banker comps: none
 - Excluded non-US-filer banker comps: ACX.MC, APAM.AS
-- Scored pool: 2 companies (2 selectable) — selection trivial (pool <= K, precision measures coverage only)
+- Scored pool: 3 companies (3 selectable) — selection trivial (pool <= K, precision measures coverage only)
 - Discovery SIC codes: primary 3312; adjacent none
 - Loss stages: ATI=not_in_sic_universe, MTUS=no_valid_ev_ebitda
 
@@ -131,20 +125,20 @@ worth. The coverage analysis behind the waterfall/ladder design is in
 - Missed after ranking: none
 - Excluded delisted banker comps: none
 - Excluded non-US-filer banker comps: 6971.T, 002444.SZ, 6136.T
-- Scored pool: 5 companies (5 selectable) — selection trivial (pool <= K, precision measures coverage only)
+- Scored pool: 9 companies (7 selectable) — selection trivial (pool <= K, precision measures coverage only)
 - Discovery SIC codes: primary 3420; adjacent none
 - Loss stages: KMT=not_in_sic_universe, SNA=financial_filtered, SWK=financial_filtered, WOR=not_in_sic_universe
 
 ### masonite-2024 — DOOR (Masonite International Corporation)
 - Source: Goldman Sachs & Co. LLC and Jefferies LLC (separate opinions; ground truth is the union of their selected-companies lists), 2024-03-22 — https://www.sec.gov/Archives/edgar/data/893691/000119312524075345/d771808ddefm14a.htm
-- Precision@15: 20.0% (reachable: 100.0%)
-- Hits: FBIN
+- Precision@15: 0.0% (no comp reached ranking)
+- Hits: none
 - Missed before universe/scoring: GFF, JELD, MBC, OC
-- Missed after ranking: none
+- Missed after ranking: FBIN
 - Excluded delisted banker comps: AMWD
-- Scored pool: 1 companies (1 selectable) — selection trivial (pool <= K, precision measures coverage only)
+- Scored pool: 3 companies (2 selectable) — selection trivial (pool <= K, precision measures coverage only)
 - Discovery SIC codes: primary 2430; adjacent none
-- Loss stages: GFF=not_in_sic_universe, JELD=financial_filtered, MBC=not_in_sic_universe, OC=not_in_sic_universe
+- Loss stages: FBIN=low_confidence_filtered, GFF=not_in_sic_universe, JELD=financial_filtered, MBC=not_in_sic_universe, OC=not_in_sic_universe
 
 ### chase-corp-2023 — CCF (Chase Corporation)
 - Source: Perella Weinberg Partners LP, 2023-08-31 — https://www.sec.gov/Archives/edgar/data/830524/000114036123041904/ny20009924x2_defm14a.htm
@@ -153,6 +147,7 @@ worth. The coverage analysis behind the waterfall/ladder design is in
 - Missed before universe/scoring: AVD, HWKN, NGVT, IOSP, MATV, SCL, UFPT, ASH, AVNT, BCPC, CBT, ESI, FUL, KWR, ROG
 - Missed after ranking: none
 - Excluded delisted banker comps: none
-- Scored pool: 1 companies (1 selectable) — selection trivial (pool <= K, precision measures coverage only)
+- Scored pool: 2 companies (1 selectable) — selection trivial (pool <= K, precision measures coverage only)
 - Discovery SIC codes: primary 2891; adjacent none
 - Loss stages: ASH=not_in_sic_universe, AVD=not_in_sic_universe, AVNT=not_in_sic_universe, BCPC=not_in_sic_universe, CBT=not_in_sic_universe, ESI=not_in_sic_universe, FUL=no_valid_ev_ebitda, HWKN=not_in_sic_universe, IOSP=not_in_sic_universe, KWR=not_in_sic_universe, MATV=not_in_sic_universe, NGVT=not_in_sic_universe, ROG=not_in_sic_universe, SCL=not_in_sic_universe, UFPT=not_in_sic_universe
+

@@ -1,0 +1,30 @@
+[
+  {
+    "deal_id": "example-target-2026",
+    "target_ticker": "TGT",
+    "target_name": "Example Target Co.",
+    "target_cik": "0000000000",
+    "target_sic_codes": ["3569"],
+    "target_financials": {
+      "revenue_usd_mm": 250.0,
+      "ebitda_margin_estimate": 0.18
+    },
+    "business_description": "Short 10-K Item 1 style description of the acquired target.",
+    "filing_url": "https://www.sec.gov/Archives/edgar/data/0000000000/example.htm",
+    "filing_date": "2026-01-15",
+    "advisor": "Example Investment Bank",
+    "selected_companies": [
+      {
+        "ticker": "AAA",
+        "company_name": "Comparable A",
+        "still_public": true
+      },
+      {
+        "ticker": "BBB",
+        "company_name": "Comparable B",
+        "still_public": false
+      }
+    ],
+    "notes": "Template only. Replace with real fairness-opinion Selected Companies Analysis data."
+  }
+]

@@ -1,5 +1,5 @@
+import html as html_lib
 import json
-import os
 import re
 import time
 from datetime import datetime, timezone
@@ -10,13 +10,22 @@ import openai
 import requests
 
 from src import get_logger, sic_universe_builder
-from src.llm_analyzer import _call_openai, _strip_markdown_fences
+from src.defaults import sec_identity
+from src.llm_analyzer import _call_openai, _parse_json_response, _strip_markdown_fences
 
 logger = get_logger(__name__)
 
 CACHE_DIR = Path("data/cache")
-DEFAULT_SEC_IDENTITY = "PE-Comps-Pipeline research@example.com"
-EDGAR_IDENTITY = os.environ.get("SEC_IDENTITY", DEFAULT_SEC_IDENTITY)
+MANUAL_DEAL_REVIEW_PATH = Path("eval/ground_truth/manual_deals.review.json")
+MANUAL_REVIEW_FIELDS = [
+    "filing_url",
+    "advisor",
+    "target_financials",
+    "business_description",
+    "selected_company_tickers",
+    "selected_company_still_public_flags",
+]
+EDGAR_IDENTITY = sec_identity()
 
 DOCUMENT_MAX_CHARS = 200_000
 MIN_NAME_MATCH_SCORE = 70.0
@@ -90,6 +99,74 @@ Example: ["Company A", "Company B", "Company C"]
 If you cannot find a selected-companies list, return an empty array: []
 Do not include any other text."""
 
+# A specific filing document under /Archives/edgar/data/<cik>/<accession-no-dashes>/…
+# — the URL shape produced by EDGAR full-text search and filing-index pages.
+FILING_URL_RE = re.compile(r"/Archives/edgar/data/(\d+)/(\d{18})/", re.IGNORECASE)
+
+# Section-title keywords for the target's management projections, used to pull
+# prompt windows the same way FAIRNESS_OPINION_KEYWORDS does for the comps list.
+PROJECTION_KEYWORDS = (
+    "prospective financial information",
+    "financial projections",
+    "management projections",
+    "financial forecasts",
+    "projected financial information",
+)
+# Projection tables run longer than a comps name list, so the after-window is
+# wider than KEYWORD_WINDOW_AFTER.
+PROJECTION_WINDOW_AFTER = 4000
+
+# The advisor + selected-companies JSON for a 15-20 name list overflows the
+# pipeline's default llm.max_tokens (500); extraction calls made for deal-review
+# prefill use at least this many output tokens.
+REVIEW_EXTRACTION_MIN_TOKENS = 1500
+
+_SCRIPT_STYLE_RE = re.compile(r"<(script|style)[^>]*>.*?</\1>", re.IGNORECASE | re.DOTALL)
+_HTML_TAG_RE = re.compile(r"<[^>]+>")
+_WHITESPACE_RE = re.compile(r"\s+")
+
+DEAL_REVIEW_PROMPT_TEMPLATE = """You are reading excerpts from a merger proxy statement (DEFM14A or S-4)
+for the acquisition of {target_name}.
+
+Find the "Selected Companies Analysis" (also titled "Comparable Companies
+Analysis" or "Selected Public Companies Analysis") presented by the financial
+advisor that delivered the fairness opinion to the TARGET's board of
+directors, and extract:
+1. "advisor": that financial advisor's firm name.
+2. "selected_companies": the public company names in that advisor's
+   selected-companies list, verbatim, in the order listed.
+
+If more than one advisor presents such an analysis, use the target board's
+advisor. If no such analysis appears in the excerpts, return null and an
+empty array.
+
+Excerpts (non-contiguous, separated by "..."):
+{document_text}
+
+Return ONLY this JSON:
+{{"advisor": "<firm name or null>", "selected_companies": ["<name>", ...]}}"""
+
+DEAL_FINANCIALS_PROMPT_TEMPLATE = """You are reading excerpts from a merger proxy statement for the
+acquisition of {target_name}. Find management's financial projections for the
+TARGET company (sections titled like "Certain Unaudited Prospective Financial
+Information", "Financial Projections", or "Management Projections").
+
+Extract, for the nearest full forecast fiscal year, the TARGET's:
+- total revenue, in USD millions
+- EBITDA or Adjusted EBITDA, in USD millions
+
+Convert thousands to millions where needed. Use null for anything not
+disclosed in the excerpts. Never use the acquirer's figures.
+
+Excerpts (non-contiguous, separated by "..."):
+{document_text}
+
+Return ONLY this JSON:
+{{"fiscal_year": "<label like FY2023E, or null>",
+"revenue_usd_mm": <number or null>,
+"ebitda_usd_mm": <number or null>,
+"source_note": "<one line naming the section/table and line items used>"}}"""
+
 # Manual override list for local experiments. Prefer
 # discover_fairness_opinion_candidates() for a dynamically sourced list of real
 # acquisitions.
@@ -117,7 +194,12 @@ def _save_cache(identifier: str, record: dict) -> None:
         json.dump(record, f, indent=2)
 
 
-def _search_full_text(phrase: str, forms: tuple[str, ...], max_results: int) -> list[dict]:
+def _search_full_text(
+    phrase: str,
+    forms: tuple[str, ...],
+    max_results: int,
+    sic_codes: list[str] | None = None,
+) -> list[dict]:
     """
     Search SEC's full text search index for `phrase` within the given form
     types. Returns a list of {"cik", "company_name", "file_date", "form"}
@@ -129,14 +211,17 @@ def _search_full_text(phrase: str, forms: tuple[str, ...], max_results: int) -> 
     results = []
     page = 0
     while len(results) < max_results and page < FULL_TEXT_SEARCH_MAX_PAGES:
+        params = {
+            "q": f'"{phrase}"',
+            "forms": ",".join(forms),
+            "from": page * FULL_TEXT_SEARCH_PAGE_SIZE,
+        }
+        if sic_codes:
+            params["sics"] = ",".join(sic_codes)
         try:
             resp = requests.get(
                 FULL_TEXT_SEARCH_URL,
-                params={
-                    "q": f'"{phrase}"',
-                    "forms": ",".join(forms),
-                    "from": page * FULL_TEXT_SEARCH_PAGE_SIZE,
-                },
+                params=params,
                 headers=FULL_TEXT_SEARCH_HEADERS,
                 timeout=REQUEST_TIMEOUT_SECONDS,
             )
@@ -187,7 +272,7 @@ def discover_fairness_opinion_candidates(sic_codes: list[str], max_results: int 
     by_cik: dict[int, dict] = {}
 
     for phrase in FAIRNESS_OPINION_KEYWORDS:
-        for hit in _search_full_text(phrase, FAIRNESS_OPINION_FORMS, max_results):
+        for hit in _search_full_text(phrase, FAIRNESS_OPINION_FORMS, max_results, sic_codes=sic_codes):
             cik = hit["cik"]
             if cik not in by_cik:
                 by_cik[cik] = hit
@@ -238,15 +323,20 @@ def _fetch_fairness_opinion_text(identifier: int | str) -> tuple[str | None, str
     return None, None
 
 
-def _extract_relevant_windows(text: str) -> str:
-    """Find every mention of a fairness-opinion keyword and return the text
+def _extract_relevant_windows(
+    text: str,
+    keywords: tuple[str, ...] = FAIRNESS_OPINION_KEYWORDS,
+    window_before: int = KEYWORD_WINDOW_BEFORE,
+    window_after: int = KEYWORD_WINDOW_AFTER,
+) -> str:
+    """Find every mention of a section keyword and return the text
     around those mentions (merging overlapping windows), instead of a
     blind prefix truncation that can miss the section entirely — verified
     necessary on a real DEF 14A where the relevant section sat past a
     150,000-char cutoff."""
     text_lower = text.lower()
     positions = set()
-    for keyword in FAIRNESS_OPINION_KEYWORDS:
+    for keyword in keywords:
         start = 0
         while True:
             idx = text_lower.find(keyword, start)
@@ -260,8 +350,8 @@ def _extract_relevant_windows(text: str) -> str:
 
     windows = []
     for pos in sorted(positions):
-        start = max(0, pos - KEYWORD_WINDOW_BEFORE)
-        end = min(len(text), pos + KEYWORD_WINDOW_AFTER)
+        start = max(0, pos - window_before)
+        end = min(len(text), pos + window_after)
         if windows and start <= windows[-1][1]:
             windows[-1] = (windows[-1][0], max(windows[-1][1], end))
         else:
@@ -348,6 +438,418 @@ def _candidate_label(candidate: dict | str) -> str:
     if isinstance(candidate, str):
         return candidate
     return candidate.get("ticker") or f"CIK{candidate.get('cik')}"
+
+
+def _selected_company_reviews(label: str, selected_names: list[str]) -> list[dict]:
+    reviews = []
+    for name in selected_names:
+        reviews.append({
+            "company_name": name,
+            "suggested_ticker": _map_name_to_ticker(label, name),
+            "still_public": None,
+            "include_in_ground_truth": None,
+            "review_status": "needs_review",
+        })
+    return reviews
+
+
+def _target_review(candidate: dict | str, identifier: int | str, label: str) -> dict:
+    if isinstance(candidate, str):
+        return {
+            "identifier": str(identifier),
+            "label": label,
+            "ticker": candidate,
+            "cik": None,
+            "company_name": None,
+            "sic": None,
+            "source_candidate": None,
+        }
+    return {
+        "identifier": str(identifier),
+        "label": label,
+        "ticker": candidate.get("ticker"),
+        "cik": candidate.get("cik"),
+        "company_name": candidate.get("company_name"),
+        "sic": candidate.get("sic"),
+        "source_candidate": {
+            "file_date": candidate.get("file_date"),
+            "form": candidate.get("form"),
+        },
+    }
+
+
+def build_manual_deal_review(
+    test_candidates: list[dict | str],
+    config: dict,
+    output_path: Path = MANUAL_DEAL_REVIEW_PATH,
+) -> list[dict]:
+    """
+    Prefill a human-review JSON file from fairness-opinion candidates.
+
+    The output is intentionally not the final manual_deals.json benchmark:
+    reviewers must confirm tickers, public-status flags, and inclusion before
+    copying approved deals into the manual ground-truth file.
+    """
+    edgar.set_identity(EDGAR_IDENTITY)
+    client = openai.OpenAI()
+    reviews = []
+
+    for candidate in test_candidates:
+        identifier = _candidate_identifier(candidate)
+        label = _candidate_label(candidate)
+        try:
+            document_text, form_used = _fetch_fairness_opinion_text(identifier)
+        except Exception as e:
+            logger.warning(f"{label} — failed to fetch fairness opinion filing: {e}")
+            continue
+        if document_text is None:
+            logger.warning(f"{label} — no {'/'.join(FAIRNESS_OPINION_FORMS)} filing found")
+            continue
+
+        selected_names = _extract_selected_companies(client, label, document_text, config)
+        reviews.append({
+            "review_status": "needs_review",
+            "manual_fields_to_confirm": MANUAL_REVIEW_FIELDS,
+            "target": _target_review(candidate, identifier, label),
+            "filing": {"form_used": form_used},
+            "selected_companies": _selected_company_reviews(label, selected_names),
+        })
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(output_path, "w", encoding="utf-8") as f:
+        json.dump(reviews, f, indent=2)
+    return reviews
+
+
+def _parse_filing_url(url: str) -> tuple[int, str]:
+    """CIK and dashed accession number from an EDGAR archive document URL,
+    e.g. .../Archives/edgar/data/1091883/000114036123034666/xyz_defm14a.htm
+    -> (1091883, "0001140361-23-034666")."""
+    match = FILING_URL_RE.search(url)
+    if not match:
+        raise ValueError(
+            f"Not an EDGAR filing document URL (expected /Archives/edgar/data/<cik>/<accession>/…): {url}"
+        )
+    cik = int(match.group(1))
+    raw = match.group(2)
+    return cik, f"{raw[:10]}-{raw[10:12]}-{raw[12:]}"
+
+
+def _html_to_text(document: str) -> str:
+    """Plain text from a filing HTML document — good enough for keyword-window
+    extraction and LLM prompts; not a layout-faithful render."""
+    text = _SCRIPT_STYLE_RE.sub(" ", document)
+    text = _HTML_TAG_RE.sub(" ", text)
+    text = html_lib.unescape(text)
+    return _WHITESPACE_RE.sub(" ", text).strip()
+
+
+def _fetch_filing_document(url: str) -> str:
+    """The exact filing document at `url`, as plain text. Unlike
+    _fetch_fairness_opinion_text (which takes a company's *latest* DEFM14A/S-4),
+    this pins the specific document a human chose, and skips the
+    DOCUMENT_MAX_CHARS prefix truncation — window extraction bounds the prompt
+    instead, so a section past the 200k mark isn't silently lost."""
+    resp = requests.get(url, headers=FULL_TEXT_SEARCH_HEADERS, timeout=REQUEST_TIMEOUT_SECONDS * 3)
+    resp.raise_for_status()
+    return _html_to_text(resp.text)
+
+
+def _filing_metadata(cik: int, accession: str) -> dict:
+    """Target name/SIC/tickers plus this filing's date and form type, from the
+    SEC submissions profile. filing_date/form are None when the accession has
+    aged out of the profile's ~1000-filing recent window — the reviewer fills
+    them from the document header in that case."""
+    profile = sic_universe_builder.fetch_company_profile(cik) or {}
+    recent = (profile.get("filings") or {}).get("recent") or {}
+    accessions = recent.get("accessionNumber") or []
+    filing_date = None
+    form = None
+    if accession in accessions:
+        idx = accessions.index(accession)
+        dates = recent.get("filingDate") or []
+        forms = recent.get("form") or []
+        filing_date = dates[idx] if idx < len(dates) else None
+        form = forms[idx] if idx < len(forms) else None
+    return {
+        "company_name": profile.get("name"),
+        "sic": str(profile["sic"]) if profile.get("sic") else None,
+        "sic_description": profile.get("sicDescription"),
+        "tickers": [t for t in profile.get("tickers", []) if t],
+        "filing_date": filing_date,
+        "form": form,
+    }
+
+
+TARGET_DESCRIPTION_MAX_CHARS = 500
+
+
+def _fetch_target_description(cik: int) -> str | None:
+    """Item 1 Business text from the target's last 10-K on file (EDGAR keeps
+    these for delisted companies). Prefill only — the reviewer trims it."""
+    try:
+        filing = edgar.Company(cik).get_filings(form="10-K").latest()
+        if filing is None:
+            return None
+        text = getattr(filing.obj(), "business", None)
+    except Exception as e:
+        logger.warning(f"CIK{cik} — could not fetch 10-K business description: {e}")
+        return None
+    return text[:TARGET_DESCRIPTION_MAX_CHARS] if text else None
+
+
+_CURRENT_US_LISTINGS: dict[str, int] | None = None
+
+
+def _current_us_listings() -> dict[str, int]:
+    """{ticker: cik} for every currently SEC-listed company, from the same
+    company_tickers.json that sic_universe_builder uses — fetched once per
+    process. A ticker absent from this map is delisted (or foreign-only)."""
+    global _CURRENT_US_LISTINGS
+    if _CURRENT_US_LISTINGS is None:
+        resp = requests.get(
+            sic_universe_builder.COMPANY_TICKERS_URL,
+            headers=FULL_TEXT_SEARCH_HEADERS,
+            timeout=REQUEST_TIMEOUT_SECONDS,
+        )
+        resp.raise_for_status()
+        _CURRENT_US_LISTINGS = {
+            str(row.get("ticker") or "").strip().upper(): int(row["cik_str"])
+            for row in resp.json().values()
+            if row.get("ticker")
+        }
+    return _CURRENT_US_LISTINGS
+
+
+def _comp_listing_status(ticker: str | None) -> tuple[bool | None, bool | None]:
+    """(still_public, us_filer) prefill for a suggested comp ticker.
+    still_public: has a current US listing. us_filer: files 10-K (vs a foreign
+    private issuer's 20-F) — the flag that decides whether the comp can enter
+    the benchmark denominator at all. Both are suggestions for the reviewer,
+    None when undeterminable."""
+    if not ticker:
+        return None, None
+    try:
+        cik = _current_us_listings().get(ticker.strip().upper())
+    except Exception as e:
+        logger.warning(f"{ticker} — current-listings lookup failed: {e}")
+        return None, None
+    if cik is None:
+        return False, False
+    try:
+        time.sleep(SEC_REQUEST_DELAY_SECONDS)
+        profile = sic_universe_builder.fetch_company_profile(cik) or {}
+    except Exception as e:
+        logger.warning(f"{ticker} — submissions profile lookup failed: {e}")
+        return True, None
+    forms = (profile.get("filings") or {}).get("recent", {}).get("form") or []
+    return True, any(str(f).startswith("10-K") for f in forms)
+
+
+def _review_max_tokens(config: dict) -> int:
+    return max(int(config["llm"].get("max_tokens", 500)), REVIEW_EXTRACTION_MIN_TOKENS)
+
+
+def _extract_advisor_and_companies(client: openai.OpenAI, label: str, target_name: str,
+                                   document_text: str, config: dict) -> tuple[str | None, list[str]]:
+    relevant_text = _extract_relevant_windows(document_text)
+    prompt = DEAL_REVIEW_PROMPT_TEMPLATE.format(target_name=target_name, document_text=relevant_text)
+    try:
+        response_text = _call_openai(
+            client, config["llm"]["extraction_model"], None, prompt,
+            config["llm"]["temperature"], _review_max_tokens(config),
+        )
+    except Exception as e:
+        logger.warning(f"{label} — advisor/selected-companies extraction failed: {e}")
+        return None, []
+
+    parsed = _parse_json_response(response_text, label)
+    if parsed is None:
+        return None, []
+    advisor = parsed.get("advisor")
+    names = parsed.get("selected_companies")
+    return (
+        advisor if isinstance(advisor, str) and advisor.strip() else None,
+        [n for n in names if isinstance(n, str)] if isinstance(names, list) else [],
+    )
+
+
+def _extract_target_financials(client: openai.OpenAI, label: str, target_name: str,
+                               document_text: str, config: dict) -> dict:
+    relevant_text = _extract_relevant_windows(
+        document_text, keywords=PROJECTION_KEYWORDS, window_after=PROJECTION_WINDOW_AFTER,
+    )
+    prompt = DEAL_FINANCIALS_PROMPT_TEMPLATE.format(target_name=target_name, document_text=relevant_text)
+    empty = {"fiscal_year": None, "revenue_usd_mm": None, "ebitda_usd_mm": None, "source_note": None}
+    try:
+        response_text = _call_openai(
+            client, config["llm"]["extraction_model"], None, prompt,
+            config["llm"]["temperature"], _review_max_tokens(config),
+        )
+    except Exception as e:
+        logger.warning(f"{label} — target-financials extraction failed: {e}")
+        return empty
+
+    parsed = _parse_json_response(response_text, label)
+    if parsed is None:
+        return empty
+    financials = {key: parsed.get(key) for key in empty}
+    for key in ("revenue_usd_mm", "ebitda_usd_mm"):
+        if financials[key] is not None and not isinstance(financials[key], (int, float)):
+            financials[key] = None
+    return financials
+
+
+def _ebitda_margin(financials: dict) -> float | None:
+    revenue = financials.get("revenue_usd_mm")
+    ebitda = financials.get("ebitda_usd_mm")
+    if not revenue or ebitda is None:
+        return None
+    return round(ebitda / revenue, 3)
+
+
+def _deal_slug(company_name: str | None, cik: int, filing_date: str | None) -> str:
+    base = re.sub(r"[^a-z0-9]+", "-", (company_name or f"cik{cik}").lower()).strip("-")
+    year = (filing_date or "")[:4] or "unknown"
+    return f"{base}-{year}"
+
+
+def _suggested_manual_deal(url: str, cik: int, metadata: dict, advisor: str | None,
+                           financials: dict, description: str | None,
+                           selected_companies: list[dict]) -> dict:
+    """A manual_deals.json-shaped entry the reviewer can copy across once every
+    field is verified — review_status stays needs_review until then."""
+    source_bits = [b for b in (financials.get("fiscal_year"), financials.get("source_note")) if b]
+    return {
+        "deal_id": _deal_slug(metadata.get("company_name"), cik, metadata.get("filing_date")),
+        "target_ticker": (metadata.get("tickers") or [None])[0] or f"CIK{cik}",
+        "target_name": metadata.get("company_name"),
+        "target_cik": f"{cik:010d}",
+        "target_sic": metadata.get("sic"),
+        "business_description": description,
+        "target_financials": {
+            "revenue_usd_mm": financials.get("revenue_usd_mm"),
+            "ebitda_margin_estimate": _ebitda_margin(financials),
+            "source": "; ".join(source_bits) + " — LLM-prefilled, verify against the filing" if source_bits else None,
+        },
+        "filing_url": url,
+        "filing_date": metadata.get("filing_date"),
+        "advisor": advisor,
+        "selected_companies": [
+            {
+                "company_name": comp["company_name"],
+                "ticker": comp.get("suggested_ticker"),
+                "still_public": comp.get("still_public"),
+                "us_filer": comp.get("us_filer"),
+            }
+            for comp in selected_companies
+        ],
+        "review_status": "needs_review",
+        "notes": "Auto-prefilled by build_manual_deal_review_from_urls; verify every field against the filing before moving into manual_deals.json.",
+    }
+
+
+def _merge_review_entries(existing: list[dict], new_entries: list[dict]) -> list[dict]:
+    """Replace by filing URL, keep everything else (including candidate-flow
+    entries, which have no filing.url) in place, append the rest."""
+    new_by_url = {e["filing"]["url"]: e for e in new_entries}
+    merged = []
+    for entry in existing:
+        url = (entry.get("filing") or {}).get("url")
+        if url in new_by_url:
+            merged.append(new_by_url.pop(url))
+        else:
+            merged.append(entry)
+    merged.extend(new_by_url.values())
+    return merged
+
+
+def build_manual_deal_review_from_urls(
+    filing_urls: list[str],
+    config: dict,
+    output_path: Path = MANUAL_DEAL_REVIEW_PATH,
+) -> list[dict]:
+    """
+    Prefill review entries from specific DEFM14A/S-4 document URLs (the flow
+    for a human who has already located the exact proxy on EDGAR full-text
+    search), extracting everything the manual_deals.json schema needs: target
+    metadata (name/SIC/CIK from SEC submissions), filing date/form, the fairness
+    advisor and its selected-companies list, the target's projected
+    revenue/EBITDA, a 10-K business-description stub, and per-comp
+    still_public / us_filer suggestions.
+
+    Entries are merged into `output_path` by filing URL (existing entries for
+    other filings are preserved) and each carries a `suggested_manual_deal`
+    block shaped exactly like a manual_deals.json record. Everything remains
+    review_status="needs_review" until a human verifies it against the filing.
+    """
+    edgar.set_identity(EDGAR_IDENTITY)
+    client = openai.OpenAI()
+    new_entries = []
+
+    for url in filing_urls:
+        cik, accession = _parse_filing_url(url)
+        metadata = _filing_metadata(cik, accession)
+        label = (metadata.get("tickers") or [None])[0] or f"CIK{cik}"
+        target_name = metadata.get("company_name") or label
+        logger.info(f"{label} — prefilling deal review from {url}")
+
+        document_text = _fetch_filing_document(url)
+        advisor, selected_names = _extract_advisor_and_companies(client, label, target_name, document_text, config)
+        financials = _extract_target_financials(client, label, target_name, document_text, config)
+        description = _fetch_target_description(cik)
+
+        selected_companies = []
+        for name in selected_names:
+            suggested_ticker = _map_name_to_ticker(label, name)
+            still_public, us_filer = _comp_listing_status(suggested_ticker)
+            selected_companies.append({
+                "company_name": name,
+                "suggested_ticker": suggested_ticker,
+                "still_public": still_public,
+                "us_filer": us_filer,
+                "include_in_ground_truth": None,
+                "review_status": "needs_review",
+            })
+
+        new_entries.append({
+            "review_status": "needs_review",
+            "manual_fields_to_confirm": MANUAL_REVIEW_FIELDS,
+            "target": {
+                "identifier": str(cik),
+                "label": label,
+                "ticker": (metadata.get("tickers") or [None])[0],
+                "cik": cik,
+                "company_name": metadata.get("company_name"),
+                "sic": metadata.get("sic"),
+                "sic_description": metadata.get("sic_description"),
+                "source_candidate": None,
+            },
+            "filing": {
+                "url": url,
+                "accession": accession,
+                "form_used": metadata.get("form"),
+                "filing_date": metadata.get("filing_date"),
+            },
+            "advisor": advisor,
+            "target_financials": financials,
+            "business_description": description,
+            "selected_companies": selected_companies,
+            "suggested_manual_deal": _suggested_manual_deal(
+                url, cik, metadata, advisor, financials, description, selected_companies,
+            ),
+        })
+
+    existing = []
+    if output_path.exists():
+        with open(output_path, encoding="utf-8") as f:
+            existing = json.load(f)
+    merged = _merge_review_entries(existing, new_entries)
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(output_path, "w", encoding="utf-8") as f:
+        json.dump(merged, f, indent=2)
+    return new_entries
 
 
 def build_ground_truth(test_candidates: list[dict | str], config: dict) -> dict[str, list[str]]:

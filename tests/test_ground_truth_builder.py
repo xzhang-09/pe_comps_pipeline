@@ -73,6 +73,17 @@ def test_search_full_text_skips_hits_without_cik(mocker):
     assert results == []
 
 
+def test_search_full_text_passes_sic_filter(mocker):
+    mock_get = mocker.patch(
+        "eval.ground_truth_builder.requests.get",
+        return_value=_FakeResponse(json_data={"hits": {"hits": []}}),
+    )
+
+    ground_truth_builder._search_full_text("x", ("DEFM14A",), max_results=20, sic_codes=["3559", "3569"])
+
+    assert mock_get.call_args.kwargs["params"]["sics"] == "3559,3569"
+
+
 def test_discover_fairness_opinion_candidates_filters_by_sic(mocker):
     mocker.patch(
         "eval.ground_truth_builder._search_full_text",
@@ -244,3 +255,224 @@ def test_build_ground_truth_skips_when_no_filing_found(mocker, tmp_path):
     ground_truth = ground_truth_builder.build_ground_truth(["ACME"], config)
 
     assert ground_truth == {}
+
+
+def test_build_manual_deal_review_prefills_audit_file(mocker, tmp_path):
+    mocker.patch("eval.ground_truth_builder.edgar.set_identity")
+    mocker.patch("eval.ground_truth_builder.openai.OpenAI")
+    mocker.patch(
+        "eval.ground_truth_builder._fetch_fairness_opinion_text",
+        return_value=("fairness opinion text", "DEFM14A"),
+    )
+    mocker.patch(
+        "eval.ground_truth_builder._extract_selected_companies",
+        return_value=["Comp One Inc", "Comp Two Corp"],
+    )
+    mocker.patch(
+        "eval.ground_truth_builder._map_name_to_ticker",
+        side_effect=lambda label, name: {"Comp One Inc": "CMP1"}.get(name),
+    )
+    candidate = {
+        "cik": 555,
+        "ticker": None,
+        "company_name": "Delisted Target",
+        "sic": "3559",
+        "file_date": "2024-01-01",
+        "form": "DEFM14A",
+    }
+    config = {"llm": {"judge_model": "gpt-4.1-mini", "temperature": 0, "max_tokens": 500}}
+    output_path = tmp_path / "manual_deals.review.json"
+
+    reviews = ground_truth_builder.build_manual_deal_review([candidate], config, output_path)
+
+    assert reviews == json.loads(output_path.read_text())
+    assert reviews[0]["review_status"] == "needs_review"
+    assert reviews[0]["manual_fields_to_confirm"] == [
+        "filing_url",
+        "advisor",
+        "target_financials",
+        "business_description",
+        "selected_company_tickers",
+        "selected_company_still_public_flags",
+    ]
+    assert reviews[0]["target"]["label"] == "CIK555"
+    assert reviews[0]["target"]["ticker"] is None
+    assert reviews[0]["target"]["source_candidate"]["file_date"] == "2024-01-01"
+    assert reviews[0]["filing"]["form_used"] == "DEFM14A"
+    assert reviews[0]["selected_companies"] == [
+        {
+            "company_name": "Comp One Inc",
+            "suggested_ticker": "CMP1",
+            "still_public": None,
+            "include_in_ground_truth": None,
+            "review_status": "needs_review",
+        },
+        {
+            "company_name": "Comp Two Corp",
+            "suggested_ticker": None,
+            "still_public": None,
+            "include_in_ground_truth": None,
+            "review_status": "needs_review",
+        },
+    ]
+
+
+CIRCOR_URL = "https://www.sec.gov/Archives/edgar/data/1091883/000114036123034666/ny20009611x2_defm14a.htm"
+
+
+def test_parse_filing_url_extracts_cik_and_accession():
+    cik, accession = ground_truth_builder._parse_filing_url(CIRCOR_URL)
+
+    assert cik == 1091883
+    assert accession == "0001140361-23-034666"
+
+
+def test_parse_filing_url_rejects_non_filing_url():
+    import pytest
+
+    with pytest.raises(ValueError):
+        ground_truth_builder._parse_filing_url("https://www.sec.gov/edgar/search/")
+
+
+def test_html_to_text_strips_markup_and_entities():
+    document = "<html><script>var x=1;</script><body><p>Selected&nbsp;Companies &amp; Analysis</p>\n<table><tr><td>Flowserve</td></tr></table></body></html>"
+
+    text = ground_truth_builder._html_to_text(document)
+
+    assert "var x=1" not in text
+    assert "Selected Companies & Analysis" in text
+    assert "Flowserve" in text
+    assert "<" not in text
+
+
+def _submissions_profile(name, sic, tickers, accession, filing_date, form, all_forms):
+    return {
+        "name": name,
+        "sic": sic,
+        "sicDescription": "Pumps & Pumping Equipment",
+        "tickers": tickers,
+        "filings": {
+            "recent": {
+                "accessionNumber": [accession],
+                "filingDate": [filing_date],
+                "form": [form] if not all_forms else all_forms,
+            },
+        },
+    }
+
+
+def test_build_manual_deal_review_from_urls_prefills_entry(mocker, tmp_path):
+    mocker.patch("eval.ground_truth_builder.edgar.set_identity")
+    mocker.patch("eval.ground_truth_builder.openai.OpenAI")
+    mocker.patch("eval.ground_truth_builder.time.sleep")
+    mocker.patch(
+        "eval.ground_truth_builder._fetch_filing_document",
+        return_value="selected companies analysis ... prospective financial information ...",
+    )
+    mocker.patch(
+        "eval.ground_truth_builder._call_openai",
+        side_effect=[
+            '{"advisor": "Evercore Group L.L.C.", "selected_companies": ["Comp One Inc", "Foreign AG"]}',
+            '{"fiscal_year": "FY2023E", "revenue_usd_mm": 850.0, "ebitda_usd_mm": 127.5, "source_note": "Projections table"}',
+        ],
+    )
+    mocker.patch(
+        "eval.ground_truth_builder._map_name_to_ticker",
+        side_effect=lambda label, name: {"Comp One Inc": "CMP1"}.get(name),
+    )
+    mocker.patch("eval.ground_truth_builder._current_us_listings", return_value={"CMP1": 111})
+    mocker.patch("eval.ground_truth_builder._fetch_target_description", return_value="Makes pumps.")
+
+    target_profile = _submissions_profile(
+        "CIRCOR INTERNATIONAL INC", "3561", [], "0001140361-23-034666", "2023-07-17", "DEFM14A", None,
+    )
+    comp_profile = _submissions_profile("Comp One Inc", "3561", ["CMP1"], "x", "2024-01-01", None, ["10-K", "8-K"])
+    mocker.patch(
+        "eval.ground_truth_builder.sic_universe_builder.fetch_company_profile",
+        side_effect=lambda cik: {1091883: target_profile, 111: comp_profile}[cik],
+    )
+
+    config = {"llm": {"extraction_model": "gpt-4.1", "temperature": 0, "max_tokens": 500}}
+    output_path = tmp_path / "manual_deals.review.json"
+
+    entries = ground_truth_builder.build_manual_deal_review_from_urls([CIRCOR_URL], config, output_path)
+
+    assert entries == json.loads(output_path.read_text())
+    entry = entries[0]
+    assert entry["review_status"] == "needs_review"
+    assert entry["target"]["label"] == "CIK1091883"
+    assert entry["target"]["sic"] == "3561"
+    assert entry["filing"] == {
+        "url": CIRCOR_URL,
+        "accession": "0001140361-23-034666",
+        "form_used": "DEFM14A",
+        "filing_date": "2023-07-17",
+    }
+    assert entry["advisor"] == "Evercore Group L.L.C."
+    assert entry["selected_companies"] == [
+        {
+            "company_name": "Comp One Inc",
+            "suggested_ticker": "CMP1",
+            "still_public": True,
+            "us_filer": True,
+            "include_in_ground_truth": None,
+            "review_status": "needs_review",
+        },
+        {
+            "company_name": "Foreign AG",
+            "suggested_ticker": None,
+            "still_public": None,
+            "us_filer": None,
+            "include_in_ground_truth": None,
+            "review_status": "needs_review",
+        },
+    ]
+
+    deal = entry["suggested_manual_deal"]
+    assert deal["deal_id"] == "circor-international-inc-2023"
+    assert deal["target_ticker"] == "CIK1091883"
+    assert deal["target_cik"] == "0001091883"
+    assert deal["target_sic"] == "3561"
+    assert deal["business_description"] == "Makes pumps."
+    assert deal["target_financials"]["revenue_usd_mm"] == 850.0
+    assert deal["target_financials"]["ebitda_margin_estimate"] == 0.15
+    assert "FY2023E" in deal["target_financials"]["source"]
+    assert deal["review_status"] == "needs_review"
+    assert deal["selected_companies"][0] == {
+        "company_name": "Comp One Inc",
+        "ticker": "CMP1",
+        "still_public": True,
+        "us_filer": True,
+    }
+
+
+def test_build_manual_deal_review_from_urls_merges_by_filing_url(mocker, tmp_path):
+    mocker.patch("eval.ground_truth_builder.edgar.set_identity")
+    mocker.patch("eval.ground_truth_builder.openai.OpenAI")
+    mocker.patch("eval.ground_truth_builder._fetch_filing_document", return_value="text")
+    mocker.patch(
+        "eval.ground_truth_builder._call_openai",
+        side_effect=[
+            '{"advisor": "Bank B", "selected_companies": []}',
+            '{"fiscal_year": null, "revenue_usd_mm": null, "ebitda_usd_mm": null, "source_note": null}',
+        ],
+    )
+    mocker.patch("eval.ground_truth_builder._fetch_target_description", return_value=None)
+    mocker.patch(
+        "eval.ground_truth_builder.sic_universe_builder.fetch_company_profile",
+        return_value=_submissions_profile("Target", "3561", [], "0001140361-23-034666", "2023-07-17", "DEFM14A", None),
+    )
+
+    candidate_entry = {"review_status": "needs_review", "target": {"label": "OTHER"}, "filing": {"form_used": "S-4"}}
+    stale_url_entry = {"review_status": "needs_review", "advisor": "Old Bank", "filing": {"url": CIRCOR_URL}}
+    output_path = tmp_path / "manual_deals.review.json"
+    output_path.write_text(json.dumps([candidate_entry, stale_url_entry]))
+
+    config = {"llm": {"extraction_model": "gpt-4.1", "temperature": 0, "max_tokens": 500}}
+    entries = ground_truth_builder.build_manual_deal_review_from_urls([CIRCOR_URL], config, output_path)
+
+    merged = json.loads(output_path.read_text())
+    assert len(merged) == 2
+    assert merged[0] == candidate_entry
+    assert merged[1] == entries[0]
+    assert merged[1]["advisor"] == "Bank B"

@@ -34,7 +34,10 @@ logger = get_logger(__name__)
 DEFAULT_GRID: dict[str, list[float]] = {
     "business_model_penalty": [0.3, 0.6, 0.9],
     "customer_type_penalty": [0.25, 0.5, 0.75],
-    "subsector_mismatch_penalty": [0.2, 0.4, 0.6],
+    # Max penalty at similarity 0; the effective penalty for typical drift
+    # (similarity 0.35-0.45 vs a ~0.5 threshold) is roughly a quarter of
+    # this — see report_selection._subsector_mismatch_penalty's graded ramp.
+    "subsector_mismatch_penalty": [0.5, 1.0, 2.0],
     "size_penalty_per_extra_log10": [0.5, 1.0, 1.5],
 }
 
