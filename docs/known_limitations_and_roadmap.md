@@ -8,23 +8,20 @@ every mechanical fix we shipped worked as designed, precision moved only
 when the *search space* changed (suggest-SIC), and the current binding
 constraint is semantic ranking quality — not corpus plumbing.
 
-The ground-truth benchmark has gone through three revisions, referenced
-below as **v1**/**v2**/**v3** rather than by date:
+The ground-truth benchmark has gone through several revisions, referenced
+below as **v1**/**v2** rather than by date:
 
-- **v1** — 9 deals, no discovery ladder, no coverage waterfall; early local
-  runs, superseded before the first `eval/` commit landed (no artifacts of
-  this state exist in the repo).
-- **v2** — 10 deals, all industrial/manufacturing targets; introduced the
+- **v1** — 10 deals, all industrial/manufacturing targets; introduced the
   discovery ladder (single-sic / sic+embedding / suggest-sic /
   suggest-sic+embedding) and the coverage waterfall.
-- **v3** (current) — 16 deals across 6 industry clusters (adds IT services,
+- **v2** (current) — 16 deals across 6 industry clusters (adds IT services,
   SaaS, environmental services, consumer beverages, healthcare services);
   introduced a dev(10)/holdout(6) split
   (`scripts.check_eval_regression.DEFAULT_HOLDOUT`) — holdout deals must
   never drive tuning decisions.
 
-Only the `single-sic` discovery mode has been re-measured on v3 so far; the
-other three modes below are still v2 results, pending re-confirmation — see
+Only the `single-sic` discovery mode has been re-measured on v2 so far; the
+other three modes below are still v1 results, pending re-confirmation — see
 "Pending" below for status.
 
 ## What this evaluates
@@ -87,16 +84,16 @@ Lessons for curating future deals into `eval/ground_truth/manual_deals.json`
 
 ## Discovery ladder: measured results
 
-### Confirmed on v3 (16 deals)
+### Confirmed on v2 (16 deals)
 
 | Discovery mode | Mean P@15 | Discovery-layer losses | Status |
 | --- | ---: | ---: | --- |
 | `single-sic` | 9.3% (dev 9.4% / holdout 9.0% — no gap) | 84 | baseline, config default |
 
-`single-sic` is the only mode re-measured on v3
+`single-sic` is the only mode re-measured on v2
 (`eval/baselines/manual_deals.single-sic.baseline.json`).
 
-### Prior measurement, v2 (10 deals) — pending re-confirmation on v3
+### Prior measurement, v1 (10 deals) — pending re-confirmation on v2
 
 | Discovery mode | Mean P@15 | Median | Reachable precision | Discovery-layer losses | Status when measured |
 | --- | ---: | ---: | ---: | ---: | --- |
@@ -104,19 +101,19 @@ Lessons for curating future deals into `eval/ground_truth/manual_deals.json`
 | `suggest-sic` | 19.3% | 17.7% | 85% | 43 | recommended |
 | `suggest-sic+embedding` | 15.3% | 7.0% | 78.6% | 42 | experimental |
 
-These numbers predate v3 — do not compare them directly against the
-confirmed `single-sic` row above; re-run each mode on v3 first (see
+These numbers predate v2 — do not compare them directly against the
+confirmed `single-sic` row above; re-run each mode on v2 first (see
 "Pending"). `suggest-sic+embedding` (hybrid) did not earn the recommended
-slot on v2: it wins on paper coverage (42 vs 43 discovery losses — noise at
+slot on v1: it wins on paper coverage (42 vs 43 discovery losses — noise at
 this sample size) but loses 6 of 10 deals head-to-head against
 `suggest-sic`, because the larger candidate pool dilutes ranking (banker
 comps pushed out of Top-15) and feeds more marginal candidates into the
-low-confidence filter. This conclusion has not yet been checked against v3.
+low-confidence filter. This conclusion has not yet been checked against v2.
 
-## Pending: discovery-ladder re-measurement on v3
+## Pending: discovery-ladder re-measurement on v2
 
 `sic+embedding`, `suggest-sic`, and `suggest-sic+embedding` need to be
-re-run against the full v3 (16-deal) benchmark before their rows above (or
+re-run against the full v2 (16-deal) benchmark before their rows above (or
 any conclusion drawn from them, including the hybrid-mode negative result)
 can be trusted at the current benchmark size. Status: **blocked**, not
 merely unscheduled — a re-measurement attempt at `sic+embedding` ran for
@@ -142,7 +139,7 @@ README's summary).
 
 ## What the coverage waterfall taught us
 
-Three rounds of instrumented fixes on v2, each verified by the same
+Three rounds of instrumented fixes on v1, each verified by the same
 benchmark:
 
 1. **Correctness fixes first** — candidate-filtered Top-N (historical
@@ -175,7 +172,7 @@ comps across four probed targets (it lists market-cap neighbors, not
 business peers; the industry-screened v4 endpoint is legacy-walled). Ten
 API calls of preflight saved the whole build.
 
-A worked example of the ranking layer's first real test (v2, rung 2 —
+A worked example of the ranking layer's first real test (v1, rung 2 —
 before that there was nothing to tune against): 12 hits vs. 3 ranked-out
 (ITT, FLS for CIRCOR; MTW for Manitex).
 
@@ -198,16 +195,16 @@ Diagnosis: within-pool ordering is dominated by financial distance; the
 qualitative penalties (0.4-0.6) are small against the observed residual
 spread (~0.7-2.7 in these pools). Decision at the time: do not grid-tune on
 3 negative examples (guaranteed overfit) — revisit penalty scale once the
-benchmark has more ranked-out examples. v3's larger, cross-industry
+benchmark has more ranked-out examples. v2's larger, cross-industry
 benchmark is that opportunity — see the fourth finding below and Roadmap
 item 2.
 
 A fourth finding, from scoping the ranking-layer tuning work (roadmap item
-2, below), on v3: **penalty tuning has no signal on `single-sic` dev data.**
+2, below), on v2: **penalty tuning has no signal on `single-sic` dev data.**
 `_select_ranked_tickers` returns the whole ranked list unchanged whenever
 the candidate pool is at or below K=15 — penalty magnitudes cannot affect
 which tickers get selected if every ticker gets selected regardless.
-Checked directly against the v3 `single-sic` results: **all 10 dev deals**
+Checked directly against the v2 `single-sic` results: **all 10 dev deals**
 have `selection_trivial=True` (pool sizes 1-7 companies), so mean precision
 on dev is mathematically invariant to every penalty candidate a grid search
 could try — a tuning run against this data would report a "best"
@@ -217,21 +214,21 @@ Smartsheet, 46) and both are holdout, so they cannot be used for selection
 either. `scripts/tune_ranking_penalties.py` is written but not yet runnable
 for a real answer — it needs dev-deal pools from a larger-pool discovery
 mode (`suggest-sic` or an embedding channel) once those are re-measured on
-v3; see "Pending" above.
+v2; see "Pending" above.
 
 ## Evaluation design limitations
 
 Read the benchmark numbers with these caveats:
 
 1. **The ladder rungs are measured unevenly across benchmark versions.**
-   Only `single-sic` has been re-measured on v3; the suggest-SIC lift and
-   the hybrid negative result are still only validated on v2 — see
+   Only `single-sic` has been re-measured on v2; the suggest-SIC lift and
+   the hybrid negative result are still only validated on v1 — see
    "Pending" above. Per-deal variance remains large — a single deal moves
    the mean by 2-3 points.
 2. **The dev/holdout split has only been checked for a gap on one rung.**
    On `single-sic`, dev and holdout means match (9.4% / 9.0%) — no
    overfitting signal at that rung. The other three rungs haven't been
-   re-measured with the split in place, so whether suggest-SIC's v2 lift
+   re-measured with the split in place, so whether suggest-SIC's v1 lift
    holds on holdout is still unknown.
 3. **Single-advisor labels.** Banker "Selected Companies" lists are one
    advisor's judgment, not the universe of defensible comps — a reasonable
@@ -246,7 +243,7 @@ Read the benchmark numbers with these caveats:
    `selection_trivial` per deal, but the headline mean still mixes coverage
    and ranking failures. Use the coverage waterfall and reachable precision
    for diagnosis, not the headline number alone.
-6. **Some banker comps are excluded by design, not by defect.** In the v2
+6. **Some banker comps are excluded by design, not by defect.** In the v1
    benchmark, a 10x revenue band (relative to each deal's target) excluded
    TDG, SWK, SNA, TEX, and ATI — banker-endorsed mega-cap anchors that this
    product's mid-market size discipline deliberately rejects. Any future
@@ -254,6 +251,23 @@ Read the benchmark numbers with these caveats:
    — the tuner should not learn to erase the size discipline in order to
    chase a few extra hits. See "Ground-truth deal selection criteria"
    above.
+7. **`allow_broad_sic_codes` is forced on for every eval deal, unlike
+   production's default-off safety gate.** Production
+   (`config_schema.py`'s `allow_broad_sic_codes: bool = False`) hard-aborts
+   discovery when a SIC code crosses `BROAD_SIC_CIK_THRESHOLD` (500 SEC
+   filers) — a deliberate stop so an analyst narrows an overly broad code by
+   hand instead of eating an oversized candidate pool and SEC request
+   budget. `evaluate_manual_deals._deal_config` sets it `True` for every
+   deal so the unattended 16-deal x 4-mode batch never aborts mid-run. This
+   matters for the benchmark's software-sector deals — Squarespace/Smartsheet
+   (SIC 7372, Prepackaged Software) and Perficient (SIC 7371, Computer
+   Programming/Data Processing) are exactly the kind of broad catch-all
+   codes the threshold exists for. Their measured candidate pools (and any
+   precision derived from them) reflect a pool production would never
+   actually build for a same-SIC target — production would abort and demand
+   a narrower code instead. Read those deals' rows as "what happens once the
+   gate is forced open," not as what the demo would show for a similar
+   target.
 
 Data-contract limits (US 10-K filers only, FMP free-tier quota, 1-day
 market-data TTL) are documented in [data_layer.md](data_layer.md).
@@ -262,10 +276,10 @@ market-data TTL) are documented in [data_layer.md](data_layer.md).
 
 Ordered by expected value given the findings above:
 
-1. ~~Expand ground truth to 15-20 deals across sectors.~~ **Done (v3)** —
+1. ~~Expand ground truth to 15-20 deals across sectors.~~ **Done (v2)** —
    16 deals across 6 industry clusters, dev(10)/holdout(6) split
    (`eval/ground_truth/manual_deals.json`). Next: re-measure the three
-   pending discovery-ladder rungs on v3 — see "Pending" above — which is a
+   pending discovery-ladder rungs on v2 — see "Pending" above — which is a
    prerequisite for #2 below (ranking-layer tuning needs a discovery mode
    with non-trivial dev-deal pools).
 2. **Ranking layer.** The newly exposed bottleneck: larger pools push banker

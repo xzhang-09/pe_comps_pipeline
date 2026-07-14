@@ -38,7 +38,8 @@ from pathlib import Path
 BASELINE_DIR = Path("eval/baselines")
 DEFAULT_RESULTS = Path("outputs/eval/manual_deals/results.json")
 
-# Deals added 2026-07-13 that never drove development iterations. New deals
+# Deals added in v2 (the 16-deal benchmark) that never drove development
+# iterations. New deals
 # default to holdout; promote to dev deliberately once they have been used
 # to make a tuning decision.
 DEFAULT_HOLDOUT = (

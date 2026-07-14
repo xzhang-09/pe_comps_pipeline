@@ -116,8 +116,25 @@ PROJECTION_KEYWORDS = (
     "projected financial information",
 )
 # Projection tables run longer than a comps name list, so the after-window is
-# wider than KEYWORD_WINDOW_AFTER.
-PROJECTION_WINDOW_AFTER = 4000
+# wider than KEYWORD_WINDOW_AFTER. On Squarespace's DEFM14A, the nearest
+# keyword match before the numbers table ("prospective financial
+# information", used as the section's defined term) sits ~5,200 chars before
+# the end of the actual "Total Revenue"/"Adjusted EBITDA" table — with the
+# old 4,000-char window, the window closed 61 chars into the table (right
+# after the header, before any numbers) and the next keyword match's window
+# didn't reach back far enough to cover the gap, so the table's numbers were
+# never sent to the model at all. It filled the gap with numbers from
+# elsewhere in the document instead of returning null. 6,000 chars covers
+# that gap with margin.
+PROJECTION_WINDOW_AFTER = 6000
+# PROJECTION_KEYWORDS phrases (esp. "prospective financial information") also
+# get reused throughout the surrounding legal boilerplate (advisor disclaimers,
+# risk factors), each occurrence opening its own window — on Squarespace's
+# DEFM14A those windows combined to ~90,000 chars. gpt-4.1's context window
+# has ample room for that, so extraction gets a larger prompt budget than the
+# comps-list prompt to avoid the default MAX_PROMPT_CHARS truncating the
+# combined windows before reaching the actual table.
+PROJECTION_MAX_PROMPT_CHARS = 150_000
 
 # The advisor + selected-companies JSON for a 15-20 name list overflows the
 # pipeline's default llm.max_tokens (500); extraction calls made for deal-review
@@ -325,6 +342,7 @@ def _extract_relevant_windows(
     keywords: tuple[str, ...] = FAIRNESS_OPINION_KEYWORDS,
     window_before: int = KEYWORD_WINDOW_BEFORE,
     window_after: int = KEYWORD_WINDOW_AFTER,
+    max_chars: int = MAX_PROMPT_CHARS,
 ) -> str:
     """Find every mention of a section keyword and return the text
     around those mentions (merging overlapping windows), instead of a
@@ -343,7 +361,7 @@ def _extract_relevant_windows(
             start = idx + len(keyword)
 
     if not positions:
-        return text[:MAX_PROMPT_CHARS]
+        return text[:max_chars]
 
     windows = []
     for pos in sorted(positions):
@@ -355,7 +373,7 @@ def _extract_relevant_windows(
             windows.append((start, end))
 
     combined = "\n...\n".join(text[start:end] for start, end in windows)
-    return combined[:MAX_PROMPT_CHARS]
+    return combined[:max_chars]
 
 
 def _extract_selected_companies(client: openai.OpenAI, label: str, document_text: str, config: dict) -> list[str]:
@@ -682,6 +700,7 @@ def _extract_target_financials(client: openai.OpenAI, label: str, target_name: s
     why (same prompt-fragility class, same URL-driven prefill path)."""
     relevant_text = _extract_relevant_windows(
         document_text, keywords=PROJECTION_KEYWORDS, window_after=PROJECTION_WINDOW_AFTER,
+        max_chars=PROJECTION_MAX_PROMPT_CHARS,
     )
     prompt = DEAL_FINANCIALS_PROMPT_TEMPLATE.format(target_name=target_name, document_text=relevant_text)
     empty = {"fiscal_year": None, "revenue_usd_mm": None, "ebitda_usd_mm": None, "source_note": None}
