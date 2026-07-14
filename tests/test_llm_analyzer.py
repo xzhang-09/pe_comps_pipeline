@@ -114,6 +114,36 @@ def test_high_judge_score_does_not_set_flag(mocker, sample_config):
     assert results["EEE"]["evidence_verified"] is True
 
 
+def test_fresh_extraction_followup_recovers_missing_field(mocker, sample_config):
+    """A first pass that leaves customer_type null triggers one targeted
+    follow-up in the same run; a recovered value completes the profile."""
+    extraction = json.dumps({
+        "business_model": "manufacturing",
+        "revenue_recurrence": "high",
+        "customer_type": None,
+        "capital_intensity": "asset_heavy",
+        "primary_value_driver": "scale",
+        "sub_sector_description": "Industrial components.",
+        "evidence_quote": "designs, manufactures, and sells specialty industrial fasteners",
+        "confidence": 4,
+    })
+    judge = json.dumps({"score": 5, "reason": "well supported"})
+    followup = json.dumps({
+        "customer_type": "B2B",
+        "capital_intensity": "unknown",
+        "primary_value_driver": "unknown",
+        "sub_sector_description": None,
+    })
+    client = _mock_client(mocker, [extraction, judge, followup])
+
+    results = llm_analyzer.analyze_batch([_company("FLW")], sample_config)
+
+    assert client.responses.parse.call_count == 3  # extraction + judge + follow-up
+    assert results["FLW"]["customer_type"] == "B2B"
+    assert results["FLW"]["profile_incomplete"] is False
+    assert results["FLW"]["followup_attempted"] is True
+
+
 def test_missing_core_extraction_fields_marks_profile_incomplete_not_low_confidence(mocker, sample_config):
     """Missing fields are a coverage problem, not an extraction-quality one:
     the candidate keeps its eligibility (no low_confidence hard exclusion)
@@ -139,9 +169,30 @@ def test_missing_core_extraction_fields_marks_profile_incomplete_not_low_confide
     assert results["EMPTY"]["profile_incomplete"] is True
 
 
+def _complete_profile_fields() -> dict:
+    """Core-profile fields all present, so a reused entry triggers no
+    targeted follow-up call."""
+    return {
+        "business_model": "manufacturing",
+        "customer_type": "B2B",
+        "capital_intensity": "asset_heavy",
+        "primary_value_driver": "scale",
+        "sub_sector_description": "Industrial components.",
+    }
+
+
+FOLLOWUP_ALL_UNKNOWN = json.dumps({
+    "customer_type": "unknown",
+    "capital_intensity": "unknown",
+    "primary_value_driver": "unknown",
+    "sub_sector_description": None,
+})
+
+
 def test_checkpoint_skips_analyzed_ticker(mocker, sample_config):
     llm_analyzer.CHECKPOINT_PATH.parent.mkdir(parents=True, exist_ok=True)
     llm_analyzer._save_checkpoint({"AAA": {
+        **_complete_profile_fields(),
         "extraction_failed": False,
         "description_sha256": llm_analyzer._description_fingerprint(DEFAULT_DESCRIPTION),
         "extraction_model": sample_config["llm"]["extraction_model"],
@@ -201,6 +252,7 @@ def test_checkpoint_reuses_when_description_and_model_match(mocker, sample_confi
 
     llm_analyzer._save_checkpoint({
         "AAA": {
+            **_complete_profile_fields(),
             "business_model": "services",
             "extraction_failed": False,
             "description_sha256": llm_analyzer._description_fingerprint(DEFAULT_DESCRIPTION),
@@ -216,7 +268,9 @@ def test_checkpoint_reuses_when_description_and_model_match(mocker, sample_confi
 
 
 def test_reused_checkpoint_entry_missing_core_fields_is_marked_profile_incomplete(mocker, sample_config):
-    client = _mock_client(mocker, [])
+    """Reuse triggers one targeted follow-up (not a full re-extraction); an
+    all-unknown answer keeps the entry incomplete but never low-confidence."""
+    client = _mock_client(mocker, [FOLLOWUP_ALL_UNKNOWN])
 
     llm_analyzer._save_checkpoint({
         "EMPTY": {
@@ -235,15 +289,18 @@ def test_reused_checkpoint_entry_missing_core_fields_is_marked_profile_incomplet
 
     results = llm_analyzer.analyze_batch([_company("EMPTY")], sample_config)
 
-    client.responses.parse.assert_not_called()
+    assert client.responses.parse.call_count == 1  # follow-up only, no re-extraction
     assert results["EMPTY"]["low_confidence_flag"] is False
     assert results["EMPTY"]["profile_incomplete"] is True
+    assert results["EMPTY"]["followup_attempted"] is True
 
 
 def test_reused_checkpoint_entry_stamped_low_confidence_for_missing_fields_is_corrected(mocker, sample_config):
     """Entries the pre-split code marked low-confidence purely for an
-    incomplete profile regain eligibility on reuse, without a re-extraction."""
-    client = _mock_client(mocker, [])
+    incomplete profile regain eligibility on reuse, without a re-extraction.
+    The lazy follow-up runs once; an unknown answer leaves the profile
+    incomplete but corrects the low-confidence stamp."""
+    client = _mock_client(mocker, [FOLLOWUP_ALL_UNKNOWN])
 
     llm_analyzer._save_checkpoint({
         "HLIO": {
@@ -264,9 +321,50 @@ def test_reused_checkpoint_entry_stamped_low_confidence_for_missing_fields_is_co
 
     results = llm_analyzer.analyze_batch([_company("HLIO")], sample_config)
 
-    client.responses.parse.assert_not_called()
+    assert client.responses.parse.call_count == 1  # follow-up only
     assert results["HLIO"]["low_confidence_flag"] is False
     assert results["HLIO"]["profile_incomplete"] is True
+
+
+def test_reused_checkpoint_entry_followup_recovers_missing_field(mocker, sample_config):
+    """The HLIO scenario end-to-end: a cached judge-5 entry missing only
+    customer_type gets it recovered by the targeted follow-up, clearing the
+    profile_incomplete Core blocker without a full re-extraction."""
+    followup = json.dumps({
+        "customer_type": "B2B",
+        "capital_intensity": "unknown",
+        "primary_value_driver": "unknown",
+        "sub_sector_description": None,
+    })
+    client = _mock_client(mocker, [followup])
+
+    llm_analyzer._save_checkpoint({
+        "HLIO": {
+            "business_model": "manufacturing",
+            "customer_type": None,
+            "capital_intensity": "asset_heavy",
+            "primary_value_driver": "products",
+            "sub_sector_description": "Hydraulic motion control products.",
+            "evidence_verified": True,
+            "judge_score": 5,
+            "extraction_failed": False,
+            "low_confidence_flag": True,
+            "description_sha256": llm_analyzer._description_fingerprint(DEFAULT_DESCRIPTION),
+            "extraction_model": sample_config["llm"]["extraction_model"],
+            "prompt_version": llm_analyzer.PROMPT_VERSION,
+        },
+    })
+
+    results = llm_analyzer.analyze_batch([_company("HLIO")], sample_config)
+
+    assert client.responses.parse.call_count == 1
+    assert results["HLIO"]["customer_type"] == "B2B"
+    assert results["HLIO"]["profile_incomplete"] is False
+    assert results["HLIO"]["low_confidence_flag"] is False
+
+    # The stamp persists: a second run must not re-ask.
+    results = llm_analyzer.analyze_batch([_company("HLIO")], sample_config)
+    assert client.responses.parse.call_count == 1
 
 
 def test_legacy_checkpoint_entry_reextracted_for_structured_output_contract(mocker, sample_config):
@@ -341,6 +439,7 @@ def test_analyze_batch_returns_only_requested_tickers(mocker, sample_config):
 
     llm_analyzer._save_checkpoint({
         "AAA": {
+            **_complete_profile_fields(),
             "business_model": "services",
             "extraction_failed": False,
             "description_sha256": llm_analyzer._description_fingerprint(DEFAULT_DESCRIPTION),

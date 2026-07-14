@@ -96,6 +96,22 @@ def sample_config():
 
 
 @pytest.fixture(autouse=True)
+def no_real_openai(monkeypatch):
+    """src/__init__.py runs load_dotenv(), so a developer's real
+    OPENAI_API_KEY is present in the test process — any code path that
+    constructs a client would silently hit the live API (slow, costly,
+    nondeterministic). Block construction; tests that need a client patch
+    <module>.openai.OpenAI themselves (that later patch wins for its scope).
+    Production code treats the raise like any API outage and degrades."""
+    import openai
+
+    def _blocked(*args, **kwargs):
+        raise RuntimeError("Blocked real OpenAI client construction in tests — patch openai.OpenAI")
+
+    monkeypatch.setattr(openai, "OpenAI", _blocked)
+
+
+@pytest.fixture(autouse=True)
 def isolated_data_dirs(tmp_path, monkeypatch):
     """Redirect fetcher's cache/output paths into tmp_path so tests never
     touch the real data/cache or outputs directories."""

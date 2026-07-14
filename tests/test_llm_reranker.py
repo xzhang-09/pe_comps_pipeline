@@ -3,6 +3,7 @@ from src.llm_schemas import RerankResult
 
 
 def test_llm_reranker_accepts_valid_permutation(mocker):
+    mocker.patch("src.llm_reranker.openai.OpenAI", return_value=mocker.MagicMock())
     mocker.patch(
         "src.llm_reranker._call_openai_structured",
         return_value=RerankResult.model_validate({

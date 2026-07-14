@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 from jinja2 import Environment, FileSystemLoader
 
-from src import comp_fit_reviewer, get_logger, llm_analyzer, provenance, scorer
+from src import comp_fit_reviewer, end_market_reviewer, get_logger, llm_analyzer, provenance, scorer
 from src.config_schema import PipelineConfig, as_config
 from src.paths import project_path
 from src.records import CompanyRecord
@@ -218,15 +218,47 @@ CORE_MAX_LOG10_REVENUE_GAP = 1.0
 SCALE_MAGNITUDE_PATTERN = re.compile(r"\d+(?:\.\d+)?\s*x\b")
 TICKER_REFERENCE_PATTERN = re.compile(r"\b[A-Z]{2,5}\b")
 NARRATIVE_TICKER_ALLOWLIST = {
+    # Common business/finance acronyms the narrative may legitimately use.
+    # A few collide with real tickers (IT = Gartner, TTM = former Tata Motors
+    # ADR): the acronym reading is overwhelmingly more likely in review prose,
+    # and a genuine reference to a selected ticker is allowed anyway via
+    # allowed_tickers before this list is consulted.
     "AI",
     "B2B",
     "B2C",
+    "B2G",
+    "CAGR",
+    "CAPEX",
+    "CEO",
+    "CFO",
+    "DCF",
+    "EBIT",
     "EBITDA",
+    "EDGAR",
     "EV",
     "FMP",
+    "FY",
+    "GAAP",
+    "GDP",
+    "HVAC",
+    "IPO",
+    "IRR",
+    "IT",
+    "KPI",
     "LLM",
+    "LTM",
+    "NTM",
     "OEM",
+    "OEMS",
+    "OPEX",
+    "ROI",
     "SEC",
+    "SIC",
+    "TTM",
+    "US",
+    "USA",
+    "USD",
+    "XBRL",
 }
 
 VALUATION_ROLE_LABELS = {
@@ -792,19 +824,104 @@ def _annotate_top_rows(
             penalty["size_log10_gap"] is not None
             and penalty["size_log10_gap"] > CORE_MAX_LOG10_REVENUE_GAP
         )
-        has_mismatch = bool(
-            penalty["business_model_penalty"]
-            or penalty["customer_type_penalty"]
-            or penalty["subsector_penalty"]
-            or penalty["profile_incomplete"]
-            or size_blocks_core
-        )
+        row["core_blockers"] = [
+            name for name, blocked in (
+                ("business_model", penalty["business_model_penalty"]),
+                ("customer_type", penalty["customer_type_penalty"]),
+                ("end_market", penalty["subsector_penalty"]),
+                ("profile_incomplete", penalty["profile_incomplete"]),
+                ("size", size_blocks_core),
+            ) if blocked
+        ]
+        has_mismatch = bool(row["core_blockers"])
         row["tier"] = _assign_tier(row["fit_flag"], row["outlier_flag"], has_mismatch)
         row["fit_notes"] = _fit_notes(
             penalty["reasons"], row["fit_flag"], row["outlier_flag"], review_reasons.get(row["ticker"])
         )
 
     return weak_tickers | outlier_tickers
+
+
+# How far below the subsector-similarity threshold the end-market LLM review
+# may rescue a Core candidate. Embedding noise between one-sentence
+# descriptions is roughly ±0.02-0.05; 0.10 covers the observed false-block
+# band (e.g. GENC at 0.38-0.44 vs 0.48 across runs) without asking the LLM
+# to overrule clearly unrelated end markets.
+CORE_END_MARKET_RESCUE_BAND = 0.10
+
+
+def _apply_end_market_review(
+    rows: list[dict],
+    target_llm_features: dict,
+    llm_features: dict,
+    subsector_similarities: dict[str, float],
+    penalties: dict,
+    cfg: PipelineConfig,
+) -> None:
+    """Second opinion on the Core tier's end-market gate, both directions.
+
+    The embedding-similarity threshold misfires near its boundary: generic
+    capital-equipment phrasing can clear it for an unrelated end market (a
+    false Core), and an aligned comp can miss it on embedding noise (a false
+    block). One batched LLM review over the borderline rows fixes both:
+    a would-be Core row judged not aligned is demoted to secondary, and a
+    secondary row blocked ONLY by a marginal similarity shortfall (within
+    CORE_END_MARKET_RESCUE_BAND of the threshold) is promoted to core. The
+    numeric subsector penalty in the ranking is left untouched — this pass
+    adjusts tier membership, not scores. Tiers only move between core and
+    secondary, so the usable-comp count _fill_usable_comp_slots settled on
+    is preserved. On API failure nothing changes.
+    """
+    target_description = (target_llm_features or {}).get("sub_sector_description")
+    if not target_description:
+        return
+    threshold = penalties["subsector_similarity_threshold"]
+
+    veto_tickers: set[str] = set()
+    rescue_tickers: set[str] = set()
+    for row in rows:
+        if row.get("fit_flag") == "weak" or row.get("outlier_flag"):
+            continue
+        blockers = row.get("core_blockers") or []
+        if row["tier"] == "core":
+            veto_tickers.add(row["ticker"])
+        elif row["tier"] == "secondary" and blockers == ["end_market"]:
+            similarity = subsector_similarities.get(row["ticker"])
+            if similarity is not None and similarity >= threshold - CORE_END_MARKET_RESCUE_BAND:
+                rescue_tickers.add(row["ticker"])
+
+    candidates = {}
+    for ticker in veto_tickers | rescue_tickers:
+        description = (llm_features.get(ticker) or {}).get("sub_sector_description")
+        if description:
+            candidates[ticker] = description
+    if not candidates:
+        return
+
+    verdicts = end_market_reviewer.review_end_markets(target_description, candidates, cfg)
+    if verdicts is None:
+        return
+
+    for row in rows:
+        verdict = verdicts.get(row["ticker"])
+        if verdict is None:
+            continue
+        if row["ticker"] in veto_tickers and not verdict["aligned"]:
+            row["tier"] = "secondary"
+            row["core_blockers"] = [*(row.get("core_blockers") or []), "end_market_review"]
+            note = f"end-market LLM review blocked Core: {verdict['reason']}"
+        elif row["ticker"] in rescue_tickers and verdict["aligned"]:
+            similarity = subsector_similarities.get(row["ticker"])
+            row["tier"] = "core"
+            row["core_blockers"] = [b for b in row["core_blockers"] if b != "end_market"]
+            note = (
+                f"end-market LLM review overrode a marginal similarity shortfall "
+                f"({similarity:.2f} vs. {threshold}): {verdict['reason']}"
+            )
+        else:
+            continue
+        row["fit_notes"] = f"{row['fit_notes']}; {note}" if row.get("fit_notes") else note
+        logger.info(f"{row['ticker']} — {note}")
 
 
 def _fill_usable_comp_slots(
@@ -1227,6 +1344,9 @@ def generate(
         target_business_model, target_customer_type, target_revenue,
         subsector_similarities, penalties,
         strong_tickers, weak_tickers, review_reasons,
+    )
+    _apply_end_market_review(
+        top15_rows, target_llm_features, llm_features, subsector_similarities, penalties, cfg,
     )
     selection_quality = _selection_quality_summary(top15_rows, target_revenue)
     fit_quality_diagnostics = _fit_quality_diagnostics(top15_rows, target_revenue, model_diagnostics)

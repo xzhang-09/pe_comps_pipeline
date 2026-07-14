@@ -16,11 +16,42 @@ class BusinessModelExtraction(BaseModel):
     confidence: int | None = Field(default=None, ge=1, le=5)
 
 
+class CoreProfileFollowUp(BaseModel):
+    """Targeted re-ask for core profile fields the first extraction left null.
+
+    Every field carries an explicit "unknown" option so the model can decline
+    per field instead of being forced to guess; "unknown" answers are kept as
+    null downstream. business_model is deliberately absent — it carries the
+    verbatim evidence-quote contract, which a field-only follow-up can't honor.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    customer_type: Literal["B2B", "B2C", "B2G", "mixed", "unknown"]
+    capital_intensity: Literal["asset_heavy", "moderate", "asset_light", "unknown"]
+    primary_value_driver: Literal["technology", "scale", "relationships", "brand", "other", "unknown"]
+    sub_sector_description: str | None
+
+
 class JudgeVerdict(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     score: int = Field(ge=1, le=5)
     reason: str
+
+
+class EndMarketVerdict(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    ticker: str
+    aligned: bool
+    reason: str
+
+
+class EndMarketVerdicts(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    verdicts: list[EndMarketVerdict]
 
 
 class SicSuggestion(BaseModel):

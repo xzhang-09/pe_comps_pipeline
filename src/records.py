@@ -116,6 +116,7 @@ class LLMFeatureRecord(TypedDict, total=False):
     judge_reason: str | None
     low_confidence_flag: bool
     profile_incomplete: bool
+    followup_attempted: bool
     extraction_failed: bool
     description_sha256: str | None
     extraction_model: str | None

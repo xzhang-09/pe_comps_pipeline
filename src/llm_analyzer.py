@@ -8,7 +8,7 @@ from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_fi
 
 from src import get_logger, json_store, sic_codes
 from src.config_schema import PipelineConfig, as_config
-from src.llm_schemas import BusinessModelExtraction, JudgeVerdict, SicSuggestions
+from src.llm_schemas import BusinessModelExtraction, CoreProfileFollowUp, JudgeVerdict, SicSuggestions
 from src.paths import project_path
 
 logger = get_logger(__name__)
@@ -66,6 +66,32 @@ CORE_PROFILE_FIELDS = (
     "primary_value_driver",
     "sub_sector_description",
 )
+
+# Fields the targeted follow-up may recover. business_model is excluded: it
+# carries the verbatim evidence-quote contract (see SYSTEM_PROMPT), which a
+# field-only re-ask cannot honor.
+FOLLOWUP_FIELDS = (
+    "customer_type",
+    "capital_intensity",
+    "primary_value_driver",
+    "sub_sector_description",
+)
+
+FOLLOWUP_SYSTEM_PROMPT = """You are a private equity analyst extracting structured information from
+company business descriptions to support comparable company analysis.
+
+A first extraction pass left some fields undetermined. Re-read the
+description and answer ONLY from its text:
+- Answer a field with a real value only when the description supports it.
+- Answer "unknown" (or null for sub_sector_description) when the text
+  genuinely does not say — an honest unknown is more valuable than a guess.
+- Do not use any outside knowledge about the company."""
+
+FOLLOWUP_PROMPT_TEMPLATE = """Determine these previously-undetermined fields: {missing_fields}
+
+Company: {company_name}
+Description: {business_description}
+"""
 
 SIC_SUGGESTION_SYSTEM_PROMPT = """You are an SEC filings analyst helping a private equity analyst find
 plausible SIC (Standard Industrial Classification) codes for a target company,
@@ -280,8 +306,41 @@ def _failed_result() -> dict:
         "judge_reason": None,
         "low_confidence_flag": False,
         "profile_incomplete": True,
+        "followup_attempted": False,
         "extraction_failed": True,
     }
+
+
+def _followup_missing_fields(
+    client, ticker: str, company_name: str, business_description: str,
+    missing_fields: list[str], llm_config,
+) -> dict:
+    """One targeted re-ask for core fields the first pass left null. Returns
+    only the fields it recovered (explicit "unknown"/null answers stay
+    missing); returns {} on API failure so extraction never blocks on it."""
+    prompt = FOLLOWUP_PROMPT_TEMPLATE.format(
+        missing_fields=", ".join(missing_fields),
+        company_name=company_name,
+        business_description=business_description,
+    )
+    try:
+        followup = _call_openai_structured(
+            client, llm_config.extraction_model, FOLLOWUP_SYSTEM_PROMPT, prompt,
+            llm_config.temperature, llm_config.max_tokens, CoreProfileFollowUp,
+        )
+    except Exception as e:
+        logger.warning(f"{ticker} — core-field follow-up API call failed: {e}")
+        return {}
+
+    answers = followup.model_dump()
+    recovered = {
+        field: answers[field]
+        for field in missing_fields
+        if field in answers and answers[field] not in (None, "unknown")
+    }
+    if recovered:
+        logger.info(f"{ticker} — follow-up recovered {', '.join(sorted(recovered))}")
+    return recovered
 
 
 def _extract_and_judge(client, ticker: str, company_name: str, business_description: str, config: PipelineConfig) -> dict:
@@ -332,6 +391,13 @@ def _extract_and_judge(client, ticker: str, company_name: str, business_descript
     )
     if not evidence_verified:
         logger.warning(f"{ticker} — evidence_quote not found verbatim in source description")
+
+    missing_followup_fields = [f for f in FOLLOWUP_FIELDS if result.get(f) is None]
+    result["followup_attempted"] = bool(missing_followup_fields)
+    if missing_followup_fields:
+        result.update(_followup_missing_fields(
+            client, ticker, company_name, business_description, missing_followup_fields, llm_config,
+        ))
 
     core_profile_complete = _core_profile_complete(result)
     if not core_profile_complete:
@@ -401,6 +467,16 @@ def analyze_batch(companies: list[dict], config: PipelineConfig | dict) -> dict[
                 entry["prompt_version"] = PROMPT_VERSION
                 checkpoint_dirty = True
             if not entry.get("extraction_failed"):
+                # Lazy targeted follow-up: a cached entry with missing core
+                # fields gets one field-only re-ask on reuse (stamped so it
+                # never repeats), without invalidating the full extraction.
+                missing = [f for f in FOLLOWUP_FIELDS if entry.get(f) is None]
+                if missing and not entry.get("followup_attempted") and _usable_description(description):
+                    entry.update(_followup_missing_fields(
+                        client, ticker, company.get("company_name", ticker), description, missing, cfg.llm,
+                    ))
+                    entry["followup_attempted"] = True
+                    checkpoint_dirty = True
                 # Recompute both flags from entry content on reuse: entries
                 # written before the profile_incomplete/low_confidence split
                 # (including ones stamped low-confidence purely for missing
