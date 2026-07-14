@@ -1,6 +1,7 @@
 import json
 
 import eval.ground_truth_builder as ground_truth_builder
+from src.llm_schemas import AdvisorAndSelectedCompanies, DealFinancials
 
 
 class _FakeResponse:
@@ -370,10 +371,10 @@ def test_build_manual_deal_review_from_urls_prefills_entry(mocker, tmp_path):
         return_value="selected companies analysis ... prospective financial information ...",
     )
     mocker.patch(
-        "eval.ground_truth_builder._call_openai",
+        "eval.ground_truth_builder._call_openai_structured",
         side_effect=[
-            '{"advisor": "Evercore Group L.L.C.", "selected_companies": ["Comp One Inc", "Foreign AG"]}',
-            '{"fiscal_year": "FY2023E", "revenue_usd_mm": 850.0, "ebitda_usd_mm": 127.5, "source_note": "Projections table"}',
+            AdvisorAndSelectedCompanies(advisor="Evercore Group L.L.C.", selected_companies=["Comp One Inc", "Foreign AG"]),
+            DealFinancials(fiscal_year="FY2023E", revenue_usd_mm=850.0, ebitda_usd_mm=127.5, source_note="Projections table"),
         ],
     )
     mocker.patch(
@@ -451,10 +452,10 @@ def test_build_manual_deal_review_from_urls_merges_by_filing_url(mocker, tmp_pat
     mocker.patch("eval.ground_truth_builder.openai.OpenAI")
     mocker.patch("eval.ground_truth_builder._fetch_filing_document", return_value="text")
     mocker.patch(
-        "eval.ground_truth_builder._call_openai",
+        "eval.ground_truth_builder._call_openai_structured",
         side_effect=[
-            '{"advisor": "Bank B", "selected_companies": []}',
-            '{"fiscal_year": null, "revenue_usd_mm": null, "ebitda_usd_mm": null, "source_note": null}',
+            AdvisorAndSelectedCompanies(advisor="Bank B", selected_companies=[]),
+            DealFinancials(fiscal_year=None, revenue_usd_mm=None, ebitda_usd_mm=None, source_note=None),
         ],
     )
     mocker.patch("eval.ground_truth_builder._fetch_target_description", return_value=None)

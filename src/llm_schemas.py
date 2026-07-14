@@ -70,6 +70,28 @@ class SicSuggestions(BaseModel):
     suggestions: list[SicSuggestion]
 
 
+class SelectedCompaniesList(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    companies: list[str]
+
+
+class AdvisorAndSelectedCompanies(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    advisor: str | None
+    selected_companies: list[str]
+
+
+class DealFinancials(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    fiscal_year: str | None
+    revenue_usd_mm: float | None
+    ebitda_usd_mm: float | None
+    source_note: str | None
+
+
 class CompFitItem(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

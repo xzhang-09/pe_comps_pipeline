@@ -11,7 +11,8 @@ import requests
 
 from src import get_logger, sic_universe_builder
 from src.defaults import sec_identity
-from src.llm_analyzer import _call_openai, _parse_json_response, _strip_markdown_fences
+from src.llm_analyzer import _call_openai_structured
+from src.llm_schemas import AdvisorAndSelectedCompanies, DealFinancials, SelectedCompaniesList
 
 logger = get_logger(__name__)
 
@@ -41,6 +42,11 @@ MIN_NAME_MATCH_SCORE = 70.0
 FAIRNESS_OPINION_KEYWORDS = (
     "selected companies analysis", "comparable companies analysis",
     "selected public companies analysis", "selected publicly traded companies",
+    # Singular "Company" variant — Centerview's section heading on
+    # Squarespace's DEFM14A was "Selected Public Company Analysis", which
+    # none of the plural-only keywords above matched, so the extractor fell
+    # back to the document prefix and missed the section entirely.
+    "selected public company analysis",
 )
 # Filed by the target (DEFM14A, when shareholders must vote) or by the
 # acquirer (S-4, for stock-for-stock deals registering the new shares).
@@ -94,10 +100,7 @@ company names in that selected-companies list.
 Document text (may be truncated):
 {document_text}
 
-Return ONLY a JSON array of company name strings.
-Example: ["Company A", "Company B", "Company C"]
-If you cannot find a selected-companies list, return an empty array: []
-Do not include any other text."""
+If you cannot find a selected-companies list, return an empty list."""
 
 # A specific filing document under /Archives/edgar/data/<cik>/<accession-no-dashes>/…
 # — the URL shape produced by EDGAR full-text search and filing-index pages.
@@ -137,14 +140,11 @@ directors, and extract:
    selected-companies list, verbatim, in the order listed.
 
 If more than one advisor presents such an analysis, use the target board's
-advisor. If no such analysis appears in the excerpts, return null and an
-empty array.
+advisor. If no such analysis appears in the excerpts, use a null advisor and
+an empty selected-companies list.
 
 Excerpts (non-contiguous, separated by "..."):
-{document_text}
-
-Return ONLY this JSON:
-{{"advisor": "<firm name or null>", "selected_companies": ["<name>", ...]}}"""
+{document_text}"""
 
 DEAL_FINANCIALS_PROMPT_TEMPLATE = """You are reading excerpts from a merger proxy statement for the
 acquisition of {target_name}. Find management's financial projections for the
@@ -161,11 +161,8 @@ disclosed in the excerpts. Never use the acquirer's figures.
 Excerpts (non-contiguous, separated by "..."):
 {document_text}
 
-Return ONLY this JSON:
-{{"fiscal_year": "<label like FY2023E, or null>",
-"revenue_usd_mm": <number or null>,
-"ebitda_usd_mm": <number or null>,
-"source_note": "<one line naming the section/table and line items used>"}}"""
+fiscal_year should be a label like "FY2023E"; source_note should be one line
+naming the section/table and line items used."""
 
 # Manual override list for local experiments. Prefer
 # discover_fairness_opinion_candidates() for a dynamically sourced list of real
@@ -361,43 +358,29 @@ def _extract_relevant_windows(
     return combined[:MAX_PROMPT_CHARS]
 
 
-def _parse_json_array(text: str | None, label: str) -> list | None:
-    """Like llm_analyzer._parse_json_response, but for prompts that return a
-    JSON array rather than an object — that function hard-requires a dict,
-    which would reject every valid selected-companies response here."""
-    if not text:
-        return None
-    cleaned = _strip_markdown_fences(text)
-    try:
-        parsed = json.loads(cleaned)
-    except (json.JSONDecodeError, TypeError) as e:
-        logger.warning(f"{label} — failed to parse LLM JSON response: {e}")
-        return None
-    if not isinstance(parsed, list):
-        logger.warning(f"{label} — LLM JSON response was not an array: {cleaned!r}")
-        return None
-    return parsed
-
-
 def _extract_selected_companies(client: openai.OpenAI, label: str, document_text: str, config: dict) -> list[str]:
+    """
+    Structured-outputs extraction (schema-enforced JSON, no hand-rolled
+    parsing) — the free-form json.loads() this replaced would occasionally
+    fail on a large merged keyword-window prompt (reproduced on a real
+    DEFM14A: "Expecting property name enclosed in double quotes"), silently
+    dropping every selected company for that filing. See
+    src/llm_analyzer._extract_and_judge for the same pattern used by the
+    main extraction pipeline.
+    """
     relevant_text = _extract_relevant_windows(document_text)
     prompt = FAIRNESS_OPINION_PROMPT_TEMPLATE.format(document_text=relevant_text)
 
     try:
-        response_text = _call_openai(
+        result = _call_openai_structured(
             client, config["llm"]["judge_model"], None, prompt,
-            config["llm"]["temperature"], config["llm"]["max_tokens"],
+            config["llm"]["temperature"], config["llm"]["max_tokens"], SelectedCompaniesList,
         )
     except Exception as e:
         logger.warning(f"{label} — selected-companies extraction API call failed: {e}")
         return []
 
-    parsed = _parse_json_array(response_text, label)
-    if parsed is None:
-        logger.warning(f"{label} — selected-companies extraction did not return a JSON array")
-        return []
-
-    return [name for name in parsed if isinstance(name, str)]
+    return [name for name in result.companies if isinstance(name, str) and name.strip()]
 
 
 def _map_name_to_ticker(label: str, company_name: str) -> str | None:
@@ -408,6 +391,17 @@ def _map_name_to_ticker(label: str, company_name: str) -> str | None:
     judgment call against. The name is normalized first (see
     _normalize_company_name) since searching with corporate suffixes
     attached produces wrong high-scoring matches.
+
+    The score alone is not a reliable accept/reject signal near the
+    threshold: single-token normalized queries (e.g. "Waystar" from
+    "Waystar Holding Corp.") score in the low-to-mid 60s for their own
+    exact match, in the same range unrelated companies score for an
+    unrelated query (e.g. "Tata Consultancy Services" top-matches "Quanta
+    Services, Inc." at 65%). A below-threshold match is accepted anyway
+    when the matched company's own name, normalized the same way, is
+    identical to the query — that is a much stronger signal than the raw
+    score that this is genuinely the same company, not a coincidental
+    token overlap with a different one.
     """
     query = _normalize_company_name(company_name)
     try:
@@ -422,8 +416,14 @@ def _map_name_to_ticker(label: str, company_name: str) -> str | None:
 
     top = results.results.iloc[0]
     if top["score"] < MIN_NAME_MATCH_SCORE:
-        logger.warning(f"{label} — best match for {company_name!r} too weak ({top['score']:.0f}%), skipping")
-        return None
+        exact_normalized_match = _normalize_company_name(top["company"]).casefold() == query.casefold()
+        if not exact_normalized_match:
+            logger.warning(f"{label} — best match for {company_name!r} too weak ({top['score']:.0f}%), skipping")
+            return None
+        logger.info(
+            f"{label} — accepted below-threshold match for {company_name!r} ({top['score']:.0f}%): "
+            f"normalized name is identical to {top['company']!r}"
+        )
 
     return top["ticker"]
 
@@ -652,52 +652,49 @@ def _review_max_tokens(config: dict) -> int:
 
 def _extract_advisor_and_companies(client: openai.OpenAI, label: str, target_name: str,
                                    document_text: str, config: dict) -> tuple[str | None, list[str]]:
+    """
+    Structured-outputs extraction — this is the URL-driven prefill path
+    (scripts.prefill_manual_deal -> build_manual_deal_review_from_urls), and
+    the free-form json.loads() this replaced could fail on the large merged
+    keyword-window prompt (reproduced on a real DEFM14A: "Expecting property
+    name enclosed in double quotes"), silently returning no advisor and no
+    selected companies for that filing.
+    """
     relevant_text = _extract_relevant_windows(document_text)
     prompt = DEAL_REVIEW_PROMPT_TEMPLATE.format(target_name=target_name, document_text=relevant_text)
     try:
-        response_text = _call_openai(
+        result = _call_openai_structured(
             client, config["llm"]["extraction_model"], None, prompt,
-            config["llm"]["temperature"], _review_max_tokens(config),
+            config["llm"]["temperature"], _review_max_tokens(config), AdvisorAndSelectedCompanies,
         )
     except Exception as e:
         logger.warning(f"{label} — advisor/selected-companies extraction failed: {e}")
         return None, []
 
-    parsed = _parse_json_response(response_text, label)
-    if parsed is None:
-        return None, []
-    advisor = parsed.get("advisor")
-    names = parsed.get("selected_companies")
-    return (
-        advisor if isinstance(advisor, str) and advisor.strip() else None,
-        [n for n in names if isinstance(n, str)] if isinstance(names, list) else [],
-    )
+    advisor = result.advisor.strip() if result.advisor and result.advisor.strip() else None
+    names = [n for n in result.selected_companies if isinstance(n, str) and n.strip()]
+    return advisor, names
 
 
 def _extract_target_financials(client: openai.OpenAI, label: str, target_name: str,
                                document_text: str, config: dict) -> dict:
+    """Structured-outputs extraction — see _extract_advisor_and_companies for
+    why (same prompt-fragility class, same URL-driven prefill path)."""
     relevant_text = _extract_relevant_windows(
         document_text, keywords=PROJECTION_KEYWORDS, window_after=PROJECTION_WINDOW_AFTER,
     )
     prompt = DEAL_FINANCIALS_PROMPT_TEMPLATE.format(target_name=target_name, document_text=relevant_text)
     empty = {"fiscal_year": None, "revenue_usd_mm": None, "ebitda_usd_mm": None, "source_note": None}
     try:
-        response_text = _call_openai(
+        result = _call_openai_structured(
             client, config["llm"]["extraction_model"], None, prompt,
-            config["llm"]["temperature"], _review_max_tokens(config),
+            config["llm"]["temperature"], _review_max_tokens(config), DealFinancials,
         )
     except Exception as e:
         logger.warning(f"{label} — target-financials extraction failed: {e}")
         return empty
 
-    parsed = _parse_json_response(response_text, label)
-    if parsed is None:
-        return empty
-    financials = {key: parsed.get(key) for key in empty}
-    for key in ("revenue_usd_mm", "ebitda_usd_mm"):
-        if financials[key] is not None and not isinstance(financials[key], (int, float)):
-            financials[key] = None
-    return financials
+    return result.model_dump()
 
 
 def _ebitda_margin(financials: dict) -> float | None:
