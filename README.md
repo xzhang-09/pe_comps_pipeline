@@ -244,87 +244,30 @@ corrupt-file tolerance for every cache/checkpoint), `src/run_lock.py`
 
 ## Evaluation
 
-This repository includes a reviewed manual ground-truth data set for
-fairness-opinion comparable-company evaluation. The harness separates discovery
-coverage from ranking quality, so a missed banker comp can be attributed to the
-SIC universe, financial filters, data availability, or the final Top-K ranking
-step.
+This repository includes a reviewed manual ground-truth data set — 16
+fairness-opinion "Selected Companies Analysis" observations across 6
+industry clusters — for measuring comp-selection quality against real
+banker-selected comps, not synthetic checks. The harness shares the
+production ranking core (`src/report_selection.py`), so evaluation can't
+drift from what the report actually does, and regressions are caught by a
+baseline gate (`scripts/check_eval_regression.py`).
 
-- `eval/evaluator.py` is the Precision@K harness. Its Top-K selection shares
-  the production ranking core (`src/report_selection.py`), so the evaluation
-  cannot drift from what the report actually does.
-- `eval/ground_truth/manual_deals.json` contains 16 reviewed "Selected
-  Companies Analysis" observations with filing URLs, advisors, target
-  financials, and still-public flags for banker-selected comps
-  (`manual_deals.example.json` is the template for adding more). The set
-  splits into 10 dev deals (all industrials; these drove development
-  iterations) and 6 holdout deals added later across IT services, SaaS,
-  environmental services, consumer beverages, and healthcare services —
-  holdout deals must not drive tuning decisions.
-- `eval/ground_truth_builder.py` is experimental: it prefills
-  `eval/ground_truth/manual_deals.review.json` from merger-proxy filings; a
-  human must verify every field before promoting entries into
-  `manual_deals.json`.
-- The generated report uses run diagnostics and LLM-assisted comp-fit review
-  as directional quality signals, not audited ground truth.
+Current confirmed result (`single-sic` discovery, the config default): mean
+Precision@15 is **9.3%** on the full 16-deal benchmark — a modest number
+with real caveats (small candidate pools for most deals, single-advisor
+ground truth). Three additional discovery modes are implemented and showed
+meaningfully higher precision on an earlier, smaller benchmark revision, but
+have not yet been re-confirmed on the current one.
 
-Report-quality fixes shipped and validated against the benchmark below (not
-just spot-checked on the demo target): the `low_confidence_flag` /
-`profile_incomplete` split and targeted follow-up (`src/llm_analyzer.py`)
-stopped small-cap comps with one terse field from being silently dropped;
-the end-market LLM review (`src/end_market_reviewer.py`) corrects Core-tier
-false positives/negatives that embedding-similarity alone missed; the
-extraction judge's rubric rewrite replaced adjective-only scoring (which had
-collapsed to near-universal 4-5s) with behaviorally-anchored score bands and
-worked examples.
-
-The discovery ladder — each rung a separately measured upgrade on the same
-benchmark — currently stands at:
-
-| Discovery mode | Mean P@15 | Discovery-layer losses | Benchmark | Status |
-| --- | ---: | ---: | --- | --- |
-| `single-sic` | 9.3% | 84 | 16 deals | baseline |
-| `sic+embedding` | 9.8% | 54 | 10 deals | optional |
-| `suggest-sic` | 19.3% | 43 | 10 deals | **recommended** |
-| `suggest-sic+embedding` | 15.3% | 42 | 10 deals | experimental |
-
-Only the `single-sic` baseline has been re-measured on the expanded 16-deal
-benchmark (dev 9.4% / holdout 9.0% — no dev/holdout gap at this rung); the
-other three rungs still show 10-deal-vintage numbers. Re-measuring them was
-attempted on 2026-07-14 and interrupted mid-run by FMP's free-tier daily
-quota (`evaluate_manual_deals` only writes output after its full deal loop
-finishes, so the interrupted attempt produced zero usable results). The
-resume path is batched runs — `evaluate_manual_deals --deals <subset>
---output-json <batch file>` per quota window, combined with
-`scripts/merge_manual_deal_batches.py` — so a future interruption loses at
-most one batch instead of the whole run. Until that happens, compare rungs
-within the same benchmark column only.
-
-Benchmark regressions are caught by a baseline gate: after any change, re-run
-the eval and compare against the committed snapshot in `eval/baselines/` —
+**Full methodology, all measured results, caveats, and the improvement
+roadmap are in
+[`docs/known_limitations_and_roadmap.md`](docs/known_limitations_and_roadmap.md)
+— read that before drawing conclusions from the number above.**
 
 ```bash
-python -m scripts.evaluate_manual_deals            # writes results.json
-python -m scripts.check_eval_regression            # non-zero exit on regression
-python -m scripts.check_eval_regression --update-baseline  # bless intended changes
+python -m scripts.evaluate_manual_deals      # run the benchmark, writes results.json
+python -m scripts.check_eval_regression      # compare against the committed baseline
 ```
-
-The gate hard-fails on mean-precision drops beyond a tolerance (default 1pp —
-market data drifts daily), lost waterfall hits, any increase in
-`low_confidence_filtered`, and any deal losing all its hits; baseline updates
-are a deliberate, reviewable act rather than a side effect of running the
-eval.
-
-The hybrid rung is a deliberate negative result: coverage improved but
-ranking diluted, and a three-point ablation traced the binding constraint to
-semantic ranking quality rather than corpus capacity — the full analysis,
-evaluation caveats, and what was tried and retired are in
-[`docs/known_limitations_and_roadmap.md`](docs/known_limitations_and_roadmap.md).
-
-Per-rung results and coverage waterfalls are published in
-[`eval/results.md`](eval/results.md) and its mode-suffixed siblings. The
-methodology and discovery-ladder analysis are documented in
-[`docs/eval_coverage_analysis.md`](docs/eval_coverage_analysis.md).
 
 ## Scripts
 
