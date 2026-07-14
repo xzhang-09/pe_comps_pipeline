@@ -45,6 +45,56 @@ VALID_EXTRACTION = json.dumps({
 })
 
 
+def test_judge_prompt_has_behavioral_score_anchors_not_bare_adjectives(sample_config):
+    """The rubric replaced vague per-band adjectives ("clearly supported",
+    "minor uncertainty") — which collapsed almost every real judge_score to
+    4-5 with no discriminative power — with concrete behavioral criteria and
+    worked examples for both a good (5) and a generic-language (2) case."""
+    prompt = llm_analyzer.JUDGE_PROMPT_TEMPLATE.format(description_excerpt="x", extraction_json="{}")
+    normalized = " ".join(prompt.split())  # collapse hand-wrapped newlines before substring checks
+
+    # Every score band still present, now backed by a concrete criterion.
+    for band in ("5 —", "4 —", "3 —", "2 —", "1 —"):
+        assert band in normalized
+    # The judge is told evidence_quote's verbatim-ness is checked elsewhere,
+    # so its unique job is judging whether the extraction is genuinely
+    # grounded rather than generic language stretched to fit.
+    assert "checked separately" in normalized
+    assert "Generic language" in normalized
+    # A worked example anchors each end of the scale, not just an adjective.
+    assert "Example:" in normalized
+
+
+def test_judge_prompt_version_bumped_for_rubric_rewrite():
+    """A stale cached judge_score from before the rubric rewrite must not
+    silently survive — see _checkpoint_entry_reusable's prompt_version gate."""
+    assert llm_analyzer.PROMPT_VERSION != "structured_outputs_v1"
+
+
+def test_checkpoint_reextracts_when_prompt_version_stale(mocker, sample_config):
+    """A checkpoint entry stamped with the pre-rubric-rewrite prompt_version
+    is re-extracted and re-judged under the new rubric, not reused."""
+    judge = json.dumps({"score": 5, "reason": "all fields well supported"})
+    client = _mock_client(mocker, [VALID_EXTRACTION, judge])
+
+    llm_analyzer._save_checkpoint({
+        "AAA": {
+            "business_model": "services",
+            "extraction_failed": False,
+            "description_sha256": llm_analyzer._description_fingerprint(DEFAULT_DESCRIPTION),
+            "extraction_model": sample_config["llm"]["extraction_model"],
+            "prompt_version": "structured_outputs_v1",
+        },
+    })
+
+    results = llm_analyzer.analyze_batch([_company("AAA")], sample_config)
+
+    assert client.responses.parse.called
+    assert results["AAA"]["business_model"] == "manufacturing"
+    stored = llm_analyzer._load_checkpoint()["AAA"]
+    assert stored["prompt_version"] == llm_analyzer.PROMPT_VERSION
+
+
 def test_valid_json_parsed_correctly(mocker, sample_config):
     judge = json.dumps({"score": 5, "reason": "all fields well supported"})
     _mock_client(mocker, [VALID_EXTRACTION, judge])

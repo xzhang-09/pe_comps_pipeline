@@ -14,7 +14,13 @@ from src.paths import project_path
 logger = get_logger(__name__)
 
 CHECKPOINT_PATH = project_path("data", "checkpoints", "llm_checkpoint.json")
-PROMPT_VERSION = "structured_outputs_v1"
+# Bumped for the JUDGE_PROMPT_TEMPLATE rubric rewrite (behavioral score-band
+# anchors + worked examples, replacing vague adjective descriptions that
+# collapsed almost every judge_score to 4-5). There is only one shared
+# version stamp for the whole checkpoint entry, so this also forces a full
+# re-extraction (not just re-judging) of every cached ticker on next run —
+# a one-time cost, not a per-run one; see _checkpoint_entry_reusable.
+PROMPT_VERSION = "structured_outputs_v2"
 
 MIN_DESCRIPTION_LENGTH = 100
 
@@ -45,13 +51,47 @@ JUDGE_PROMPT_TEMPLATE = """You are reviewing a business model extraction for acc
 Original description (first 500 chars): {description_excerpt}
 Extraction result: {extraction_json}
 
-Rate the accuracy of the extraction on a scale of 1-5:
-5 = All fields are clearly supported by the text
-4 = Most fields accurate, minor uncertainty on 1-2 fields
-3 = Partially accurate, some fields unclear or questionable
-2 = Several fields appear inaccurate or unsupported
-1 = Extraction is largely inaccurate or hallucinated
-"""
+Score how well the extraction is actually GROUNDED in the specific text
+above — not whether it sounds plausible for a company like this in general.
+evidence_quote's verbatim match against the source text is checked
+separately by a different process; your job is whether that quote (and the
+rest of the extraction) genuinely establishes the stated classification,
+not just whether the wording happens to be exact. Generic language that
+would fit almost any company in the same broad category is not real
+support, even when it is a true quote.
+
+5 — Every non-null field is a specific, correctly-reasoned reading of the
+text. A field left null because the text genuinely doesn't say is correct,
+not a defect — do not penalize appropriate nulls.
+Example: description mentions "recurring subscription fees paid by
+enterprise IT departments" and extraction sets business_model=SaaS,
+customer_type=B2B, revenue_recurrence=high — each field traces to specific
+language, not a generic label.
+
+4 — The core classification (business_model) is correct and well-supported;
+one or two secondary fields (capital_intensity, primary_value_driver,
+sub_sector_description) are a reasonable inference the text doesn't spell
+out explicitly, or sub_sector_description is serviceable but a bit generic.
+
+3 — business_model is directionally plausible but the text is thin or
+ambiguous about it, OR several secondary fields look like guesses not
+clearly grounded in the specific text provided.
+
+2 — The evidence_quote is real text from the description, but it doesn't
+actually establish the stated business_model — it's generic or adjacent
+language stretched to fit, not genuine support.
+Example: description says "designs and sells highly engineered industrial
+equipment for diverse end markets" and extraction sets
+business_model=manufacturing, sub_sector_description="highly engineered
+capital equipment for diverse end markets" — that phrasing would fit almost
+any industrial equipment maker; it establishes nothing specific about what
+this company actually makes or which end market it serves.
+
+1 — The classification contradicts what the text actually says, or a field
+is fabricated with no basis in the provided text at all.
+
+Give a score 1-5 and a one-sentence reason citing the specific field and
+language (or its absence) that drove the score."""
 
 EXTRACTION_FIELDS = (
     "business_model", "revenue_recurrence", "customer_type",
