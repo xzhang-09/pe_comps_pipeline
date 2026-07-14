@@ -235,10 +235,14 @@ step.
 - `eval/evaluator.py` is the Precision@K harness. Its Top-K selection shares
   the production ranking core (`src/report_selection.py`), so the evaluation
   cannot drift from what the report actually does.
-- `eval/ground_truth/manual_deals.json` contains reviewed "Selected Companies
-  Analysis" observations with filing URLs, advisors, target financials, and
-  still-public flags for banker-selected comps
-  (`manual_deals.example.json` is the template for adding more).
+- `eval/ground_truth/manual_deals.json` contains 16 reviewed "Selected
+  Companies Analysis" observations with filing URLs, advisors, target
+  financials, and still-public flags for banker-selected comps
+  (`manual_deals.example.json` is the template for adding more). The set
+  splits into 10 dev deals (all industrials; these drove development
+  iterations) and 6 holdout deals added later across IT services, SaaS,
+  environmental services, consumer beverages, and healthcare services —
+  holdout deals must not drive tuning decisions.
 - `eval/ground_truth_builder.py` is experimental: it prefills
   `eval/ground_truth/manual_deals.review.json` from merger-proxy filings; a
   human must verify every field before promoting entries into
@@ -247,14 +251,34 @@ step.
   as directional quality signals, not audited ground truth.
 
 The discovery ladder — each rung a separately measured upgrade on the same
-10-deal benchmark — currently stands at:
+benchmark — currently stands at:
 
-| Discovery mode | Mean P@15 | Discovery-layer losses | Status |
-| --- | ---: | ---: | --- |
-| `single-sic` | 8.2% | 58 | baseline |
-| `sic+embedding` | 9.8% | 54 | optional |
-| `suggest-sic` | 19.3% | 43 | **recommended** |
-| `suggest-sic+embedding` | 15.3% | 42 | experimental |
+| Discovery mode | Mean P@15 | Discovery-layer losses | Benchmark | Status |
+| --- | ---: | ---: | --- | --- |
+| `single-sic` | 9.3% | 84 | 16 deals | baseline |
+| `sic+embedding` | 9.8% | 54 | 10 deals | optional |
+| `suggest-sic` | 19.3% | 43 | 10 deals | **recommended** |
+| `suggest-sic+embedding` | 15.3% | 42 | 10 deals | experimental |
+
+Only the `single-sic` baseline has been re-measured on the expanded 16-deal
+benchmark (dev 9.4% / holdout 9.0% — no dev/holdout gap at this rung); the
+other rungs still show 10-deal numbers until re-run, so compare rungs within
+the same benchmark column only.
+
+Benchmark regressions are caught by a baseline gate: after any change, re-run
+the eval and compare against the committed snapshot in `eval/baselines/` —
+
+```bash
+python -m scripts.evaluate_manual_deals            # writes results.json
+python -m scripts.check_eval_regression            # non-zero exit on regression
+python -m scripts.check_eval_regression --update-baseline  # bless intended changes
+```
+
+The gate hard-fails on mean-precision drops beyond a tolerance (default 1pp —
+market data drifts daily), lost waterfall hits, any increase in
+`low_confidence_filtered`, and any deal losing all its hits; baseline updates
+are a deliberate, reviewable act rather than a side effect of running the
+eval.
 
 The hybrid rung is a deliberate negative result: coverage improved but
 ranking diluted, and a three-point ablation traced the binding constraint to

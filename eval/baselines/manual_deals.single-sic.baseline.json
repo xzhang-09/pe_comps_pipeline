@@ -1,0 +1,140 @@
+{
+ "discovery_mode": "single-sic",
+ "k": 15,
+ "created": "2026-07-14",
+ "n_deals": 16,
+ "metrics": {
+  "mean_precision": 0.09281961502549738,
+  "median_precision": 0.0625,
+  "mean_reachable_precision": 0.9259259259259258
+ },
+ "coverage_waterfall": {
+  "hit": 9,
+  "ranked_but_not_top_k": 2,
+  "no_valid_ev_ebitda": 3,
+  "financial_filtered": 18,
+  "not_in_sic_universe": 84
+ },
+ "splits": {
+  "dev": [
+   "barnes-group-2024",
+   "chase-corp-2023",
+   "circor-international-2023",
+   "haynes-international-2024",
+   "kaman-2024",
+   "l-s-starrett-2024",
+   "manitex-2024",
+   "masonite-2024",
+   "pgt-innovations-2024",
+   "universal-stainless-2024"
+  ],
+  "holdout": [
+   "duckhorn-portfolio-inc-2024",
+   "perficient-inc-2024",
+   "r1-rcm-inc-de-2024",
+   "smartsheet-inc-2024",
+   "squarespace-inc-2024",
+   "stericycle-inc-2024"
+  ]
+ },
+ "per_deal": {
+  "manitex-2024": {
+   "precision": 0.0,
+   "hits": [],
+   "n_eligible": 4
+  },
+  "pgt-innovations-2024": {
+   "precision": 0.125,
+   "hits": [
+    "GFF"
+   ],
+   "n_eligible": 8
+  },
+  "circor-international-2023": {
+   "precision": 0.14285714285714285,
+   "hits": [
+    "CR"
+   ],
+   "n_eligible": 7
+  },
+  "kaman-2024": {
+   "precision": 0.0,
+   "hits": [],
+   "n_eligible": 8
+  },
+  "barnes-group-2024": {
+   "precision": 0.07692307692307693,
+   "hits": [
+    "CR"
+   ],
+   "n_eligible": 13
+  },
+  "haynes-international-2024": {
+   "precision": 0.0,
+   "hits": [],
+   "n_eligible": 3
+  },
+  "universal-stainless-2024": {
+   "precision": 0.3333333333333333,
+   "hits": [
+    "CRS"
+   ],
+   "n_eligible": 3
+  },
+  "l-s-starrett-2024": {
+   "precision": 0.0,
+   "hits": [],
+   "n_eligible": 4
+  },
+  "masonite-2024": {
+   "precision": 0.2,
+   "hits": [
+    "FBIN"
+   ],
+   "n_eligible": 5
+  },
+  "chase-corp-2023": {
+   "precision": 0.0625,
+   "hits": [
+    "CSW"
+   ],
+   "n_eligible": 16
+  },
+  "perficient-inc-2024": {
+   "precision": 0.25,
+   "hits": [
+    "EPAM"
+   ],
+   "n_eligible": 4
+  },
+  "squarespace-inc-2024": {
+   "precision": 0.0,
+   "hits": [],
+   "n_eligible": 5
+  },
+  "smartsheet-inc-2024": {
+   "precision": 0.058823529411764705,
+   "hits": [
+    "PAYC"
+   ],
+   "n_eligible": 17
+  },
+  "stericycle-inc-2024": {
+   "precision": 0.14285714285714285,
+   "hits": [
+    "CLH"
+   ],
+   "n_eligible": 7
+  },
+  "duckhorn-portfolio-inc-2024": {
+   "precision": null,
+   "hits": [],
+   "n_eligible": 0
+  },
+  "r1-rcm-inc-de-2024": {
+   "precision": 0.0,
+   "hits": [],
+   "n_eligible": 12
+  }
+ }
+}
