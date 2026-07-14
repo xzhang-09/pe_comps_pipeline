@@ -14,7 +14,8 @@ outputs/
 logs/
 run_backups/
 
-# Local Claude Code tool permissions (machine/session-specific allowlist),
-# not project configuration.
-.claude/settings.local.json
-instruction/
+# Local Claude Code configuration (machine/session-specific, not project config).
+.claude/
+
+# Build artifacts.
+*.egg-info/
