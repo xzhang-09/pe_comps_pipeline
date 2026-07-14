@@ -1,5 +1,16 @@
 # Manual Eval Coverage Analysis
 
+> **Historical note (superseded).** This records the *first* manual-deals
+> benchmark iteration — a 9-deal set, 2026-07-03/05 — before two later
+> rounds of expansion (10 deals with the discovery ladder and coverage
+> waterfall; then 16 deals with a dev/holdout split). Every number below is
+> superseded; none of it reflects the current benchmark. For current
+> methodology, numbers, and open items, see
+> [`known_limitations_and_roadmap.md`](known_limitations_and_roadmap.md).
+> Kept for its still-relevant diagnostic framing (discovery-vs-ranking
+> attribution) and the GAAP-vs-adjusted-EBITDA example (Ducommun/Rogers)
+> near the end, which isn't duplicated elsewhere.
+
 This note captures why the first full manual-deals evaluation produced
 `0.0%` Precision@15 and what to improve next. It is based on the run written to
 `eval/results.md` and `outputs/eval/manual_deals/results.json` on 2026-07-03.

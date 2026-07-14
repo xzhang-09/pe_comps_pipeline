@@ -182,11 +182,21 @@ config.yaml
    additional FMP calls, and missing values never disqualify a company.
 3. **LLM Analyzer** (`src/llm_analyzer.py`) — OpenAI extracts business-model
    fields per company, citing a verbatim `evidence_quote` from the source
-   description, then a second model pass judges extraction quality. The
-   quote is checked programmatically (substring match, whitespace-
-   normalized) rather than trusted — a hallucinated quote, or missing core
-   business-profile fields, forces `low_confidence_flag=True` regardless of
-   the judge score. Checkpoints to
+   description, then a second model pass judges extraction quality against a
+   behaviorally-anchored rubric (concrete pass/fail criteria and worked
+   examples per score band, not bare adjectives — the earlier version had
+   collapsed almost every score to 4-5 with no discriminative power). The
+   quote is checked programmatically (substring match, whitespace-normalized)
+   rather than trusted. Two distinct signals are kept separate:
+   `low_confidence_flag` (unverifiable evidence or a failing judge score)
+   hard-excludes a candidate from the eligible pool, since the extraction
+   itself may be wrong; `profile_incomplete` (one or more core fields came
+   back null — common for terser small-cap filings) keeps the candidate in
+   the pool with unknown fields exempted from mismatch penalties, only
+   blocking it from the Core tier. A targeted one-field-at-a-time follow-up
+   call (`FOLLOWUP_FIELDS`) re-asks just the missing fields, with an explicit
+   "unknown" option per field, before falling back to `profile_incomplete`.
+   Checkpoints to
    `data/checkpoints/llm_checkpoint.json` for resumable runs; entries are
    invalidated by content (description hash + extraction model), not just
    ticker. `suggest_sic_codes()` is a separate, advisory-only entry point
@@ -208,7 +218,15 @@ config.yaml
    in `src/report_selection.py`, valuation math (implied-EV ranges, size
    screens, dispersion diagnostics) in `src/report_valuation.py`, and the
    SVG charts in `src/report_charts.py`; `reporter.py` composes them into
-   the report context and writes the outputs.
+   the report context and writes the outputs. A finished Top-N's borderline
+   rows get one more check from `src/end_market_reviewer.py`: an LLM verdict
+   on end-market alignment corrects both directions — a would-be Core row
+   whose embedding-similarity score cleared the threshold on generic
+   language (e.g. two "highly engineered products" companies in unrelated
+   end markets) gets demoted, and a row blocked only by a marginal
+   similarity shortfall can get promoted. Tier moves stay within
+   core/secondary; the underlying score is untouched, and an API failure
+   changes nothing.
 
 `src/fmp_client.py` and `src/sic_universe_builder.py` aren't numbered above —
 they're thin data-source clients called *by* the numbered stage modules, not
@@ -250,6 +268,16 @@ step.
 - The generated report uses run diagnostics and LLM-assisted comp-fit review
   as directional quality signals, not audited ground truth.
 
+Report-quality fixes shipped and validated against the benchmark below (not
+just spot-checked on the demo target): the `low_confidence_flag` /
+`profile_incomplete` split and targeted follow-up (`src/llm_analyzer.py`)
+stopped small-cap comps with one terse field from being silently dropped;
+the end-market LLM review (`src/end_market_reviewer.py`) corrects Core-tier
+false positives/negatives that embedding-similarity alone missed; the
+extraction judge's rubric rewrite replaced adjective-only scoring (which had
+collapsed to near-universal 4-5s) with behaviorally-anchored score bands and
+worked examples.
+
 The discovery ladder — each rung a separately measured upgrade on the same
 benchmark — currently stands at:
 
@@ -262,8 +290,15 @@ benchmark — currently stands at:
 
 Only the `single-sic` baseline has been re-measured on the expanded 16-deal
 benchmark (dev 9.4% / holdout 9.0% — no dev/holdout gap at this rung); the
-other rungs still show 10-deal numbers until re-run, so compare rungs within
-the same benchmark column only.
+other three rungs still show 10-deal-vintage numbers. Re-measuring them was
+attempted on 2026-07-14 and interrupted mid-run by FMP's free-tier daily
+quota (`evaluate_manual_deals` only writes output after its full deal loop
+finishes, so the interrupted attempt produced zero usable results). The
+resume path is batched runs — `evaluate_manual_deals --deals <subset>
+--output-json <batch file>` per quota window, combined with
+`scripts/merge_manual_deal_batches.py` — so a future interruption loses at
+most one batch instead of the whole run. Until that happens, compare rungs
+within the same benchmark column only.
 
 Benchmark regressions are caught by a baseline gate: after any change, re-run
 the eval and compare against the committed snapshot in `eval/baselines/` —
