@@ -379,7 +379,7 @@ CSV_COLUMNS = (
     "residual_abs", "ebitda_margin", "gross_margin", "revenue_ttm_usd_mm",
     "revenue_cagr_3yr", "net_debt_ebitda", "business_model", "customer_type",
     "capital_intensity", "sub_sector_description", "tier", "fit_notes",
-    "judge_score", "low_confidence_flag", "candidate_source",
+    "judge_score", "low_confidence_flag", "profile_incomplete", "candidate_source",
 )
 
 
@@ -500,6 +500,7 @@ def _top15_table(companies_by_ticker: dict, llm_features: dict, company_scores: 
             "sub_sector_description": llm.get("sub_sector_description"),
             "judge_score": llm.get("judge_score"),
             "low_confidence_flag": bool(llm.get("low_confidence_flag", False)),
+            "profile_incomplete": bool(llm.get("profile_incomplete", False)),
             "fit_flag": None,
             "market_cap_usd_mm": company.get("market_cap_usd_mm"),
             "net_debt_usd_mm": _net_debt_usd_mm(company),
@@ -795,6 +796,7 @@ def _annotate_top_rows(
             penalty["business_model_penalty"]
             or penalty["customer_type_penalty"]
             or penalty["subsector_penalty"]
+            or penalty["profile_incomplete"]
             or size_blocks_core
         )
         row["tier"] = _assign_tier(row["fit_flag"], row["outlier_flag"], has_mismatch)
@@ -944,6 +946,7 @@ def _near_miss_review_payload(audit_trail: list[dict], companies_by_ticker: dict
             "sub_sector_description": llm.get("sub_sector_description"),
             "judge_score": llm.get("judge_score"),
             "low_confidence_flag": bool(llm.get("low_confidence_flag", False)),
+            "profile_incomplete": bool(llm.get("profile_incomplete", False)),
         }
         rows.append(_review_candidate_payload(row, "near_miss", audit.get("reasons")))
     return rows

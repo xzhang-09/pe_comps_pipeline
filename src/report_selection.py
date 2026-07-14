@@ -50,7 +50,9 @@ def _assign_tier(fit_flag: str | None, outlier_flag: bool, has_mismatch: bool) -
     """
     has_mismatch is any core-blocking signal (see reporter._annotate_top_rows):
     a business-model or customer-type mismatch, any end-market similarity
-    shortfall, or a revenue gap beyond CORE_MAX_LOG10_REVENUE_GAP. It caps a
+    shortfall, an incomplete business profile (missing extraction fields —
+    unknown isn't penalized as a mismatch but shouldn't anchor the Core
+    tier), or a revenue gap beyond CORE_MAX_LOG10_REVENUE_GAP. It caps a
     comp at secondary even when the LLM review calls it a strongest fit. A
     comp with none of those blockers is core even if the qualitative review
     did not include it in the limited "top_fits" callouts; otherwise the Core
@@ -155,20 +157,33 @@ def _penalty_breakdown(
     subsector_similarity = subsector_similarities.get(ticker)
     subsector_threshold = penalties["subsector_similarity_threshold"]
 
+    # A candidate-side None is "unknown", not a mismatch: penalizing it would
+    # equate a terse 10-K description with an actual B2C/asset-light profile.
+    # Unknown fields instead surface via profile_incomplete below (a Core-tier
+    # blocker with a fit note, no distance penalty).
     business_model_penalty = (
         penalties["business_model_penalty"]
-        if apply_business_model_penalty and candidate_business_model != target_business_model
+        if apply_business_model_penalty and candidate_business_model is not None
+        and candidate_business_model != target_business_model
         else 0.0
     )
     customer_type_penalty = (
         penalties["customer_type_penalty"]
-        if apply_customer_type_penalty and candidate_customer_type != target_customer_type
+        if apply_customer_type_penalty and candidate_customer_type is not None
+        and candidate_customer_type != target_customer_type
         else 0.0
     )
     size_penalty = _size_mismatch_penalty(candidate_revenue, target_revenue, penalties)
     subsector_penalty = _subsector_mismatch_penalty(subsector_similarity, penalties)
 
+    profile_incomplete = bool(llm.get("profile_incomplete"))
+    missing_fields = [f for f in llm_analyzer.CORE_PROFILE_FIELDS if llm.get(f) is None]
+
     reasons = []
+    if profile_incomplete and missing_fields:
+        reasons.append(
+            f"business profile incomplete ({', '.join(missing_fields)} unavailable; kept in pool, Core tier blocked)"
+        )
     if business_model_penalty:
         reasons.append(f"business model mismatch ({candidate_business_model} vs target's {target_business_model})")
     if customer_type_penalty:
@@ -199,6 +214,7 @@ def _penalty_breakdown(
         "size_penalty": size_penalty,
         "size_log10_gap": _size_log10_gap(candidate_revenue, target_revenue),
         "subsector_penalty": subsector_penalty,
+        "profile_incomplete": profile_incomplete,
         "reasons": reasons,
     }
 

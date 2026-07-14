@@ -279,6 +279,7 @@ def _failed_result() -> dict:
         "judge_score": None,
         "judge_reason": None,
         "low_confidence_flag": False,
+        "profile_incomplete": True,
         "extraction_failed": True,
     }
 
@@ -339,11 +340,17 @@ def _extract_and_judge(client, ticker: str, company_name: str, business_descript
     result["evidence_verified"] = evidence_verified
     result["judge_score"] = judge_score
     result["judge_reason"] = judge_reason
+    # An incomplete profile (some fields extracted as null) is a coverage
+    # problem, not an extraction-quality problem: the candidate stays in the
+    # eligible pool with the missing fields treated as unknown (no mismatch
+    # penalty, blocked from the Core tier). low_confidence_flag — which hard
+    # excludes from the pool — is reserved for signals that the extraction
+    # itself may be wrong: unverifiable evidence or a failing judge score.
     result["low_confidence_flag"] = (
         not evidence_verified
-        or not core_profile_complete
         or (judge_score is not None and judge_score < judge_threshold)
     )
+    result["profile_incomplete"] = not core_profile_complete
     result["extraction_failed"] = False
     return result
 
@@ -393,9 +400,22 @@ def analyze_batch(companies: list[dict], config: PipelineConfig | dict) -> dict[
                 entry["extraction_model"] = extraction_model
                 entry["prompt_version"] = PROMPT_VERSION
                 checkpoint_dirty = True
-            if not entry.get("extraction_failed") and not _core_profile_complete(entry):
-                entry["low_confidence_flag"] = True
-                checkpoint_dirty = True
+            if not entry.get("extraction_failed"):
+                # Recompute both flags from entry content on reuse: entries
+                # written before the profile_incomplete/low_confidence split
+                # (including ones stamped low-confidence purely for missing
+                # fields) get corrected without a re-extraction.
+                judge_score = entry.get("judge_score")
+                low_confidence = (
+                    not entry.get("evidence_verified", True)
+                    or (judge_score is not None and judge_score < cfg.llm.judge_threshold)
+                )
+                profile_incomplete = not _core_profile_complete(entry)
+                if (entry.get("low_confidence_flag") != low_confidence
+                        or entry.get("profile_incomplete") != profile_incomplete):
+                    entry["low_confidence_flag"] = low_confidence
+                    entry["profile_incomplete"] = profile_incomplete
+                    checkpoint_dirty = True
             logger.debug(f"{ticker} — skipped (already in checkpoint)")
             results[ticker] = entry
             continue

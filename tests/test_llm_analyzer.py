@@ -114,7 +114,10 @@ def test_high_judge_score_does_not_set_flag(mocker, sample_config):
     assert results["EEE"]["evidence_verified"] is True
 
 
-def test_missing_core_extraction_fields_sets_low_confidence_even_with_high_judge_score(mocker, sample_config):
+def test_missing_core_extraction_fields_marks_profile_incomplete_not_low_confidence(mocker, sample_config):
+    """Missing fields are a coverage problem, not an extraction-quality one:
+    the candidate keeps its eligibility (no low_confidence hard exclusion)
+    but is tagged profile_incomplete, which blocks the Core tier downstream."""
     empty_extraction = json.dumps({
         "business_model": None,
         "revenue_recurrence": None,
@@ -132,7 +135,8 @@ def test_missing_core_extraction_fields_sets_low_confidence_even_with_high_judge
 
     assert results["EMPTY"]["extraction_failed"] is False
     assert results["EMPTY"]["judge_score"] == 5
-    assert results["EMPTY"]["low_confidence_flag"] is True
+    assert results["EMPTY"]["low_confidence_flag"] is False
+    assert results["EMPTY"]["profile_incomplete"] is True
 
 
 def test_checkpoint_skips_analyzed_ticker(mocker, sample_config):
@@ -211,7 +215,7 @@ def test_checkpoint_reuses_when_description_and_model_match(mocker, sample_confi
     assert results["AAA"]["business_model"] == "services"
 
 
-def test_reused_checkpoint_entry_missing_core_fields_is_marked_low_confidence(mocker, sample_config):
+def test_reused_checkpoint_entry_missing_core_fields_is_marked_profile_incomplete(mocker, sample_config):
     client = _mock_client(mocker, [])
 
     llm_analyzer._save_checkpoint({
@@ -232,7 +236,37 @@ def test_reused_checkpoint_entry_missing_core_fields_is_marked_low_confidence(mo
     results = llm_analyzer.analyze_batch([_company("EMPTY")], sample_config)
 
     client.responses.parse.assert_not_called()
-    assert results["EMPTY"]["low_confidence_flag"] is True
+    assert results["EMPTY"]["low_confidence_flag"] is False
+    assert results["EMPTY"]["profile_incomplete"] is True
+
+
+def test_reused_checkpoint_entry_stamped_low_confidence_for_missing_fields_is_corrected(mocker, sample_config):
+    """Entries the pre-split code marked low-confidence purely for an
+    incomplete profile regain eligibility on reuse, without a re-extraction."""
+    client = _mock_client(mocker, [])
+
+    llm_analyzer._save_checkpoint({
+        "HLIO": {
+            "business_model": "manufacturing",
+            "customer_type": None,
+            "capital_intensity": "asset_heavy",
+            "primary_value_driver": "products",
+            "sub_sector_description": "Hydraulic motion control products.",
+            "evidence_verified": True,
+            "judge_score": 5,
+            "extraction_failed": False,
+            "low_confidence_flag": True,
+            "description_sha256": llm_analyzer._description_fingerprint(DEFAULT_DESCRIPTION),
+            "extraction_model": sample_config["llm"]["extraction_model"],
+            "prompt_version": llm_analyzer.PROMPT_VERSION,
+        },
+    })
+
+    results = llm_analyzer.analyze_batch([_company("HLIO")], sample_config)
+
+    client.responses.parse.assert_not_called()
+    assert results["HLIO"]["low_confidence_flag"] is False
+    assert results["HLIO"]["profile_incomplete"] is True
 
 
 def test_legacy_checkpoint_entry_reextracted_for_structured_output_contract(mocker, sample_config):
@@ -399,7 +433,8 @@ def test_null_business_model_does_not_require_evidence(mocker, sample_config):
     result = results["III"]
 
     assert result["evidence_verified"] is True
-    assert result["low_confidence_flag"] is True
+    assert result["low_confidence_flag"] is False
+    assert result["profile_incomplete"] is True
 
 
 def _config_with_target_description(sample_config, description=DEFAULT_DESCRIPTION):
