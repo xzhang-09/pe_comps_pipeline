@@ -337,7 +337,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--output-json", default=str(DEFAULT_OUTPUT_JSON), help="Machine-readable results JSON path.")
     parser.add_argument("--results-md", default=str(evaluator.RESULTS_PATH), help="Markdown report path.")
     parser.add_argument("--k", type=int, default=evaluator.TOP_K, help="Precision@K cutoff.")
-    parser.add_argument("--skip-size-validation", action="store_true", help="Allow evaluating fewer/more than the audited 8-10 deal set.")
+    parser.add_argument("--skip-size-validation", action="store_true", help="Allow evaluating fewer/more than the audited 8-20 deal set.")
     parser.add_argument(
         "--deals",
         default=None,

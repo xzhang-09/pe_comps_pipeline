@@ -201,11 +201,14 @@ def test_published_manual_deals_dataset_satisfies_benchmark_requirements():
     summary = evaluator.validate_manual_deals_benchmark(deals)
 
     assert summary == {
-        "n_deals": 10,
-        "reviewed_deals": 10,
-        "target_sic_codes": ["2430", "2891", "3310", "3312", "3420", "3442", "3490", "3559", "3728"],
-        "eligible_public_comps": 85,
-        "excluded_delisted_comps": 11,
+        "n_deals": 16,
+        "reviewed_deals": 16,
+        "target_sic_codes": [
+            "2080", "2430", "2891", "3310", "3312", "3420", "3442", "3490",
+            "3559", "3728", "4955", "7371", "7372", "8741",
+        ],
+        "eligible_public_comps": 151,
+        "excluded_delisted_comps": 12,
     }
 
 

@@ -1,820 +1,1342 @@
 [
-  {
-    "deal_id": "manitex-2024",
-    "target_ticker": "MNTX",
-    "target_name": "Manitex International, Inc.",
-    "target_cik": "0001302028",
-    "target_sic": "3559",
-    "business_description": "Manufactures truck cranes, industrial lifting equipment, and related specialized material-handling products.",
-    "target_financials": {
-      "revenue_usd_mm": 324.502,
-      "ebitda_margin_estimate": 0.134,
-      "source": "DEFM14A Certain Unaudited Company Forecasts, updated 2025P sales $324.502mm and adjusted EBITDA $43.624mm"
-    },
-    "filing_url": "https://www.sec.gov/Archives/edgar/data/1302028/000119312524262120/d887136ddefm14a.htm",
-    "filing_date": "2024-11-12",
-    "advisor": "Brown Gibbons Lang & Company",
-    "selected_companies": [
-      {
-        "company_name": "Cargotec Corporation",
-        "ticker": "CGCBV.HE",
-        "still_public": true,
-        "us_filer": false
-      },
-      {
-        "company_name": "The Manitowoc Company, Inc.",
-        "ticker": "MTW",
-        "still_public": true,
-        "us_filer": true
-      },
-      {
-        "company_name": "Palfinger AG",
-        "ticker": "PAL.VI",
-        "still_public": true,
-        "us_filer": false
-      },
-      {
-        "company_name": "Tadano Ltd.",
-        "ticker": "6395.T",
-        "still_public": true,
-        "us_filer": false
-      },
-      {
-        "company_name": "Terex Corporation",
-        "ticker": "TEX",
-        "still_public": true,
-        "us_filer": true
-      },
-      {
-        "company_name": "Ashtead Group plc",
-        "ticker": "AHT.L",
-        "still_public": true,
-        "us_filer": false
-      },
-      {
-        "company_name": "H&E Equipment Services, Inc.",
-        "ticker": "HEES",
-        "still_public": false,
-        "us_filer": false
-      },
-      {
-        "company_name": "Herc Holdings Inc.",
-        "ticker": "HRI",
-        "still_public": true,
-        "us_filer": true
-      },
-      {
-        "company_name": "United Rentals, Inc.",
-        "ticker": "URI",
-        "still_public": true,
-        "us_filer": true
-      }
-    ],
-    "review_status": "reviewed",
-    "notes": "BGL used OEM and equipment-rental comparable groups. H&E is marked not independently public because it was subsequently acquired by Herc. us_filer flags audited 2026-07-04 via SEC listings: Cargotec/Palfinger/Tadano/Ashtead are foreign-listed non-10-K filers."
+ {
+  "deal_id": "manitex-2024",
+  "target_ticker": "MNTX",
+  "target_name": "Manitex International, Inc.",
+  "target_cik": "0001302028",
+  "target_sic": "3559",
+  "business_description": "Manufactures truck cranes, industrial lifting equipment, and related specialized material-handling products.",
+  "target_financials": {
+   "revenue_usd_mm": 324.502,
+   "ebitda_margin_estimate": 0.134,
+   "source": "DEFM14A Certain Unaudited Company Forecasts, updated 2025P sales $324.502mm and adjusted EBITDA $43.624mm"
   },
-  {
-    "deal_id": "pgt-innovations-2024",
-    "target_ticker": "PGTI",
-    "target_name": "PGT Innovations, Inc.",
-    "target_cik": "0001354327",
-    "target_sic": "3442",
-    "business_description": "Manufactures premium impact-resistant vinyl and aluminum windows and doors for residential new construction and repair/remodel markets, primarily in Florida and the southeastern U.S., under brands including PGT, CGI, WinDoor, Western Window Systems and Anlin, sold through dealers and distributors.",
-    "target_financials": {
-      "revenue_usd_mm": 1717.0,
-      "ebitda_margin_estimate": 0.181,
-      "source": "DEFM14A 'PGTI Management Financial Projections', PGTI (Combined) table: 2024E revenue $1,717mm, Adjusted EBITDA $310mm (core business only: $1,681mm/$310mm)."
-    },
-    "filing_url": "https://www.sec.gov/Archives/edgar/data/1354327/000119312524036596/d728177ddefm14a.htm",
-    "filing_date": "2024-02-14",
-    "advisor": "Evercore Group L.L.C.",
-    "selected_companies": [
-      {
-        "company_name": "Apogee Enterprises, Inc.",
-        "ticker": "APOG",
-        "still_public": true,
-        "us_filer": true
-      },
-      {
-        "company_name": "Fortune Brands Innovations, Inc.",
-        "ticker": "FBIN",
-        "still_public": true,
-        "us_filer": true
-      },
-      {
-        "company_name": "Griffon Corporation",
-        "ticker": "GFF",
-        "still_public": true,
-        "us_filer": true
-      },
-      {
-        "company_name": "James Hardie Industries plc",
-        "ticker": "JHX",
-        "still_public": true,
-        "us_filer": true,
-        "note": "Irish-domiciled, NYSE-listed; files 10-K following its 2025 US domestication (previously 20-F)"
-      },
-      {
-        "company_name": "JELD-WEN Holding, Inc.",
-        "ticker": "JELD",
-        "still_public": true,
-        "us_filer": true
-      },
-      {
-        "company_name": "Masonite International Corporation",
-        "ticker": "DOOR",
-        "still_public": false,
-        "us_filer": false,
-        "note": "Acquired by Owens Corning, closed May 2024; also a target deal in this benchmark (masonite-2024)"
-      },
-      {
-        "company_name": "Quanex Building Products Corporation",
-        "ticker": "NX",
-        "still_public": true,
-        "us_filer": true
-      },
-      {
-        "company_name": "Tecnoglass Inc.",
-        "ticker": "TGLS",
-        "still_public": true,
-        "us_filer": true,
-        "note": "Colombia-based but a US domestic filer (10-K)"
-      },
-      {
-        "company_name": "The AZEK Company Inc.",
-        "ticker": "AZEK",
-        "still_public": false,
-        "us_filer": false,
-        "note": "Acquired by James Hardie, closed 2025"
-      },
-      {
-        "company_name": "Trex Company, Inc.",
-        "ticker": "TREX",
-        "still_public": true,
-        "us_filer": true
-      }
-    ],
-    "review_status": "reviewed",
-    "notes": "Audited against the filing on 2026-07-04. Evercore's 'Selected Public Company Trading Analysis' 10-company North America building products list verified verbatim. Acquired by MITER Brands, closed March 2024 (after a competing topping bid from Masonite was withdrawn). EDGAR SIC 3442 (Metal Doors, Sash & Trim) matches the business. Replaces desktop-metal-2024 in the benchmark: DM's eligible denominator collapsed to 1 after us_filer auditing (Kornit/Stratasys are 20-F filers), making it uninformative for Precision@K."
+  "filing_url": "https://www.sec.gov/Archives/edgar/data/1302028/000119312524262120/d887136ddefm14a.htm",
+  "filing_date": "2024-11-12",
+  "advisor": "Brown Gibbons Lang & Company",
+  "selected_companies": [
+   {
+    "company_name": "Cargotec Corporation",
+    "ticker": "CGCBV.HE",
+    "still_public": true,
+    "us_filer": false
+   },
+   {
+    "company_name": "The Manitowoc Company, Inc.",
+    "ticker": "MTW",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "Palfinger AG",
+    "ticker": "PAL.VI",
+    "still_public": true,
+    "us_filer": false
+   },
+   {
+    "company_name": "Tadano Ltd.",
+    "ticker": "6395.T",
+    "still_public": true,
+    "us_filer": false
+   },
+   {
+    "company_name": "Terex Corporation",
+    "ticker": "TEX",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "Ashtead Group plc",
+    "ticker": "AHT.L",
+    "still_public": true,
+    "us_filer": false
+   },
+   {
+    "company_name": "H&E Equipment Services, Inc.",
+    "ticker": "HEES",
+    "still_public": false,
+    "us_filer": false
+   },
+   {
+    "company_name": "Herc Holdings Inc.",
+    "ticker": "HRI",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "United Rentals, Inc.",
+    "ticker": "URI",
+    "still_public": true,
+    "us_filer": true
+   }
+  ],
+  "review_status": "reviewed",
+  "notes": "BGL used OEM and equipment-rental comparable groups. H&E is marked not independently public because it was subsequently acquired by Herc. us_filer flags audited 2026-07-04 via SEC listings: Cargotec/Palfinger/Tadano/Ashtead are foreign-listed non-10-K filers."
+ },
+ {
+  "deal_id": "pgt-innovations-2024",
+  "target_ticker": "PGTI",
+  "target_name": "PGT Innovations, Inc.",
+  "target_cik": "0001354327",
+  "target_sic": "3442",
+  "business_description": "Manufactures premium impact-resistant vinyl and aluminum windows and doors for residential new construction and repair/remodel markets, primarily in Florida and the southeastern U.S., under brands including PGT, CGI, WinDoor, Western Window Systems and Anlin, sold through dealers and distributors.",
+  "target_financials": {
+   "revenue_usd_mm": 1717.0,
+   "ebitda_margin_estimate": 0.181,
+   "source": "DEFM14A 'PGTI Management Financial Projections', PGTI (Combined) table: 2024E revenue $1,717mm, Adjusted EBITDA $310mm (core business only: $1,681mm/$310mm)."
   },
-  {
-    "deal_id": "circor-international-2023",
-    "target_ticker": "CIK1091883",
-    "target_name": "CIRCOR International, Inc.",
-    "target_cik": "0001091883",
-    "target_sic": "3490",
-    "business_description": "One of the world's leading providers of mission-critical flow control products and services (severe-service pumps, valves and related components) for Industrial and Aerospace & Defense markets, sold directly and through distribution to ~14,000 customers in ~100 countries.",
-    "target_financials": {
-      "revenue_usd_mm": 920.0,
-      "ebitda_margin_estimate": 0.174,
-      "source": "DEFM14A 'Certain Unaudited Prospective Financial Information' Management Forecasts table, 2024E revenue $920mm and adj. EBITDA $160mm"
-    },
-    "filing_url": "https://www.sec.gov/Archives/edgar/data/1091883/000114036123034666/ny20009611x2_defm14a.htm",
-    "filing_date": "2023-07-17",
-    "advisor": "Evercore Group L.L.C. / J.P. Morgan Securities LLC (identical selected-companies sets)",
-    "selected_companies": [
-      {
-        "company_name": "Smiths Group plc",
-        "ticker": "SMIN.L",
-        "still_public": true,
-        "us_filer": false
-      },
-      {
-        "company_name": "Woodward, Inc.",
-        "ticker": "WWD",
-        "still_public": true,
-        "us_filer": true
-      },
-      {
-        "company_name": "Curtiss-Wright Corporation",
-        "ticker": "CW",
-        "still_public": true,
-        "us_filer": true
-      },
-      {
-        "company_name": "ITT Inc.",
-        "ticker": "ITT",
-        "still_public": true,
-        "us_filer": true
-      },
-      {
-        "company_name": "IMI plc",
-        "ticker": "IMI.L",
-        "still_public": true,
-        "us_filer": false
-      },
-      {
-        "company_name": "Flowserve Corporation",
-        "ticker": "FLS",
-        "still_public": true,
-        "us_filer": true
-      },
-      {
-        "company_name": "Crane Company",
-        "ticker": "CR",
-        "still_public": true,
-        "us_filer": true
-      },
-      {
-        "company_name": "Moog, Inc.",
-        "ticker": "MOG-A",
-        "still_public": true,
-        "us_filer": true
-      },
-      {
-        "company_name": "Rotork plc",
-        "ticker": "ROR.L",
-        "still_public": true,
-        "us_filer": false
-      },
-      {
-        "company_name": "Triumph Group, Inc.",
-        "ticker": "TGI",
-        "still_public": false,
-        "us_filer": false
-      },
-      {
-        "company_name": "Gorman-Rupp Company",
-        "ticker": "GRC",
-        "still_public": true,
-        "us_filer": true
-      }
-    ],
-    "review_status": "reviewed",
-    "notes": "Audited against the filing on 2026-07-04. Evercore and J.P. Morgan each rendered a fairness opinion with an identical 11-company selected set; Evercore's list order kept. Triumph Group delisted 2025 (take-private). Smiths/IMI/Rotork are LSE-listed non-US-filers (us_filer=false, outside the EDGAR data contract). EDGAR SIC is 3490; 3491/3561 are the more precise flow-control codes if the suggest-sic-codes flow is used for discovery."
+  "filing_url": "https://www.sec.gov/Archives/edgar/data/1354327/000119312524036596/d728177ddefm14a.htm",
+  "filing_date": "2024-02-14",
+  "advisor": "Evercore Group L.L.C.",
+  "selected_companies": [
+   {
+    "company_name": "Apogee Enterprises, Inc.",
+    "ticker": "APOG",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "Fortune Brands Innovations, Inc.",
+    "ticker": "FBIN",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "Griffon Corporation",
+    "ticker": "GFF",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "James Hardie Industries plc",
+    "ticker": "JHX",
+    "still_public": true,
+    "us_filer": true,
+    "note": "Irish-domiciled, NYSE-listed; files 10-K following its 2025 US domestication (previously 20-F)"
+   },
+   {
+    "company_name": "JELD-WEN Holding, Inc.",
+    "ticker": "JELD",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "Masonite International Corporation",
+    "ticker": "DOOR",
+    "still_public": false,
+    "us_filer": false,
+    "note": "Acquired by Owens Corning, closed May 2024; also a target deal in this benchmark (masonite-2024)"
+   },
+   {
+    "company_name": "Quanex Building Products Corporation",
+    "ticker": "NX",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "Tecnoglass Inc.",
+    "ticker": "TGLS",
+    "still_public": true,
+    "us_filer": true,
+    "note": "Colombia-based but a US domestic filer (10-K)"
+   },
+   {
+    "company_name": "The AZEK Company Inc.",
+    "ticker": "AZEK",
+    "still_public": false,
+    "us_filer": false,
+    "note": "Acquired by James Hardie, closed 2025"
+   },
+   {
+    "company_name": "Trex Company, Inc.",
+    "ticker": "TREX",
+    "still_public": true,
+    "us_filer": true
+   }
+  ],
+  "review_status": "reviewed",
+  "notes": "Audited against the filing on 2026-07-04. Evercore's 'Selected Public Company Trading Analysis' 10-company North America building products list verified verbatim. Acquired by MITER Brands, closed March 2024 (after a competing topping bid from Masonite was withdrawn). EDGAR SIC 3442 (Metal Doors, Sash & Trim) matches the business. Replaces desktop-metal-2024 in the benchmark: DM's eligible denominator collapsed to 1 after us_filer auditing (Kornit/Stratasys are 20-F filers), making it uninformative for Precision@K."
+ },
+ {
+  "deal_id": "circor-international-2023",
+  "target_ticker": "CIK1091883",
+  "target_name": "CIRCOR International, Inc.",
+  "target_cik": "0001091883",
+  "target_sic": "3490",
+  "business_description": "One of the world's leading providers of mission-critical flow control products and services (severe-service pumps, valves and related components) for Industrial and Aerospace & Defense markets, sold directly and through distribution to ~14,000 customers in ~100 countries.",
+  "target_financials": {
+   "revenue_usd_mm": 920.0,
+   "ebitda_margin_estimate": 0.174,
+   "source": "DEFM14A 'Certain Unaudited Prospective Financial Information' Management Forecasts table, 2024E revenue $920mm and adj. EBITDA $160mm"
   },
-  {
-    "deal_id": "kaman-2024",
-    "target_ticker": "KAMN",
-    "target_name": "Kaman Corporation",
-    "target_cik": "0000054381",
-    "target_sic": "3728",
-    "business_description": "Diversified aerospace and defense supplier: highly engineered products (bearings, seals, springs), precision products (fuzing and munitions), and aerostructures for commercial and military aircraft platforms, primarily B2B sole-source and OEM programs.",
-    "target_financials": {
-      "revenue_usd_mm": 775.9,
-      "ebitda_margin_estimate": 0.172,
-      "source": "Revenue: FY2023 actual net sales $775.9mm (last 10-K XBRL; the DEFM14A's 'Projections Prepared by the Company's Management' discloses segment growth rates and margins, not absolute P&L). Margin: proxy states 2024E adjusted EBITDA margin of 17.2%."
-    },
-    "filing_url": "https://www.sec.gov/Archives/edgar/data/54381/000114036124012403/ny20021849x2_defm14a.htm",
-    "filing_date": "2024-03-08",
-    "advisor": "J.P. Morgan Securities LLC",
-    "selected_companies": [
-      {
-        "company_name": "TransDigm Group Inc.",
-        "ticker": "TDG",
-        "still_public": true,
-        "us_filer": true
-      },
-      {
-        "company_name": "Heico Corp.",
-        "ticker": "HEI",
-        "still_public": true,
-        "us_filer": true
-      },
-      {
-        "company_name": "Regal Rexnord Corp.",
-        "ticker": "RRX",
-        "still_public": true,
-        "us_filer": true
-      },
-      {
-        "company_name": "RBC Bearings Inc.",
-        "ticker": "RBC",
-        "still_public": true,
-        "us_filer": true
-      },
-      {
-        "company_name": "Barnes Group Inc.",
-        "ticker": "B",
-        "still_public": false,
-        "us_filer": false,
-        "note": "Taken private by Apollo, closed Jan 2025; SEC ticker 'B' since reassigned to Barrick Mining"
-      },
-      {
-        "company_name": "Howmet Aerospace Inc.",
-        "ticker": "HWM",
-        "still_public": true,
-        "us_filer": true
-      },
-      {
-        "company_name": "Hexcel Corp.",
-        "ticker": "HXL",
-        "still_public": true,
-        "us_filer": true
-      },
-      {
-        "company_name": "Spirit AeroSystems Inc.",
-        "ticker": "SPR",
-        "still_public": false,
-        "us_filer": false,
-        "note": "Acquired by Boeing, closed 2025"
-      },
-      {
-        "company_name": "Albany International Corp.",
-        "ticker": "AIN",
-        "still_public": true,
-        "us_filer": true
-      },
-      {
-        "company_name": "Triumph Group Inc.",
-        "ticker": "TGI",
-        "still_public": false,
-        "us_filer": false,
-        "note": "Taken private (Warburg Pincus/Berkshire Partners), closed 2025"
-      },
-      {
-        "company_name": "Ducommun Inc.",
-        "ticker": "DCO",
-        "still_public": true,
-        "us_filer": true
-      }
-    ],
-    "review_status": "reviewed",
-    "notes": "Audited against the filing on 2026-07-04. J.P. Morgan sole advisor; 'Public Trading Multiples' list verified verbatim (Engineered Products 5 + Structures 6). Take-private by Arcline, closed April 2024. target_sic corrected to 3728 (Aircraft Parts & Auxiliary Equipment) from EDGAR's 3760 (Guided Missiles & Space Vehicles, kept in edgar_sic) \u2014 correction derived from the business description (bearings/aerostructures/fuzing for aircraft platforms), not from the comp list, so no answer leakage into discovery.",
-    "edgar_sic": "3760"
+  "filing_url": "https://www.sec.gov/Archives/edgar/data/1091883/000114036123034666/ny20009611x2_defm14a.htm",
+  "filing_date": "2023-07-17",
+  "advisor": "Evercore Group L.L.C. / J.P. Morgan Securities LLC (identical selected-companies sets)",
+  "selected_companies": [
+   {
+    "company_name": "Smiths Group plc",
+    "ticker": "SMIN.L",
+    "still_public": true,
+    "us_filer": false
+   },
+   {
+    "company_name": "Woodward, Inc.",
+    "ticker": "WWD",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "Curtiss-Wright Corporation",
+    "ticker": "CW",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "ITT Inc.",
+    "ticker": "ITT",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "IMI plc",
+    "ticker": "IMI.L",
+    "still_public": true,
+    "us_filer": false
+   },
+   {
+    "company_name": "Flowserve Corporation",
+    "ticker": "FLS",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "Crane Company",
+    "ticker": "CR",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "Moog, Inc.",
+    "ticker": "MOG-A",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "Rotork plc",
+    "ticker": "ROR.L",
+    "still_public": true,
+    "us_filer": false
+   },
+   {
+    "company_name": "Triumph Group, Inc.",
+    "ticker": "TGI",
+    "still_public": false,
+    "us_filer": false
+   },
+   {
+    "company_name": "Gorman-Rupp Company",
+    "ticker": "GRC",
+    "still_public": true,
+    "us_filer": true
+   }
+  ],
+  "review_status": "reviewed",
+  "notes": "Audited against the filing on 2026-07-04. Evercore and J.P. Morgan each rendered a fairness opinion with an identical 11-company selected set; Evercore's list order kept. Triumph Group delisted 2025 (take-private). Smiths/IMI/Rotork are LSE-listed non-US-filers (us_filer=false, outside the EDGAR data contract). EDGAR SIC is 3490; 3491/3561 are the more precise flow-control codes if the suggest-sic-codes flow is used for discovery."
+ },
+ {
+  "deal_id": "kaman-2024",
+  "target_ticker": "KAMN",
+  "target_name": "Kaman Corporation",
+  "target_cik": "0000054381",
+  "target_sic": "3728",
+  "business_description": "Diversified aerospace and defense supplier: highly engineered products (bearings, seals, springs), precision products (fuzing and munitions), and aerostructures for commercial and military aircraft platforms, primarily B2B sole-source and OEM programs.",
+  "target_financials": {
+   "revenue_usd_mm": 775.9,
+   "ebitda_margin_estimate": 0.172,
+   "source": "Revenue: FY2023 actual net sales $775.9mm (last 10-K XBRL; the DEFM14A's 'Projections Prepared by the Company's Management' discloses segment growth rates and margins, not absolute P&L). Margin: proxy states 2024E adjusted EBITDA margin of 17.2%."
   },
-  {
-    "deal_id": "barnes-group-2024",
-    "target_ticker": "B",
-    "target_name": "Barnes Group Inc.",
-    "target_cik": "0000009984",
-    "target_sic": "3490",
-    "business_description": "Global provider of highly engineered products and differentiated industrial technologies serving aerospace (OEM and aftermarket, including MB Aerospace) and industrial end markets, sold B2B to OEMs and their supply chains.",
-    "target_financials": {
-      "revenue_usd_mm": 1728.0,
-      "ebitda_margin_estimate": 0.223,
-      "source": "DEFM14A 'Barnes Long-Range Plan' table: 2025E Net Revenue $1,728mm, Adjusted EBITDA $385mm (pro forma for the Associated Spring/Heinz Haenggi divestiture)."
-    },
-    "filing_url": "https://www.sec.gov/Archives/edgar/data/9984/000114036124048581/ny20037086x2_defm14a.htm",
-    "filing_date": "2024-12-06",
-    "advisor": "Jefferies LLC (selected public companies analyses); Goldman Sachs & Co. LLC (separate opinion, no public-comps analysis)",
-    "selected_companies": [
-      {
-        "company_name": "Albany International Corp.",
-        "ticker": "AIN",
-        "still_public": true,
-        "us_filer": true
-      },
-      {
-        "company_name": "Arcosa, Inc.",
-        "ticker": "ACA",
-        "still_public": true,
-        "us_filer": true
-      },
-      {
-        "company_name": "Astronics Corporation",
-        "ticker": "ATRO",
-        "still_public": true,
-        "us_filer": true
-      },
-      {
-        "company_name": "Brady Corporation",
-        "ticker": "BRC",
-        "still_public": true,
-        "us_filer": true
-      },
-      {
-        "company_name": "Crane Company",
-        "ticker": "CR",
-        "still_public": true,
-        "us_filer": true
-      },
-      {
-        "company_name": "Curtiss-Wright Corporation",
-        "ticker": "CW",
-        "still_public": true,
-        "us_filer": true
-      },
-      {
-        "company_name": "Ducommun Incorporated",
-        "ticker": "DCO",
-        "still_public": true,
-        "us_filer": true
-      },
-      {
-        "company_name": "ESCO Technologies Inc.",
-        "ticker": "ESE",
-        "still_public": true,
-        "us_filer": true
-      },
-      {
-        "company_name": "Hillenbrand, Inc.",
-        "ticker": "HI",
-        "still_public": false,
-        "us_filer": false,
-        "note": "Taken private by Lone Star, closed 2025"
-      },
-      {
-        "company_name": "MOOG Inc.",
-        "ticker": "MOG-A",
-        "still_public": true,
-        "us_filer": true,
-        "note": "SEC ticker format MOG-A"
-      },
-      {
-        "company_name": "RBC Bearings Incorporated",
-        "ticker": "RBC",
-        "still_public": true,
-        "us_filer": true
-      },
-      {
-        "company_name": "SPX Technologies, Inc.",
-        "ticker": "SPXC",
-        "still_public": true,
-        "us_filer": true
-      },
-      {
-        "company_name": "Trimas Corporation",
-        "ticker": "TRS",
-        "still_public": true,
-        "us_filer": true
-      },
-      {
-        "company_name": "Triumph Group, Inc.",
-        "ticker": "TGI",
-        "still_public": false,
-        "us_filer": false,
-        "note": "Taken private, closed 2025"
-      },
-      {
-        "company_name": "Woodward, Inc.",
-        "ticker": "WWD",
-        "still_public": true,
-        "us_filer": true
-      }
-    ],
-    "review_status": "reviewed",
-    "notes": "Audited against the filing on 2026-07-04. Jefferies' consolidated 15-company list verified verbatim; Goldman Sachs' opinion section contains DCF-SOTP/future-share-price/transactions/premia analyses only (no public comps list). Take-private by Apollo, closed Jan 2025. Target ticker 'B' has since been reassigned to Barrick Mining on SEC listings \u2014 historical ticker retained here."
+  "filing_url": "https://www.sec.gov/Archives/edgar/data/54381/000114036124012403/ny20021849x2_defm14a.htm",
+  "filing_date": "2024-03-08",
+  "advisor": "J.P. Morgan Securities LLC",
+  "selected_companies": [
+   {
+    "company_name": "TransDigm Group Inc.",
+    "ticker": "TDG",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "Heico Corp.",
+    "ticker": "HEI",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "Regal Rexnord Corp.",
+    "ticker": "RRX",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "RBC Bearings Inc.",
+    "ticker": "RBC",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "Barnes Group Inc.",
+    "ticker": "B",
+    "still_public": false,
+    "us_filer": false,
+    "note": "Taken private by Apollo, closed Jan 2025; SEC ticker 'B' since reassigned to Barrick Mining"
+   },
+   {
+    "company_name": "Howmet Aerospace Inc.",
+    "ticker": "HWM",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "Hexcel Corp.",
+    "ticker": "HXL",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "Spirit AeroSystems Inc.",
+    "ticker": "SPR",
+    "still_public": false,
+    "us_filer": false,
+    "note": "Acquired by Boeing, closed 2025"
+   },
+   {
+    "company_name": "Albany International Corp.",
+    "ticker": "AIN",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "Triumph Group Inc.",
+    "ticker": "TGI",
+    "still_public": false,
+    "us_filer": false,
+    "note": "Taken private (Warburg Pincus/Berkshire Partners), closed 2025"
+   },
+   {
+    "company_name": "Ducommun Inc.",
+    "ticker": "DCO",
+    "still_public": true,
+    "us_filer": true
+   }
+  ],
+  "review_status": "reviewed",
+  "notes": "Audited against the filing on 2026-07-04. J.P. Morgan sole advisor; 'Public Trading Multiples' list verified verbatim (Engineered Products 5 + Structures 6). Take-private by Arcline, closed April 2024. target_sic corrected to 3728 (Aircraft Parts & Auxiliary Equipment) from EDGAR's 3760 (Guided Missiles & Space Vehicles, kept in edgar_sic) — correction derived from the business description (bearings/aerostructures/fuzing for aircraft platforms), not from the comp list, so no answer leakage into discovery.",
+  "edgar_sic": "3760"
+ },
+ {
+  "deal_id": "barnes-group-2024",
+  "target_ticker": "B",
+  "target_name": "Barnes Group Inc.",
+  "target_cik": "0000009984",
+  "target_sic": "3490",
+  "business_description": "Global provider of highly engineered products and differentiated industrial technologies serving aerospace (OEM and aftermarket, including MB Aerospace) and industrial end markets, sold B2B to OEMs and their supply chains.",
+  "target_financials": {
+   "revenue_usd_mm": 1728.0,
+   "ebitda_margin_estimate": 0.223,
+   "source": "DEFM14A 'Barnes Long-Range Plan' table: 2025E Net Revenue $1,728mm, Adjusted EBITDA $385mm (pro forma for the Associated Spring/Heinz Haenggi divestiture)."
   },
-  {
-    "deal_id": "haynes-international-2024",
-    "target_ticker": "HAYN",
-    "target_name": "Haynes International, Inc.",
-    "target_cik": "0000858655",
-    "target_sic": "3310",
-    "business_description": "Develops and manufactures high-performance nickel- and cobalt-based alloys in sheet, coil and plate forms for aerospace, chemical processing and industrial gas turbine markets, sold B2B to OEMs, fabricators and distributors.",
-    "target_financials": {
-      "revenue_usd_mm": 635.7,
-      "ebitda_margin_estimate": 0.155,
-      "source": "DEFM14A December Projections table (FYE Sep 30): FY2024P revenue $635.7mm, Adjusted EBITDA $98.8mm; FY2025P $681.1mm/$126.7mm."
-    },
-    "filing_url": "https://www.sec.gov/Archives/edgar/data/858655/000110465924035231/tm248086-1_defm14a.htm",
-    "filing_date": "2024-03-18",
-    "advisor": "Jefferies LLC",
-    "selected_companies": [
-      {
-        "company_name": "Acerinox, S.A.",
-        "ticker": "ACX.MC",
-        "still_public": true,
-        "us_filer": false,
-        "note": "Madrid-listed; also the acquirer's parent (North American Stainless is an Acerinox company)"
-      },
-      {
-        "company_name": "Aperam S.A.",
-        "ticker": "APAM.AS",
-        "still_public": true,
-        "us_filer": false,
-        "note": "Amsterdam-listed; no SEC 10-K"
-      },
-      {
-        "company_name": "ATI Inc.",
-        "ticker": "ATI",
-        "still_public": true,
-        "us_filer": true
-      },
-      {
-        "company_name": "Carpenter Technology Corporation",
-        "ticker": "CRS",
-        "still_public": true,
-        "us_filer": true
-      },
-      {
-        "company_name": "Howmet Aerospace Inc.",
-        "ticker": "HWM",
-        "still_public": true,
-        "us_filer": true
-      },
-      {
-        "company_name": "Universal Stainless & Alloy Products, Inc.",
-        "ticker": "USAP",
-        "still_public": false,
-        "us_filer": false,
-        "note": "Acquired by Aperam, closed 2025"
-      }
-    ],
-    "review_status": "reviewed",
-    "notes": "Audited against the filing on 2026-07-04. Jefferies' 6-company specialty-metals list verified verbatim. Acquired by North American Stainless/Acerinox, closed 2024. Note the banker included the acquirer's parent (Acerinox) in the comp set."
+  "filing_url": "https://www.sec.gov/Archives/edgar/data/9984/000114036124048581/ny20037086x2_defm14a.htm",
+  "filing_date": "2024-12-06",
+  "advisor": "Jefferies LLC (selected public companies analyses); Goldman Sachs & Co. LLC (separate opinion, no public-comps analysis)",
+  "selected_companies": [
+   {
+    "company_name": "Albany International Corp.",
+    "ticker": "AIN",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "Arcosa, Inc.",
+    "ticker": "ACA",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "Astronics Corporation",
+    "ticker": "ATRO",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "Brady Corporation",
+    "ticker": "BRC",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "Crane Company",
+    "ticker": "CR",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "Curtiss-Wright Corporation",
+    "ticker": "CW",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "Ducommun Incorporated",
+    "ticker": "DCO",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "ESCO Technologies Inc.",
+    "ticker": "ESE",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "Hillenbrand, Inc.",
+    "ticker": "HI",
+    "still_public": false,
+    "us_filer": false,
+    "note": "Taken private by Lone Star, closed 2025"
+   },
+   {
+    "company_name": "MOOG Inc.",
+    "ticker": "MOG-A",
+    "still_public": true,
+    "us_filer": true,
+    "note": "SEC ticker format MOG-A"
+   },
+   {
+    "company_name": "RBC Bearings Incorporated",
+    "ticker": "RBC",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "SPX Technologies, Inc.",
+    "ticker": "SPXC",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "Trimas Corporation",
+    "ticker": "TRS",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "Triumph Group, Inc.",
+    "ticker": "TGI",
+    "still_public": false,
+    "us_filer": false,
+    "note": "Taken private, closed 2025"
+   },
+   {
+    "company_name": "Woodward, Inc.",
+    "ticker": "WWD",
+    "still_public": true,
+    "us_filer": true
+   }
+  ],
+  "review_status": "reviewed",
+  "notes": "Audited against the filing on 2026-07-04. Jefferies' consolidated 15-company list verified verbatim; Goldman Sachs' opinion section contains DCF-SOTP/future-share-price/transactions/premia analyses only (no public comps list). Take-private by Apollo, closed Jan 2025. Target ticker 'B' has since been reassigned to Barrick Mining on SEC listings — historical ticker retained here."
+ },
+ {
+  "deal_id": "haynes-international-2024",
+  "target_ticker": "HAYN",
+  "target_name": "Haynes International, Inc.",
+  "target_cik": "0000858655",
+  "target_sic": "3310",
+  "business_description": "Develops and manufactures high-performance nickel- and cobalt-based alloys in sheet, coil and plate forms for aerospace, chemical processing and industrial gas turbine markets, sold B2B to OEMs, fabricators and distributors.",
+  "target_financials": {
+   "revenue_usd_mm": 635.7,
+   "ebitda_margin_estimate": 0.155,
+   "source": "DEFM14A December Projections table (FYE Sep 30): FY2024P revenue $635.7mm, Adjusted EBITDA $98.8mm; FY2025P $681.1mm/$126.7mm."
   },
-  {
-    "deal_id": "universal-stainless-2024",
-    "target_ticker": "USAP",
-    "target_name": "Universal Stainless & Alloy Products, Inc.",
-    "target_cik": "0000931584",
-    "target_sic": "3312",
-    "business_description": "Manufactures semi-finished and finished specialty steel long products \u2014 stainless steel, nickel alloys, tool steel (bar, rod, wire, plate) \u2014 for aerospace, defense, energy and general industrial end markets, sold B2B to OEMs, forgers and service centers.",
-    "target_financials": {
-      "revenue_usd_mm": 393.3,
-      "ebitda_margin_estimate": 0.247,
-      "source": "DEFM14A Forecasts table: 2025E revenue $393.3mm, Adjusted EBITDA $97.2mm (2024E: $351.5mm/$75.0mm)."
-    },
-    "filing_url": "https://www.sec.gov/Archives/edgar/data/931584/000119312524267249/d842335ddefm14a.htm",
-    "filing_date": "2024-11-27",
-    "advisor": "TD Cowen (TD Securities (USA) LLC)",
-    "selected_companies": [
-      {
-        "company_name": "Acerinox, S.A.",
-        "ticker": "ACX.MC",
-        "still_public": true,
-        "us_filer": false,
-        "note": "Madrid-listed; no SEC 10-K"
-      },
-      {
-        "company_name": "Aperam S.A.",
-        "ticker": "APAM.AS",
-        "still_public": true,
-        "us_filer": false,
-        "note": "Amsterdam-listed; also the acquirer in this deal"
-      },
-      {
-        "company_name": "ATI Inc.",
-        "ticker": "ATI",
-        "still_public": true,
-        "us_filer": true
-      },
-      {
-        "company_name": "Carpenter Technology Corporation",
-        "ticker": "CRS",
-        "still_public": true,
-        "us_filer": true
-      },
-      {
-        "company_name": "Metallus Inc.",
-        "ticker": "MTUS",
-        "still_public": true,
-        "us_filer": true
-      }
-    ],
-    "review_status": "reviewed",
-    "notes": "Audited against the filing on 2026-07-04. TD Cowen's 5-company specialty-metals list verified verbatim. Acquired by Aperam, closed 2025. Note the banker included the acquirer (Aperam) in the comp set."
+  "filing_url": "https://www.sec.gov/Archives/edgar/data/858655/000110465924035231/tm248086-1_defm14a.htm",
+  "filing_date": "2024-03-18",
+  "advisor": "Jefferies LLC",
+  "selected_companies": [
+   {
+    "company_name": "Acerinox, S.A.",
+    "ticker": "ACX.MC",
+    "still_public": true,
+    "us_filer": false,
+    "note": "Madrid-listed; also the acquirer's parent (North American Stainless is an Acerinox company)"
+   },
+   {
+    "company_name": "Aperam S.A.",
+    "ticker": "APAM.AS",
+    "still_public": true,
+    "us_filer": false,
+    "note": "Amsterdam-listed; no SEC 10-K"
+   },
+   {
+    "company_name": "ATI Inc.",
+    "ticker": "ATI",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "Carpenter Technology Corporation",
+    "ticker": "CRS",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "Howmet Aerospace Inc.",
+    "ticker": "HWM",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "Universal Stainless & Alloy Products, Inc.",
+    "ticker": "USAP",
+    "still_public": false,
+    "us_filer": false,
+    "note": "Acquired by Aperam, closed 2025"
+   }
+  ],
+  "review_status": "reviewed",
+  "notes": "Audited against the filing on 2026-07-04. Jefferies' 6-company specialty-metals list verified verbatim. Acquired by North American Stainless/Acerinox, closed 2024. Note the banker included the acquirer's parent (Acerinox) in the comp set."
+ },
+ {
+  "deal_id": "universal-stainless-2024",
+  "target_ticker": "USAP",
+  "target_name": "Universal Stainless & Alloy Products, Inc.",
+  "target_cik": "0000931584",
+  "target_sic": "3312",
+  "business_description": "Manufactures semi-finished and finished specialty steel long products — stainless steel, nickel alloys, tool steel (bar, rod, wire, plate) — for aerospace, defense, energy and general industrial end markets, sold B2B to OEMs, forgers and service centers.",
+  "target_financials": {
+   "revenue_usd_mm": 393.3,
+   "ebitda_margin_estimate": 0.247,
+   "source": "DEFM14A Forecasts table: 2025E revenue $393.3mm, Adjusted EBITDA $97.2mm (2024E: $351.5mm/$75.0mm)."
   },
-  {
-    "deal_id": "l-s-starrett-2024",
-    "target_ticker": "SCX",
-    "target_name": "The L.S. Starrett Company",
-    "target_cik": "0000093676",
-    "target_sic": "3420",
-    "business_description": "Manufactures precision measuring tools and instruments (micrometers, calipers, gages, custom metrology systems) and saw blades for industrial, professional and consumer markets, sold through distributors and directly to manufacturers.",
-    "target_financials": {
-      "revenue_usd_mm": 284.0,
-      "ebitda_margin_estimate": 0.12,
-      "source": "DEFM14A Management's Projections table (FYE June 30): FY2025P revenue $284mm, Adjusted EBITDA $34mm (FY2024E: $259mm/$25mm)."
-    },
-    "filing_url": "https://www.sec.gov/Archives/edgar/data/93676/000143774924011842/scx20240411_defm14a.htm",
-    "filing_date": "2024-04-12",
-    "advisor": "Lincoln International LLC",
-    "selected_companies": [
-      {
-        "company_name": "Stanley Black & Decker, Inc.",
-        "ticker": "SWK",
-        "still_public": true,
-        "us_filer": true
-      },
-      {
-        "company_name": "Snap-on Incorporated",
-        "ticker": "SNA",
-        "still_public": true,
-        "us_filer": true
-      },
-      {
-        "company_name": "Kyocera Corporation",
-        "ticker": "6971.T",
-        "still_public": true,
-        "us_filer": false,
-        "note": "Tokyo-listed; 20-F ADR only"
-      },
-      {
-        "company_name": "Worthington Enterprises, Inc.",
-        "ticker": "WOR",
-        "still_public": true,
-        "us_filer": true
-      },
-      {
-        "company_name": "Kennametal Inc.",
-        "ticker": "KMT",
-        "still_public": true,
-        "us_filer": true
-      },
-      {
-        "company_name": "Hangzhou Greatstar Industrial Co., Ltd",
-        "ticker": "002444.SZ",
-        "still_public": true,
-        "us_filer": false,
-        "note": "Shenzhen-listed"
-      },
-      {
-        "company_name": "OSG Corporation",
-        "ticker": "6136.T",
-        "still_public": true,
-        "us_filer": false,
-        "note": "Tokyo-listed"
-      }
-    ],
-    "review_status": "reviewed",
-    "notes": "Audited against the filing on 2026-07-04. Lincoln's 7-company specialty hand tools list verified verbatim. Take-private by MiddleGround Capital, closed 2024. Smallest deal in the benchmark (~$250mm revenue) \u2014 closest to the tool's demo-target scale."
+  "filing_url": "https://www.sec.gov/Archives/edgar/data/931584/000119312524267249/d842335ddefm14a.htm",
+  "filing_date": "2024-11-27",
+  "advisor": "TD Cowen (TD Securities (USA) LLC)",
+  "selected_companies": [
+   {
+    "company_name": "Acerinox, S.A.",
+    "ticker": "ACX.MC",
+    "still_public": true,
+    "us_filer": false,
+    "note": "Madrid-listed; no SEC 10-K"
+   },
+   {
+    "company_name": "Aperam S.A.",
+    "ticker": "APAM.AS",
+    "still_public": true,
+    "us_filer": false,
+    "note": "Amsterdam-listed; also the acquirer in this deal"
+   },
+   {
+    "company_name": "ATI Inc.",
+    "ticker": "ATI",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "Carpenter Technology Corporation",
+    "ticker": "CRS",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "Metallus Inc.",
+    "ticker": "MTUS",
+    "still_public": true,
+    "us_filer": true
+   }
+  ],
+  "review_status": "reviewed",
+  "notes": "Audited against the filing on 2026-07-04. TD Cowen's 5-company specialty-metals list verified verbatim. Acquired by Aperam, closed 2025. Note the banker included the acquirer (Aperam) in the comp set."
+ },
+ {
+  "deal_id": "l-s-starrett-2024",
+  "target_ticker": "SCX",
+  "target_name": "The L.S. Starrett Company",
+  "target_cik": "0000093676",
+  "target_sic": "3420",
+  "business_description": "Manufactures precision measuring tools and instruments (micrometers, calipers, gages, custom metrology systems) and saw blades for industrial, professional and consumer markets, sold through distributors and directly to manufacturers.",
+  "target_financials": {
+   "revenue_usd_mm": 284.0,
+   "ebitda_margin_estimate": 0.12,
+   "source": "DEFM14A Management's Projections table (FYE June 30): FY2025P revenue $284mm, Adjusted EBITDA $34mm (FY2024E: $259mm/$25mm)."
   },
-  {
-    "deal_id": "masonite-2024",
-    "target_ticker": "DOOR",
-    "target_name": "Masonite International Corporation",
-    "target_cik": "0000893691",
-    "target_sic": "2430",
-    "business_description": "Designs and manufactures interior and exterior doors and door systems for residential new construction, repair/remodel and architectural end markets, sold B2B through wholesale and retail distribution channels in North America and Europe.",
-    "target_financials": {
-      "revenue_usd_mm": 2523.0,
-      "ebitda_margin_estimate": 0.168,
-      "source": "DEFM14A Management Projections table: 2024F revenue $2,523mm, Adjusted EBITDA $425mm (2025F: $2,870mm/$522mm)."
-    },
-    "filing_url": "https://www.sec.gov/Archives/edgar/data/893691/000119312524075345/d771808ddefm14a.htm",
-    "filing_date": "2024-03-22",
-    "advisor": "Goldman Sachs & Co. LLC and Jefferies LLC (separate opinions; ground truth is the union of their selected-companies lists)",
-    "selected_companies": [
-      {
-        "company_name": "American Woodmark Corporation",
-        "ticker": "AMWD",
-        "still_public": false,
-        "us_filer": false,
-        "note": "Merged into MasterBrand, 2025 (GS + Jefferies lists)"
-      },
-      {
-        "company_name": "Fortune Brands Innovations, Inc.",
-        "ticker": "FBIN",
-        "still_public": true,
-        "us_filer": true,
-        "note": "GS + Jefferies lists"
-      },
-      {
-        "company_name": "Griffon Corporation",
-        "ticker": "GFF",
-        "still_public": true,
-        "us_filer": true,
-        "note": "GS list only"
-      },
-      {
-        "company_name": "JELD-WEN Holding, Inc.",
-        "ticker": "JELD",
-        "still_public": true,
-        "us_filer": true,
-        "note": "GS + Jefferies lists"
-      },
-      {
-        "company_name": "MasterBrand, Inc.",
-        "ticker": "MBC",
-        "still_public": true,
-        "us_filer": true,
-        "note": "Jefferies list only"
-      },
-      {
-        "company_name": "Owens Corning",
-        "ticker": "OC",
-        "still_public": true,
-        "us_filer": true,
-        "note": "Jefferies list only; also the acquirer in this deal"
-      }
-    ],
-    "review_status": "reviewed",
-    "notes": "Audited against the filing on 2026-07-04. Two advisors with different lists: Goldman Sachs 'Selected Public Company Comparables' (AMWD, FBIN, GFF, JELD) and Jefferies 'Selected Public Companies' (AMWD, FBIN, JELD, MBC, OC); union recorded with per-comp provenance. Acquired by Owens Corning, closed May 2024 \u2014 the acquirer itself appears in Jefferies' comp list."
+  "filing_url": "https://www.sec.gov/Archives/edgar/data/93676/000143774924011842/scx20240411_defm14a.htm",
+  "filing_date": "2024-04-12",
+  "advisor": "Lincoln International LLC",
+  "selected_companies": [
+   {
+    "company_name": "Stanley Black & Decker, Inc.",
+    "ticker": "SWK",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "Snap-on Incorporated",
+    "ticker": "SNA",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "Kyocera Corporation",
+    "ticker": "6971.T",
+    "still_public": true,
+    "us_filer": false,
+    "note": "Tokyo-listed; 20-F ADR only"
+   },
+   {
+    "company_name": "Worthington Enterprises, Inc.",
+    "ticker": "WOR",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "Kennametal Inc.",
+    "ticker": "KMT",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "Hangzhou Greatstar Industrial Co., Ltd",
+    "ticker": "002444.SZ",
+    "still_public": true,
+    "us_filer": false,
+    "note": "Shenzhen-listed"
+   },
+   {
+    "company_name": "OSG Corporation",
+    "ticker": "6136.T",
+    "still_public": true,
+    "us_filer": false,
+    "note": "Tokyo-listed"
+   }
+  ],
+  "review_status": "reviewed",
+  "notes": "Audited against the filing on 2026-07-04. Lincoln's 7-company specialty hand tools list verified verbatim. Take-private by MiddleGround Capital, closed 2024. Smallest deal in the benchmark (~$250mm revenue) — closest to the tool's demo-target scale."
+ },
+ {
+  "deal_id": "masonite-2024",
+  "target_ticker": "DOOR",
+  "target_name": "Masonite International Corporation",
+  "target_cik": "0000893691",
+  "target_sic": "2430",
+  "business_description": "Designs and manufactures interior and exterior doors and door systems for residential new construction, repair/remodel and architectural end markets, sold B2B through wholesale and retail distribution channels in North America and Europe.",
+  "target_financials": {
+   "revenue_usd_mm": 2523.0,
+   "ebitda_margin_estimate": 0.168,
+   "source": "DEFM14A Management Projections table: 2024F revenue $2,523mm, Adjusted EBITDA $425mm (2025F: $2,870mm/$522mm)."
   },
-  {
-    "deal_id": "chase-corp-2023",
-    "target_ticker": "CCF",
-    "target_name": "Chase Corporation",
-    "target_cik": "0000830524",
-    "target_sic": "2891",
-    "business_description": "Manufactures protective materials \u2014 specialty tapes, coatings, sealants and adhesives \u2014 for wire and cable, infrastructure, electronics and industrial applications, sold B2B to OEMs and installers across niche end markets.",
-    "target_financials": {
-      "revenue_usd_mm": 437.0,
-      "ebitda_margin_estimate": 0.256,
-      "source": "DEFM14A Management Projections table (FYE Aug 31): FY2024E revenue $437mm, EBITDA $112mm."
-    },
-    "filing_url": "https://www.sec.gov/Archives/edgar/data/830524/000114036123041904/ny20009924x2_defm14a.htm",
-    "filing_date": "2023-08-31",
-    "advisor": "Perella Weinberg Partners LP",
-    "selected_companies": [
-      {
-        "company_name": "American Vanguard Corporation",
-        "ticker": "AVD",
-        "still_public": true,
-        "us_filer": true,
-        "note": "Small Cap Peers"
-      },
-      {
-        "company_name": "CSW Industrials, Inc.",
-        "ticker": "CSW",
-        "still_public": true,
-        "us_filer": true,
-        "note": "Small Cap Peers; SEC ticker changed CSWI -> CSW"
-      },
-      {
-        "company_name": "Hawkins, Inc.",
-        "ticker": "HWKN",
-        "still_public": true,
-        "us_filer": true,
-        "note": "Small Cap Peers"
-      },
-      {
-        "company_name": "Ingevity Corporation",
-        "ticker": "NGVT",
-        "still_public": true,
-        "us_filer": true,
-        "note": "Small Cap Peers"
-      },
-      {
-        "company_name": "Innospec Inc.",
-        "ticker": "IOSP",
-        "still_public": true,
-        "us_filer": true,
-        "note": "Small Cap Peers"
-      },
-      {
-        "company_name": "Mativ Holdings, Inc.",
-        "ticker": "MATV",
-        "still_public": true,
-        "us_filer": true,
-        "note": "Small Cap Peers"
-      },
-      {
-        "company_name": "Stepan Company",
-        "ticker": "SCL",
-        "still_public": true,
-        "us_filer": true,
-        "note": "Small Cap Peers"
-      },
-      {
-        "company_name": "UFP Technologies, Inc.",
-        "ticker": "UFPT",
-        "still_public": true,
-        "us_filer": true,
-        "note": "Small Cap Peers"
-      },
-      {
-        "company_name": "Ashland Inc.",
-        "ticker": "ASH",
-        "still_public": true,
-        "us_filer": true,
-        "note": "Mid Cap Peers"
-      },
-      {
-        "company_name": "Avient Corporation",
-        "ticker": "AVNT",
-        "still_public": true,
-        "us_filer": true,
-        "note": "Mid Cap Peers"
-      },
-      {
-        "company_name": "Balchem Corporation",
-        "ticker": "BCPC",
-        "still_public": true,
-        "us_filer": true,
-        "note": "Mid Cap Peers"
-      },
-      {
-        "company_name": "Cabot Corporation",
-        "ticker": "CBT",
-        "still_public": true,
-        "us_filer": true,
-        "note": "Mid Cap Peers"
-      },
-      {
-        "company_name": "Element Solutions Inc",
-        "ticker": "ESI",
-        "still_public": true,
-        "us_filer": true,
-        "note": "Mid Cap Peers"
-      },
-      {
-        "company_name": "H.B. Fuller Company",
-        "ticker": "FUL",
-        "still_public": true,
-        "us_filer": true,
-        "note": "Mid Cap Peers"
-      },
-      {
-        "company_name": "Quaker Houghton",
-        "ticker": "KWR",
-        "still_public": true,
-        "us_filer": true,
-        "note": "Mid Cap Peers; SEC registrant Quaker Chemical Corporation"
-      },
-      {
-        "company_name": "Rogers Corporation",
-        "ticker": "ROG",
-        "still_public": true,
-        "us_filer": true,
-        "note": "Mid Cap Peers"
-      }
-    ],
-    "review_status": "reviewed",
-    "notes": "Audited against the filing on 2026-07-04. Perella Weinberg's 16-company list (8 Small Cap + 8 Mid Cap specialty-chemicals peers) verified verbatim. Take-private by KKR, closed Nov 2023. target_sic corrected to 2891 (Adhesives & Sealants) from EDGAR's 3640 (Electric Lighting & Wiring Equipment, kept in edgar_sic) \u2014 a WJ-style EDGAR mislabel; the correction is derived from the business description (tapes/sealants/coatings), not from the comp list, so no answer leakage into discovery.",
-    "edgar_sic": "3640"
-  }
+  "filing_url": "https://www.sec.gov/Archives/edgar/data/893691/000119312524075345/d771808ddefm14a.htm",
+  "filing_date": "2024-03-22",
+  "advisor": "Goldman Sachs & Co. LLC and Jefferies LLC (separate opinions; ground truth is the union of their selected-companies lists)",
+  "selected_companies": [
+   {
+    "company_name": "American Woodmark Corporation",
+    "ticker": "AMWD",
+    "still_public": false,
+    "us_filer": false,
+    "note": "Merged into MasterBrand, 2025 (GS + Jefferies lists)"
+   },
+   {
+    "company_name": "Fortune Brands Innovations, Inc.",
+    "ticker": "FBIN",
+    "still_public": true,
+    "us_filer": true,
+    "note": "GS + Jefferies lists"
+   },
+   {
+    "company_name": "Griffon Corporation",
+    "ticker": "GFF",
+    "still_public": true,
+    "us_filer": true,
+    "note": "GS list only"
+   },
+   {
+    "company_name": "JELD-WEN Holding, Inc.",
+    "ticker": "JELD",
+    "still_public": true,
+    "us_filer": true,
+    "note": "GS + Jefferies lists"
+   },
+   {
+    "company_name": "MasterBrand, Inc.",
+    "ticker": "MBC",
+    "still_public": true,
+    "us_filer": true,
+    "note": "Jefferies list only"
+   },
+   {
+    "company_name": "Owens Corning",
+    "ticker": "OC",
+    "still_public": true,
+    "us_filer": true,
+    "note": "Jefferies list only; also the acquirer in this deal"
+   }
+  ],
+  "review_status": "reviewed",
+  "notes": "Audited against the filing on 2026-07-04. Two advisors with different lists: Goldman Sachs 'Selected Public Company Comparables' (AMWD, FBIN, GFF, JELD) and Jefferies 'Selected Public Companies' (AMWD, FBIN, JELD, MBC, OC); union recorded with per-comp provenance. Acquired by Owens Corning, closed May 2024 — the acquirer itself appears in Jefferies' comp list."
+ },
+ {
+  "deal_id": "chase-corp-2023",
+  "target_ticker": "CCF",
+  "target_name": "Chase Corporation",
+  "target_cik": "0000830524",
+  "target_sic": "2891",
+  "business_description": "Manufactures protective materials — specialty tapes, coatings, sealants and adhesives — for wire and cable, infrastructure, electronics and industrial applications, sold B2B to OEMs and installers across niche end markets.",
+  "target_financials": {
+   "revenue_usd_mm": 437.0,
+   "ebitda_margin_estimate": 0.256,
+   "source": "DEFM14A Management Projections table (FYE Aug 31): FY2024E revenue $437mm, EBITDA $112mm."
+  },
+  "filing_url": "https://www.sec.gov/Archives/edgar/data/830524/000114036123041904/ny20009924x2_defm14a.htm",
+  "filing_date": "2023-08-31",
+  "advisor": "Perella Weinberg Partners LP",
+  "selected_companies": [
+   {
+    "company_name": "American Vanguard Corporation",
+    "ticker": "AVD",
+    "still_public": true,
+    "us_filer": true,
+    "note": "Small Cap Peers"
+   },
+   {
+    "company_name": "CSW Industrials, Inc.",
+    "ticker": "CSW",
+    "still_public": true,
+    "us_filer": true,
+    "note": "Small Cap Peers; SEC ticker changed CSWI -> CSW"
+   },
+   {
+    "company_name": "Hawkins, Inc.",
+    "ticker": "HWKN",
+    "still_public": true,
+    "us_filer": true,
+    "note": "Small Cap Peers"
+   },
+   {
+    "company_name": "Ingevity Corporation",
+    "ticker": "NGVT",
+    "still_public": true,
+    "us_filer": true,
+    "note": "Small Cap Peers"
+   },
+   {
+    "company_name": "Innospec Inc.",
+    "ticker": "IOSP",
+    "still_public": true,
+    "us_filer": true,
+    "note": "Small Cap Peers"
+   },
+   {
+    "company_name": "Mativ Holdings, Inc.",
+    "ticker": "MATV",
+    "still_public": true,
+    "us_filer": true,
+    "note": "Small Cap Peers"
+   },
+   {
+    "company_name": "Stepan Company",
+    "ticker": "SCL",
+    "still_public": true,
+    "us_filer": true,
+    "note": "Small Cap Peers"
+   },
+   {
+    "company_name": "UFP Technologies, Inc.",
+    "ticker": "UFPT",
+    "still_public": true,
+    "us_filer": true,
+    "note": "Small Cap Peers"
+   },
+   {
+    "company_name": "Ashland Inc.",
+    "ticker": "ASH",
+    "still_public": true,
+    "us_filer": true,
+    "note": "Mid Cap Peers"
+   },
+   {
+    "company_name": "Avient Corporation",
+    "ticker": "AVNT",
+    "still_public": true,
+    "us_filer": true,
+    "note": "Mid Cap Peers"
+   },
+   {
+    "company_name": "Balchem Corporation",
+    "ticker": "BCPC",
+    "still_public": true,
+    "us_filer": true,
+    "note": "Mid Cap Peers"
+   },
+   {
+    "company_name": "Cabot Corporation",
+    "ticker": "CBT",
+    "still_public": true,
+    "us_filer": true,
+    "note": "Mid Cap Peers"
+   },
+   {
+    "company_name": "Element Solutions Inc",
+    "ticker": "ESI",
+    "still_public": true,
+    "us_filer": true,
+    "note": "Mid Cap Peers"
+   },
+   {
+    "company_name": "H.B. Fuller Company",
+    "ticker": "FUL",
+    "still_public": true,
+    "us_filer": true,
+    "note": "Mid Cap Peers"
+   },
+   {
+    "company_name": "Quaker Houghton",
+    "ticker": "KWR",
+    "still_public": true,
+    "us_filer": true,
+    "note": "Mid Cap Peers; SEC registrant Quaker Chemical Corporation"
+   },
+   {
+    "company_name": "Rogers Corporation",
+    "ticker": "ROG",
+    "still_public": true,
+    "us_filer": true,
+    "note": "Mid Cap Peers"
+   }
+  ],
+  "review_status": "reviewed",
+  "notes": "Audited against the filing on 2026-07-04. Perella Weinberg's 16-company list (8 Small Cap + 8 Mid Cap specialty-chemicals peers) verified verbatim. Take-private by KKR, closed Nov 2023. target_sic corrected to 2891 (Adhesives & Sealants) from EDGAR's 3640 (Electric Lighting & Wiring Equipment, kept in edgar_sic) — a WJ-style EDGAR mislabel; the correction is derived from the business description (tapes/sealants/coatings), not from the comp list, so no answer leakage into discovery.",
+  "edgar_sic": "3640"
+ },
+ {
+  "deal_id": "perficient-inc-2024",
+  "target_ticker": "CIK1085869",
+  "target_name": "PERFICIENT INC",
+  "target_cik": "0001085869",
+  "target_sic": "7371",
+  "business_description": "Item 1.Business.\n\nOverview\n\nPerficient is a global digital consultancy transforming how the world’s biggest brands connect with customers and grow their businesses. Our work enables clients to deliver experiences that surpass customer expectations; become more human-centered, authentic, and trusted; innovate through digital technologies; outpace competition; grow and strengthen relationships with customers, suppliers, and partners; and reduce costs. \n\nTo articulate the full scope of our capabili",
+  "target_financials": {
+   "revenue_usd_mm": 954,
+   "ebitda_margin_estimate": 0.209,
+   "source": "2024E; Certain Unaudited Prospective Financial Information – Base Case Projections table: 2024E Revenue and Adjusted EBITDA — LLM-prefilled, verify against the filing"
+  },
+  "filing_url": "https://www.sec.gov/Archives/edgar/data/1085869/000119312524169200/d834503ddefm14a.htm",
+  "filing_date": "2024-06-26",
+  "advisor": "Wells Fargo",
+  "selected_companies": [
+   {
+    "company_name": "EPAM Systems, Inc.",
+    "ticker": "EPAM",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "Globant S.A.",
+    "ticker": "GLOB",
+    "still_public": true,
+    "us_filer": false
+   },
+   {
+    "company_name": "Endava PLC",
+    "ticker": "DAVA",
+    "still_public": true,
+    "us_filer": false
+   },
+   {
+    "company_name": "ThoughtWorks, Inc",
+    "ticker": "TWKS",
+    "still_public": false,
+    "us_filer": false
+   },
+   {
+    "company_name": "Grid Dynamics Holdings, Inc.",
+    "ticker": "GD",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "Accenture plc",
+    "ticker": "ACN",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "Tata Consultancy Services Limited",
+    "ticker": "TCS.NS",
+    "still_public": true,
+    "us_filer": false
+   },
+   {
+    "company_name": "Infosys Limited",
+    "ticker": "INFY",
+    "still_public": true,
+    "us_filer": false
+   },
+   {
+    "company_name": "Capgemini SE",
+    "ticker": "CAP.PA",
+    "still_public": true,
+    "us_filer": false
+   },
+   {
+    "company_name": "Cognizant Technology Solutions Corporation",
+    "ticker": "CTSH",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "Wipro Limited",
+    "ticker": "WIT",
+    "still_public": true,
+    "us_filer": false
+   },
+   {
+    "company_name": "CGI Inc.",
+    "ticker": "GIB",
+    "still_public": true,
+    "us_filer": false
+   }
+  ],
+  "review_status": "reviewed",
+  "notes": "Auto-prefilled by build_manual_deal_review_from_urls; verify every field against the filing before moving into manual_deals.json. Foreign-listed comp tickers assistant-filled post-review 2026-07-13 (exchange-style symbols, us_filer=false)."
+ },
+ {
+  "deal_id": "squarespace-inc-2024",
+  "target_ticker": "SQSP",
+  "target_name": "Squarespace, Inc.",
+  "target_cik": "0001496963",
+  "target_sic": "7372",
+  "business_description": "Website building and hosting platform offering domains, e-commerce, marketing and social-media management tools for entrepreneurs, creators and small businesses, sold on a subscription basis.",
+  "target_financials": {
+   "revenue_usd_mm": 1374.0,
+   "ebitda_margin_estimate": 0.27,
+   "source": "DEFM14A 'The Projections' table: 2025E Total Revenue $1,374mm, Adjusted EBITDA $371mm (margin 27.0%); 2024E $1,216mm/$291mm. Filing 2024-08-22 -> next-FY convention. Fairness opinion itself is EV/NTM uFCF based (NTM uFCF $353mm)."
+  },
+  "filing_url": "https://www.sec.gov/Archives/edgar/data/1496963/000114036124038138/ny20030653x9_defm14a.htm",
+  "filing_date": "2024-08-22",
+  "advisor": "Centerview Partners LLC",
+  "selected_companies": [
+   {
+    "company_name": "BigCommerce Holdings, Inc.",
+    "ticker": "BIGC",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "BILL Holdings, Inc.",
+    "ticker": "BILL",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "GoDaddy Inc.",
+    "ticker": "GDDY",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "Intuit Inc.",
+    "ticker": "INTU",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "VeriSign, Inc.",
+    "ticker": "VRSN",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "Wix.com Ltd.",
+    "ticker": "WIX",
+    "still_public": true,
+    "us_filer": false
+   }
+  ],
+  "review_status": "reviewed",
+  "notes": "Selected companies transcribed verbatim from Centerview's 'Selected Public Company Analysis' (automated extraction failed on this document). Wix.com is a 20-F foreign private issuer (us_filer=false). Foreign tickers and financials assistant-filled, user-reviewed 2026-07-13."
+ },
+ {
+  "deal_id": "smartsheet-inc-2024",
+  "target_ticker": "CIK1366561",
+  "target_name": "SMARTSHEET INC",
+  "target_cik": "0001366561",
+  "target_sic": "7372",
+  "business_description": "Item 1. Business\n\nOverview\n\nSmartsheet, the enterprise work management platform, empowers organizations to innovate and achieve results quickly and securely at scale through effective collaboration and streamlined workflows. By uniting people, content, and work, Smartsheet provides powerful capabilities that revolutionize the way teams operate. Smartsheet makes outcomes reliable, keeps customer data safe, and ensures users are on the same page, making it ideal for organizations seeking efficient",
+  "target_financials": {
+   "revenue_usd_mm": 1318,
+   "ebitda_margin_estimate": null,
+   "source": "FY2026; Certain Financial Projections table: 'Revenue' for FY2026; no EBITDA or Adjusted EBITDA disclosed. — LLM-prefilled, verify against the filing"
+  },
+  "filing_url": "https://www.sec.gov/Archives/edgar/data/1366561/000162828024044846/smartsheetdefm14a1142024.htm",
+  "filing_date": "2024-11-04",
+  "advisor": "Qatalyst Partners",
+  "selected_companies": [
+   {
+    "company_name": "Workday, Inc.",
+    "ticker": "WDAY",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "monday.com Ltd.",
+    "ticker": "MNDY",
+    "still_public": true,
+    "us_filer": false
+   },
+   {
+    "company_name": "Okta, Inc.",
+    "ticker": "OKTA",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "Paycom Software, Inc.",
+    "ticker": "PAYC",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "UiPath, Inc.",
+    "ticker": "PATH",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "BILL Holdings, Inc.",
+    "ticker": "BILL",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "Workiva Inc.",
+    "ticker": "WK",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "Freshworks Inc.",
+    "ticker": "FRSH",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "Asana, Inc.",
+    "ticker": "ASAN",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "Five9, Inc.",
+    "ticker": "FIVN",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "PagerDuty, Inc.",
+    "ticker": "PD",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "Sprout Social, Inc.",
+    "ticker": "SPT",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "Salesforce, Inc.",
+    "ticker": "CRM",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "Atlassian Corporation",
+    "ticker": "TEAM",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "Zoom Video Communications, Inc.",
+    "ticker": "ZM",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "DocuSign, Inc.",
+    "ticker": "DOCU",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "Dropbox, Inc.",
+    "ticker": "DBX",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "Box, Inc.",
+    "ticker": "BXCAP",
+    "still_public": true,
+    "us_filer": true
+   }
+  ],
+  "review_status": "reviewed",
+  "notes": "Auto-prefilled by build_manual_deal_review_from_urls; verify every field against the filing before moving into manual_deals.json."
+ },
+ {
+  "deal_id": "stericycle-inc-2024",
+  "target_ticker": "CIK861878",
+  "target_name": "STERICYCLE INC",
+  "target_cik": "0000861878",
+  "target_sic": "4955",
+  "business_description": "Table of Contents\n\nPART I\n\nItem 1. Business\n\nOverview\n\nCompany Overview\n\nStericycle, Inc., is a U.S. based business-to-business services company and leading provider of compliance-based solutions that protect people and brands, promote health and well-being and safeguard the environment. Through our family of brands, Stericycle serves customers in North America and Europe with solutions to safely manage materials that could otherwise spread disease, contaminate the environment, or compromise one",
+  "target_financials": {
+   "revenue_usd_mm": 2734,
+   "ebitda_margin_estimate": 0.175,
+   "source": "2024F; Certain Financial Projections – Management Projections table: 'Total Revenue' and 'Adjusted EBITDA' for 2024F — LLM-prefilled, verify against the filing"
+  },
+  "filing_url": "https://www.sec.gov/Archives/edgar/data/861878/000119312524177292/d768297ddefm14a.htm",
+  "filing_date": "2024-07-10",
+  "advisor": "BofA Securities",
+  "selected_companies": [
+   {
+    "company_name": "Clean Harbors, Inc.",
+    "ticker": "CLH",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "GFL Environmental Inc.",
+    "ticker": "GFL",
+    "still_public": true,
+    "us_filer": false
+   },
+   {
+    "company_name": "Republic Services, Inc.",
+    "ticker": "RSG",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "Waste Connections, Inc.",
+    "ticker": "WCN",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "Waste Management, Inc.",
+    "ticker": "WM",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "Redishred Capital Corp.",
+    "ticker": "ARCC",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "Rentokil Initial plc",
+    "ticker": "RTO",
+    "still_public": true,
+    "us_filer": false
+   },
+   {
+    "company_name": "Unifirst Corporation",
+    "ticker": "UNF",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "Vestis Corporation",
+    "ticker": "VSTS",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "Befesa S.A.",
+    "ticker": "BFSA.DE",
+    "still_public": true,
+    "us_filer": false
+   },
+   {
+    "company_name": "Elis SA",
+    "ticker": "ELSSF",
+    "still_public": true,
+    "us_filer": false
+   },
+   {
+    "company_name": "Renewi plc",
+    "ticker": "RWI.L",
+    "still_public": true,
+    "us_filer": false
+   },
+   {
+    "company_name": "Restore plc",
+    "ticker": "RST.L",
+    "still_public": true,
+    "us_filer": false
+   },
+   {
+    "company_name": "Séché Environnement SA",
+    "ticker": "SCHP.PA",
+    "still_public": true,
+    "us_filer": false
+   },
+   {
+    "company_name": "Veolia Environnement SA",
+    "ticker": "VIE.PA",
+    "still_public": true,
+    "us_filer": false
+   }
+  ],
+  "review_status": "reviewed",
+  "notes": "Auto-prefilled by build_manual_deal_review_from_urls; verify every field against the filing before moving into manual_deals.json. Foreign-listed comp tickers assistant-filled post-review 2026-07-13 (exchange-style symbols, us_filer=false)."
+ },
+ {
+  "deal_id": "duckhorn-portfolio-inc-2024",
+  "target_ticker": "CIK1835256",
+  "target_name": "Duckhorn Portfolio, Inc.",
+  "target_cik": "0001835256",
+  "target_sic": "2080",
+  "business_description": "Item 1. Business\n\nThe Duckhorn Portfolio, Inc. (collectively, “Company,” “we,” “us,” “our,” “Duckhorn”), is the premier, scaled pure-play producer of luxury wines in North America. We have delighted millions of consumers with authentic, high-quality, approachable wines for over four decades. We make a curated and comprehensive portfolio of highly acclaimed luxury wines across multiple varieties, appellations, brands and price points. Our portfolio is focused exclusively on the desirable luxury s",
+  "target_financials": {
+   "revenue_usd_mm": 502,
+   "ebitda_margin_estimate": 0.367,
+   "source": "2025E; Certain Unaudited Prospective Financial Information – Management Forecasts (Case F), line items: Net sales and Adjusted EBITDA for 2025E — LLM-prefilled, verify against the filing"
+  },
+  "filing_url": "https://www.sec.gov/Archives/edgar/data/1835256/000119312524268428/d852182ddefm14a.htm",
+  "filing_date": "2024-12-02",
+  "advisor": "J.P. Morgan",
+  "selected_companies": [
+   {
+    "company_name": "Treasury Wine Estates Ltd",
+    "ticker": "TWE.AX",
+    "still_public": true,
+    "us_filer": false
+   },
+   {
+    "company_name": "Becle, S.A.B. de C.V.",
+    "ticker": "CXMSF",
+    "still_public": true,
+    "us_filer": false
+   },
+   {
+    "company_name": "Remy Cointreau S.A.",
+    "ticker": "RCO.PA",
+    "still_public": true,
+    "us_filer": false
+   }
+  ],
+  "review_status": "reviewed",
+  "notes": "Auto-prefilled by build_manual_deal_review_from_urls; verify every field against the filing before moving into manual_deals.json. Foreign-listed comp tickers assistant-filled post-review 2026-07-13 (exchange-style symbols, us_filer=false)."
+ },
+ {
+  "deal_id": "r1-rcm-inc-de-2024",
+  "target_ticker": "CIK1910851",
+  "target_name": "R1 RCM Inc. /DE",
+  "target_cik": "0001910851",
+  "target_sic": "8741",
+  "business_description": "PART I\n\nUnless the context indicates otherwise, references in this Annual Report to “R1 RCM,” “R1,” the “Company” or “company,” “we,” “our,” and “us” mean R1 RCM Holdco Inc. (f/k/a R1 RCM Inc.) (“Old R1 RCM”) and its subsidiaries prior to the holding company reorganization completed on June 21, 2022 in connection with the acquisition of Cloudmed, and R1 RCM Inc. (f/k/a Project Roadrunner Parent Inc.) and its subsidiaries, including Old R1 RCM following such holding company reorganization.\n\nItem ",
+  "target_financials": {
+   "revenue_usd_mm": 2964,
+   "ebitda_margin_estimate": 0.275,
+   "source": "2025E; July 28 Projections table in 'Unaudited Prospective Financial Information' section; lines: Total Revenue and Adjusted EBITDA — LLM-prefilled, verify against the filing"
+  },
+  "filing_url": "https://www.sec.gov/Archives/edgar/data/1910851/000119312524238130/d837225ddefm14a.htm",
+  "filing_date": "2024-10-16",
+  "advisor": "Qatalyst Partners",
+  "selected_companies": [
+   {
+    "company_name": "Phreesia, Inc.",
+    "ticker": "PHR",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "HealthEquity, Inc.",
+    "ticker": "HQY",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "Waystar Holding Corp.",
+    "ticker": "WAY",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "HealthStream, Inc.",
+    "ticker": "HSTM",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "Evolent Health, Inc.",
+    "ticker": "EVH",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "Omnicell, Inc.",
+    "ticker": "OMCL",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "Health Catalyst, Inc.",
+    "ticker": "HCAT",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "Progyny, Inc.",
+    "ticker": "PGNY",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "TruBridge, Inc.",
+    "ticker": "TBRG",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "Premier, Inc.",
+    "ticker": "PREM",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "ExlService Holdings, Inc.",
+    "ticker": "EXLS",
+    "still_public": true,
+    "us_filer": true
+   },
+   {
+    "company_name": "WNS (Holdings) Limited",
+    "ticker": "NU",
+    "still_public": true,
+    "us_filer": false
+   },
+   {
+    "company_name": "Genpact Limited",
+    "ticker": "G",
+    "still_public": true,
+    "us_filer": true
+   }
+  ],
+  "review_status": "reviewed",
+  "notes": "Auto-prefilled by build_manual_deal_review_from_urls; verify every field against the filing before moving into manual_deals.json."
+ }
 ]

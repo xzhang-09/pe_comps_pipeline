@@ -1,11 +1,5 @@
 # Manual Ground Truth Evaluation
 
-This file holds the **single-sic** discovery-ladder rung; the sibling
-[`results.suggest-sic.md`](results.suggest-sic.md) holds the **suggest-sic**
-rung — compare the two to see what the LLM-suggested-SIC discovery upgrade is
-worth. The coverage analysis behind the waterfall/ladder design is in
-[`docs/eval_coverage_analysis.md`](../docs/eval_coverage_analysis.md).
-
 ## Methodology
 
 - Ground truth: fairness-opinion Selected Companies Analysis lists, audited against the filings
@@ -23,23 +17,23 @@ worth. The coverage analysis behind the waterfall/ladder design is in
   the scored pool — since a comp lost at discovery says nothing about ranking quality.
 
 ## Precision@15
-- Mean: 8.2%
-- Median: 3.1%
-- Deals: 10
+- Mean: 9.3%
+- Median: 6.2%
+- Deals: 16
 - Discovery mode: single-sic (ladder: single-sic baseline -> suggest-sic expansion; compare runs by mode, the delta is the measured value of each discovery upgrade)
-- Mean reachable (ranking-layer) precision: 100.0%
+- Mean reachable (ranking-layer) precision: 92.6%
 
 ## Coverage Waterfall (all eligible banker comps)
 
 | Stage | Count |
 | --- | ---: |
-| hit | 5 |
-| low_confidence_filtered | 1 |
-| no_valid_ev_ebitda | 2 |
-| financial_filtered | 5 |
-| not_in_sic_universe | 58 |
+| hit | 9 |
+| ranked_but_not_top_k | 2 |
+| no_valid_ev_ebitda | 3 |
+| financial_filtered | 18 |
+| not_in_sic_universe | 84 |
 
-5 of 71 eligible comps reached the scored pool; stages above the pair hit/ranked_but_not_top_k are ranking outcomes, everything below is a coverage loss (discovery, filters, or data gaps). `missing_market_cap` usually means an FMP quota/coverage miss — re-run after the quota resets before reading it as a data gap.
+11 of 116 eligible comps reached the scored pool; stages above the pair hit/ranked_but_not_top_k are ranking outcomes, everything below is a coverage loss (discovery, filters, or data gaps). `missing_market_cap` usually means an FMP quota/coverage miss — re-run after the quota resets before reading it as a data gap.
 
 ## Deal Detail
 ### manitex-2024 — MNTX (Manitex International, Inc.)
@@ -50,20 +44,20 @@ worth. The coverage analysis behind the waterfall/ladder design is in
 - Missed after ranking: none
 - Excluded delisted banker comps: HEES
 - Excluded non-US-filer banker comps: CGCBV.HE, PAL.VI, 6395.T, AHT.L
-- Scored pool: 7 companies (6 selectable) — selection trivial (pool <= K, precision measures coverage only)
+- Scored pool: 7 companies (7 selectable) — selection trivial (pool <= K, precision measures coverage only)
 - Discovery SIC codes: primary 3559; adjacent none
 - Loss stages: HRI=not_in_sic_universe, MTW=not_in_sic_universe, TEX=not_in_sic_universe, URI=not_in_sic_universe
 
 ### pgt-innovations-2024 — PGTI (PGT Innovations, Inc.)
 - Source: Evercore Group L.L.C., 2024-02-14 — https://www.sec.gov/Archives/edgar/data/1354327/000119312524036596/d728177ddefm14a.htm
-- Precision@15: 0.0% (no comp reached ranking)
-- Hits: none
+- Precision@15: 12.5% (reachable: 100.0%)
+- Hits: GFF
 - Missed before universe/scoring: APOG, FBIN, JHX, JELD, NX, TGLS, TREX
-- Missed after ranking: GFF
+- Missed after ranking: none
 - Excluded delisted banker comps: DOOR, AZEK
-- Scored pool: 2 companies (1 selectable) — selection trivial (pool <= K, precision measures coverage only)
+- Scored pool: 2 companies (2 selectable) — selection trivial (pool <= K, precision measures coverage only)
 - Discovery SIC codes: primary 3442; adjacent none
-- Loss stages: APOG=not_in_sic_universe, FBIN=not_in_sic_universe, GFF=low_confidence_filtered, JELD=not_in_sic_universe, JHX=not_in_sic_universe, NX=not_in_sic_universe, TGLS=not_in_sic_universe, TREX=not_in_sic_universe
+- Loss stages: APOG=not_in_sic_universe, FBIN=not_in_sic_universe, JELD=not_in_sic_universe, JHX=not_in_sic_universe, NX=not_in_sic_universe, TGLS=not_in_sic_universe, TREX=not_in_sic_universe
 
 ### circor-international-2023 — CIK1091883 (CIRCOR International, Inc.)
 - Source: Evercore Group L.L.C. / J.P. Morgan Securities LLC (identical selected-companies sets), 2023-07-17 — https://www.sec.gov/Archives/edgar/data/1091883/000114036123034666/ny20009611x2_defm14a.htm
@@ -142,7 +136,7 @@ worth. The coverage analysis behind the waterfall/ladder design is in
 - Missed before universe/scoring: GFF, JELD, MBC, OC
 - Missed after ranking: none
 - Excluded delisted banker comps: AMWD
-- Scored pool: 1 companies (1 selectable) — selection trivial (pool <= K, precision measures coverage only)
+- Scored pool: 2 companies (2 selectable) — selection trivial (pool <= K, precision measures coverage only)
 - Discovery SIC codes: primary 2430; adjacent none
 - Loss stages: GFF=not_in_sic_universe, JELD=financial_filtered, MBC=not_in_sic_universe, OC=not_in_sic_universe
 
@@ -156,3 +150,75 @@ worth. The coverage analysis behind the waterfall/ladder design is in
 - Scored pool: 1 companies (1 selectable) — selection trivial (pool <= K, precision measures coverage only)
 - Discovery SIC codes: primary 2891; adjacent none
 - Loss stages: ASH=not_in_sic_universe, AVD=not_in_sic_universe, AVNT=not_in_sic_universe, BCPC=not_in_sic_universe, CBT=not_in_sic_universe, ESI=not_in_sic_universe, FUL=no_valid_ev_ebitda, HWKN=not_in_sic_universe, IOSP=not_in_sic_universe, KWR=not_in_sic_universe, MATV=not_in_sic_universe, NGVT=not_in_sic_universe, ROG=not_in_sic_universe, SCL=not_in_sic_universe, UFPT=not_in_sic_universe
+
+### perficient-inc-2024 — CIK1085869 (PERFICIENT INC)
+- Source: Wells Fargo, 2024-06-26 — https://www.sec.gov/Archives/edgar/data/1085869/000119312524169200/d834503ddefm14a.htm
+- Precision@15: 25.0% (reachable: 100.0%)
+- Hits: EPAM
+- Missed before universe/scoring: GD, ACN, CTSH
+- Missed after ranking: none
+- Excluded delisted banker comps: TWKS
+- Excluded non-US-filer banker comps: GLOB, DAVA, TCS.NS, INFY, CAP.PA, WIT, GIB
+- Scored pool: 4 companies (4 selectable) — selection trivial (pool <= K, precision measures coverage only)
+- Discovery SIC codes: primary 7371; adjacent none
+- Loss stages: ACN=not_in_sic_universe, CTSH=financial_filtered, GD=not_in_sic_universe
+
+### squarespace-inc-2024 — SQSP (Squarespace, Inc.)
+- Source: Centerview Partners LLC, 2024-08-22 — https://www.sec.gov/Archives/edgar/data/1496963/000114036124038138/ny20030653x9_defm14a.htm
+- Precision@15: 0.0% (no comp reached ranking)
+- Hits: none
+- Missed before universe/scoring: BIGC, BILL, GDDY, INTU, VRSN
+- Missed after ranking: none
+- Excluded delisted banker comps: none
+- Excluded non-US-filer banker comps: WIX
+- Scored pool: 48 companies (47 selectable)
+- Discovery SIC codes: primary 7372; adjacent none
+- Loss stages: BIGC=not_in_sic_universe, BILL=financial_filtered, GDDY=not_in_sic_universe, INTU=financial_filtered, VRSN=not_in_sic_universe
+
+### smartsheet-inc-2024 — CIK1366561 (SMARTSHEET INC)
+- Source: Qatalyst Partners, 2024-11-04 — https://www.sec.gov/Archives/edgar/data/1366561/000162828024044846/smartsheetdefm14a1142024.htm
+- Precision@15: 5.9% (reachable: 33.3%)
+- Hits: PAYC
+- Missed before universe/scoring: WDAY, PATH, BILL, WK, FRSH, ASAN, FIVN, PD, SPT, CRM, TEAM, ZM, DBX, BXCAP
+- Missed after ranking: OKTA, DOCU
+- Excluded delisted banker comps: none
+- Excluded non-US-filer banker comps: MNDY
+- Scored pool: 47 companies (46 selectable)
+- Discovery SIC codes: primary 7372; adjacent none
+- Loss stages: ASAN=financial_filtered, BILL=financial_filtered, BXCAP=not_in_sic_universe, CRM=financial_filtered, DBX=no_valid_ev_ebitda, DOCU=ranked_but_not_top_k, FIVN=not_in_sic_universe, FRSH=financial_filtered, OKTA=ranked_but_not_top_k, PATH=financial_filtered, PD=financial_filtered, SPT=financial_filtered, TEAM=financial_filtered, WDAY=not_in_sic_universe, WK=financial_filtered, ZM=not_in_sic_universe
+
+### stericycle-inc-2024 — CIK861878 (STERICYCLE INC)
+- Source: BofA Securities, 2024-07-10 — https://www.sec.gov/Archives/edgar/data/861878/000119312524177292/d768297ddefm14a.htm
+- Precision@15: 14.3% (reachable: 100.0%)
+- Hits: CLH
+- Missed before universe/scoring: RSG, WCN, WM, ARCC, UNF, VSTS
+- Missed after ranking: none
+- Excluded delisted banker comps: none
+- Excluded non-US-filer banker comps: GFL, RTO, BFSA.DE, ELSSF, RWI.L, RST.L, SCHP.PA, VIE.PA
+- Scored pool: 1 companies (1 selectable) — selection trivial (pool <= K, precision measures coverage only)
+- Discovery SIC codes: primary 4955; adjacent none
+- Loss stages: ARCC=not_in_sic_universe, RSG=not_in_sic_universe, UNF=not_in_sic_universe, VSTS=not_in_sic_universe, WCN=not_in_sic_universe, WM=not_in_sic_universe
+
+### duckhorn-portfolio-inc-2024 — CIK1835256 (Duckhorn Portfolio, Inc.)
+- Source: J.P. Morgan, 2024-12-02 — https://www.sec.gov/Archives/edgar/data/1835256/000119312524268428/d852182ddefm14a.htm
+- Precision@15: N/A (no comp reached ranking)
+- Hits: none
+- Missed before universe/scoring: none
+- Missed after ranking: none
+- Excluded delisted banker comps: none
+- Excluded non-US-filer banker comps: TWE.AX, CXMSF, RCO.PA
+- Scored pool: 1 companies (1 selectable) — selection trivial (pool <= K, precision measures coverage only)
+- Discovery SIC codes: primary 2080; adjacent none
+
+### r1-rcm-inc-de-2024 — CIK1910851 (R1 RCM Inc. /DE)
+- Source: Qatalyst Partners, 2024-10-16 — https://www.sec.gov/Archives/edgar/data/1910851/000119312524238130/d837225ddefm14a.htm
+- Precision@15: 0.0% (no comp reached ranking)
+- Hits: none
+- Missed before universe/scoring: PHR, HQY, WAY, HSTM, EVH, OMCL, HCAT, PGNY, TBRG, PREM, EXLS, G
+- Missed after ranking: none
+- Excluded delisted banker comps: none
+- Excluded non-US-filer banker comps: NU
+- Scored pool: 1 companies (1 selectable) — selection trivial (pool <= K, precision measures coverage only)
+- Discovery SIC codes: primary 8741; adjacent none
+- Loss stages: EVH=financial_filtered, EXLS=not_in_sic_universe, G=not_in_sic_universe, HCAT=not_in_sic_universe, HQY=not_in_sic_universe, HSTM=not_in_sic_universe, OMCL=not_in_sic_universe, PGNY=not_in_sic_universe, PHR=not_in_sic_universe, PREM=not_in_sic_universe, TBRG=not_in_sic_universe, WAY=not_in_sic_universe
+

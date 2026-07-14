@@ -139,7 +139,7 @@ def load_manual_deals(path: str | Path = MANUAL_DEALS_PATH) -> list[dict]:
     return deals
 
 
-def validate_manual_deals_benchmark(deals: list[dict], min_deals: int = 8, max_deals: int = 10) -> dict:
+def validate_manual_deals_benchmark(deals: list[dict], min_deals: int = 8, max_deals: int = 20) -> dict:
     """Validate that manual deals are ready to serve as an audited benchmark."""
     if not min_deals <= len(deals) <= max_deals:
         raise ValueError(f"Manual benchmark must contain {min_deals}-{max_deals} deals; found {len(deals)}")
