@@ -11,8 +11,9 @@ constraint is semantic ranking quality — not corpus plumbing.
 The ground-truth benchmark has gone through three revisions, referenced
 below as **v1**/**v2**/**v3** rather than by date:
 
-- **v1** — 9 deals, no discovery ladder, no coverage waterfall. Full
-  write-up archived in [`eval_coverage_analysis.md`](eval_coverage_analysis.md).
+- **v1** — 9 deals, no discovery ladder, no coverage waterfall; early local
+  runs, superseded before the first `eval/` commit landed (no artifacts of
+  this state exist in the repo).
 - **v2** — 10 deals, all industrial/manufacturing targets; introduced the
   discovery ladder (single-sic / sic+embedding / suggest-sic /
   suggest-sic+embedding) and the coverage waterfall.
@@ -67,6 +68,22 @@ To run it yourself:
 python -m scripts.evaluate_manual_deals      # writes results.json
 python -m scripts.check_eval_regression      # non-zero exit on regression
 ```
+
+## Ground-truth deal selection criteria
+
+Lessons for curating future deals into `eval/ground_truth/manual_deals.json`
+(via `eval/ground_truth_builder.py`'s prefill-then-human-review flow):
+
+- Reject a deal, or flag its outlier banker comps, if the selected
+  comparables are systematically outside this pipeline's own mid-market
+  size discipline (e.g. banker-endorsed mega-cap category leaders for a
+  much smaller target) — those comps are unreachable *by design*, not a
+  pipeline defect, and just dilute the benchmark's signal. See the
+  size-discipline caveat in "Evaluation design limitations" below for a
+  worked example.
+- Verify the deal's `target_sic` isn't mislabeled or stale in EDGAR before
+  including it — a bad SIC code poisons discovery from the first step,
+  independent of anything downstream.
 
 ## Discovery ladder: measured results
 
@@ -158,6 +175,33 @@ comps across four probed targets (it lists market-cap neighbors, not
 business peers; the industry-screened v4 endpoint is legacy-walled). Ten
 API calls of preflight saved the whole build.
 
+A worked example of the ranking layer's first real test (v2, rung 2 —
+before that there was nothing to tune against): 12 hits vs. 3 ranked-out
+(ITT, FLS for CIRCOR; MTW for Manitex).
+
+- **MTW** ranked 16th (cutoff 15, missed by 0.04 of adjusted score):
+  distance 2.52 of total 2.66 — no categorical penalties, subsector
+  similarity 0.83. Lost on raw financial distance alone; the #15 slot went
+  to Azenta (life-sciences automation), and Manitex's actual top-15
+  contained ACMR/ACLS/VECO (semiconductor equipment) and HLLY (B2C
+  aftermarket) — financially closer shapes, obviously worse businesses.
+- **ITT** ranked 21st: distance 2.28 + a 0.4 subsector penalty (similarity
+  0.564, just under the 0.6 threshold — a diversified-industrial
+  description problem). Would have sat outside the top 15 even
+  penalty-free.
+- **FLS** ranked 23rd: distance 2.74, essentially unpenalized (similarity
+  0.72) — the single most obvious flow-control comp for CIRCOR, ranked out
+  purely by financial-feature distance ($4.7bn revenue profile vs. $920mm
+  target).
+
+Diagnosis: within-pool ordering is dominated by financial distance; the
+qualitative penalties (0.4-0.6) are small against the observed residual
+spread (~0.7-2.7 in these pools). Decision at the time: do not grid-tune on
+3 negative examples (guaranteed overfit) — revisit penalty scale once the
+benchmark has more ranked-out examples. v3's larger, cross-industry
+benchmark is that opportunity — see the fourth finding below and Roadmap
+item 2.
+
 A fourth finding, from scoping the ranking-layer tuning work (roadmap item
 2, below), on v3: **penalty tuning has no signal on `single-sic` dev data.**
 `_select_ranked_tickers` returns the whole ranked list unchanged whenever
@@ -202,6 +246,14 @@ Read the benchmark numbers with these caveats:
    `selection_trivial` per deal, but the headline mean still mixes coverage
    and ranking failures. Use the coverage waterfall and reachable precision
    for diagnosis, not the headline number alone.
+6. **Some banker comps are excluded by design, not by defect.** In the v2
+   benchmark, a 10x revenue band (relative to each deal's target) excluded
+   TDG, SWK, SNA, TEX, and ATI — banker-endorsed mega-cap anchors that this
+   product's mid-market size discipline deliberately rejects. Any future
+   penalty/filter tuning against this benchmark must account for that bias
+   — the tuner should not learn to erase the size discipline in order to
+   chase a few extra hits. See "Ground-truth deal selection criteria"
+   above.
 
 Data-contract limits (US 10-K filers only, FMP free-tier quota, 1-day
 market-data TTL) are documented in [data_layer.md](data_layer.md).
