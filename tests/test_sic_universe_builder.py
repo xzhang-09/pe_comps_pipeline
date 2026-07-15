@@ -1,3 +1,5 @@
+import importlib
+
 import src.sic_universe_builder as sic_universe_builder
 
 
@@ -113,3 +115,31 @@ def test_discover_cik_lookup_failure_is_skipped(mocker, tmp_path):
     tickers = sic_universe_builder.discover_tickers_by_sic(["4444"])
 
     assert tickers == ["BBB"]
+
+
+def test_fetch_company_profile_returns_full_payload(mocker):
+    mocker.patch(
+        "src.sic_universe_builder.requests.get",
+        return_value=_FakeResponse(json_data={"tickers": ["XYZ"], "sic": "3559", "name": "Test Co"}),
+    )
+
+    profile = sic_universe_builder.fetch_company_profile(123)
+
+    assert profile == {"tickers": ["XYZ"], "sic": "3559", "name": "Test Co"}
+
+
+def test_fetch_company_profile_404_returns_none(mocker):
+    mocker.patch(
+        "src.sic_universe_builder.requests.get",
+        return_value=_FakeResponse(status_code=404),
+    )
+
+    assert sic_universe_builder.fetch_company_profile(999) is None
+
+
+def test_sec_headers_use_environment_identity(monkeypatch):
+    monkeypatch.setenv("SEC_IDENTITY", "PE Comps test@example.com")
+
+    module = importlib.reload(sic_universe_builder)
+
+    assert module.HEADERS["User-Agent"] == "PE Comps test@example.com"

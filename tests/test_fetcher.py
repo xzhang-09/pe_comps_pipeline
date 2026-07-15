@@ -1,3 +1,4 @@
+import importlib
 import json
 
 import pandas as pd
@@ -28,7 +29,9 @@ def _cashflow_df(depreciation_amortization=None):
     return _statement_df([{"standard_concept": "DepreciationExpense", "p0": depreciation_amortization}])
 
 
-def _balance_sheet_df(cash=None, short_term_debt=None, current_portion_ltd=None, long_term_debt=None):
+def _balance_sheet_df(cash=None, short_term_debt=None, current_portion_ltd=None, long_term_debt=None,
+                      minority_interest=None, preferred_equity=None,
+                      operating_lease_current=None, operating_lease_noncurrent=None, operating_lease_total=None):
     rows = []
     if cash is not None:
         rows.append({"standard_concept": "CashAndMarketableSecurities", "p0": cash})
@@ -38,6 +41,16 @@ def _balance_sheet_df(cash=None, short_term_debt=None, current_portion_ltd=None,
         rows.append({"standard_concept": "CurrentPortionOfLongTermDebt", "p0": current_portion_ltd})
     if long_term_debt is not None:
         rows.append({"standard_concept": "LongTermDebt", "p0": long_term_debt})
+    if minority_interest is not None:
+        rows.append({"standard_concept": "MinorityInterest", "p0": minority_interest})
+    if preferred_equity is not None:
+        rows.append({"standard_concept": "PreferredStockValue", "p0": preferred_equity})
+    if operating_lease_total is not None:
+        rows.append({"standard_concept": "OperatingLeaseLiability", "p0": operating_lease_total})
+    if operating_lease_current is not None:
+        rows.append({"standard_concept": "OperatingLeaseLiabilityCurrent", "p0": operating_lease_current})
+    if operating_lease_noncurrent is not None:
+        rows.append({"standard_concept": "OperatingLeaseLiabilityNoncurrent", "p0": operating_lease_noncurrent})
     return _statement_df(rows)
 
 
@@ -106,15 +119,24 @@ class FakeCompany:
 def _healthy_company(mocker, revenue=200_000_000.0, operating_income=30_000_000.0,
                       depreciation_amortization=10_000_000.0, gross_profit=70_000_000.0, capex=8_000_000.0,
                       cash=None, short_term_debt=None, current_portion_ltd=None, long_term_debt=None,
+                      minority_interest=None, preferred_equity=None,
+                      operating_lease_current=None, operating_lease_noncurrent=None, operating_lease_total=None,
                       business_text=None):
     income_df = _income_df({"p0": revenue}, operating_income=operating_income, gross_profit=gross_profit)
     cashflow_df = _cashflow_df(depreciation_amortization)
     balance_sheet_df = _balance_sheet_df(
         cash=cash, short_term_debt=short_term_debt,
         current_portion_ltd=current_portion_ltd, long_term_debt=long_term_debt,
+        minority_interest=minority_interest, preferred_equity=preferred_equity,
+        operating_lease_current=operating_lease_current, operating_lease_noncurrent=operating_lease_noncurrent,
+        operating_lease_total=operating_lease_total,
     )
     financials = FakeFinancials(income_df, cashflow_df, balance_sheet_df=balance_sheet_df, capex=capex)
     return FakeCompany(name="Test Co.", financials=financials, business_text=business_text)
+
+
+def _config_with_leases(sample_config, include_leases):
+    return {**sample_config, "valuation": {"include_operating_leases_in_ev": include_leases}}
 
 
 def test_cache_hit_skips_api_call(mocker, sample_company):
@@ -230,6 +252,84 @@ def test_ev_ebitda_from_market_cap_and_net_debt(mocker, sample_config):
     assert record["net_debt_ebitda"] == pytest.approx(40.0 / ebitda_mm)
 
 
+def test_ev_bridge_includes_minority_interest_and_preferred(mocker, sample_config):
+    mocker.patch("src.fetcher.edgar.Company", return_value=_healthy_company(
+        mocker, revenue=200_000_000.0, operating_income=30_000_000.0, depreciation_amortization=10_000_000.0,
+        cash=10_000_000.0, long_term_debt=50_000_000.0,
+        minority_interest=20_000_000.0, preferred_equity=15_000_000.0,
+    ))
+    mocker.patch("src.fetcher.fmp_client.get_profile", return_value={
+        "marketCap": 400_000_000, "sector": "Industrials",
+    })
+
+    record = fetcher.fetch_batch(["MI1"], sample_config)[0]
+
+    # EV = market cap 400 + net debt 40 + minority 20 + preferred 15 = 475MM.
+    ebitda_mm = 40.0
+    expected_ev_mm = 400.0 + 40.0 + 20.0 + 15.0
+    assert record["enterprise_value_usd_mm"] == pytest.approx(expected_ev_mm)
+    assert record["ev_ebitda"] == pytest.approx(expected_ev_mm / ebitda_mm)
+    # The leverage feature must NOT absorb minority/preferred — it stays debt-cash.
+    assert record["net_debt_ebitda"] == pytest.approx(40.0 / ebitda_mm)
+    assert record["minority_interest_usd_mm"] == pytest.approx(20.0)
+    assert record["preferred_equity_usd_mm"] == pytest.approx(15.0)
+
+
+def test_operating_leases_excluded_from_ev_by_default(mocker, sample_config):
+    mocker.patch("src.fetcher.edgar.Company", return_value=_healthy_company(
+        mocker, revenue=200_000_000.0, operating_income=30_000_000.0, depreciation_amortization=10_000_000.0,
+        cash=10_000_000.0, long_term_debt=50_000_000.0,
+        operating_lease_current=5_000_000.0, operating_lease_noncurrent=25_000_000.0,
+    ))
+    mocker.patch("src.fetcher.fmp_client.get_profile", return_value={
+        "marketCap": 400_000_000, "sector": "Industrials",
+    })
+
+    record = fetcher.fetch_batch(["OL1"], sample_config)[0]
+
+    # Default config has no valuation block -> leases excluded; EV = 400 + 40 = 440.
+    assert record["enterprise_value_usd_mm"] == pytest.approx(440.0)
+    assert record["valuation_source"] == "sec_xbrl_derived"
+    # The liability is still captured on the record for transparency.
+    assert record["operating_lease_liability_usd_mm"] == pytest.approx(30.0)
+
+
+def test_operating_leases_included_in_ev_when_config_opts_in(mocker, sample_config):
+    mocker.patch("src.fetcher.edgar.Company", return_value=_healthy_company(
+        mocker, revenue=200_000_000.0, operating_income=30_000_000.0, depreciation_amortization=10_000_000.0,
+        cash=10_000_000.0, long_term_debt=50_000_000.0,
+        operating_lease_current=5_000_000.0, operating_lease_noncurrent=25_000_000.0,
+    ))
+    mocker.patch("src.fetcher.fmp_client.get_profile", return_value={
+        "marketCap": 400_000_000, "sector": "Industrials",
+    })
+
+    config = _config_with_leases(sample_config, include_leases=True)
+    record = fetcher.fetch_batch(["OL2"], config)[0]
+
+    # EV = 400 + net debt 40 + operating leases (5 + 25) = 470MM.
+    assert record["enterprise_value_usd_mm"] == pytest.approx(470.0)
+    assert record["valuation_source"] == "sec_xbrl_derived_lease_adj"
+
+
+def test_ev_bridge_with_no_minority_or_preferred_matches_old_bridge(mocker, sample_config):
+    # Regression: a plain company (no minority/preferred/leases) must produce
+    # exactly the old market_cap + net_debt EV, so existing comps don't move.
+    mocker.patch("src.fetcher.edgar.Company", return_value=_healthy_company(
+        mocker, revenue=200_000_000.0, operating_income=30_000_000.0, depreciation_amortization=10_000_000.0,
+        cash=10_000_000.0, long_term_debt=50_000_000.0,
+    ))
+    mocker.patch("src.fetcher.fmp_client.get_profile", return_value={
+        "marketCap": 400_000_000, "sector": "Industrials",
+    })
+
+    record = fetcher.fetch_batch(["PLAIN1"], sample_config)[0]
+
+    assert record["enterprise_value_usd_mm"] == pytest.approx(440.0)
+    assert record["minority_interest_usd_mm"] is None
+    assert record["preferred_equity_usd_mm"] is None
+
+
 def test_fmp_lookup_sleeps_between_tickers_not_before_first(mocker, sample_config):
     mocker.patch("src.fetcher.edgar.Company", return_value=_healthy_company(mocker))
     mocker.patch("src.fetcher.fmp_client.get_profile", return_value={
@@ -280,3 +380,48 @@ def test_business_description_none_when_both_sources_fail(mocker, sample_config)
 
     assert record["business_description"] is None
     assert record["description_source"] is None
+
+
+def test_edgar_identity_uses_environment_variable(monkeypatch, mocker):
+    mock_set_identity = mocker.patch("src.fetcher.edgar.set_identity")
+    monkeypatch.setenv("SEC_IDENTITY", "PE Comps test@example.com")
+
+    importlib.reload(fetcher)
+
+    mock_set_identity.assert_called_with("PE Comps test@example.com")
+
+
+def test_fetch_batch_preserves_structured_universe_metadata(mocker, sample_config):
+    mocker.patch("src.fetcher.edgar.Company", return_value=_healthy_company(mocker))
+    mocker.patch("src.fetcher.fmp_client.get_profile", return_value={})
+
+    candidate = {
+        "ticker": "META1",
+        "source_bucket": "primary",
+        "matched_sic_codes": ["3714"],
+        "sic_2_digit": "37",
+        "sic_3_digit": "371",
+        "industry_cluster": "auto_parts",
+    }
+
+    record = fetcher.fetch_batch([candidate], sample_config)[0]
+
+    assert record["ticker"] == "META1"
+    assert record["universe_metadata"]["source_bucket"] == "primary"
+    assert record["source_bucket"] == "primary"
+    assert record["industry_cluster"] == "auto_parts"
+
+
+def test_valuation_source_is_sec_xbrl_derived_when_profile_has_market_cap(mocker, sample_config):
+    mocker.patch("src.fetcher.edgar.Company", return_value=_healthy_company(
+        mocker, revenue=200_000_000.0, operating_income=30_000_000.0, depreciation_amortization=10_000_000.0,
+        cash=10_000_000.0, long_term_debt=50_000_000.0,
+    ))
+    mocker.patch("src.fetcher.fmp_client.get_profile", return_value={
+        "marketCap": 400_000_000, "sector": "Industrials",
+    })
+
+    record = fetcher.fetch_batch(["FMP1"], sample_config)[0]
+
+    assert record["valuation_source"] == "sec_xbrl_derived"
+    assert record["ev_ebitda"] is not None

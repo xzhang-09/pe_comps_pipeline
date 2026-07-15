@@ -1,4 +1,5 @@
 import json
+import os
 import re
 import time
 from pathlib import Path
@@ -9,7 +10,8 @@ from src import get_logger
 
 logger = get_logger(__name__)
 
-SEC_IDENTITY = "PE-Comps-Pipeline research@example.com"
+DEFAULT_SEC_IDENTITY = "PE-Comps-Pipeline research@example.com"
+SEC_IDENTITY = os.environ.get("SEC_IDENTITY", DEFAULT_SEC_IDENTITY)
 HEADERS = {"User-Agent": SEC_IDENTITY}
 REQUEST_TIMEOUT_SECONDS = 10
 
@@ -35,7 +37,7 @@ def _load_cache(sic: str) -> list[str] | None:
     path = _cache_path(sic)
     if not path.exists():
         return None
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         return json.load(f)
 
 
@@ -81,18 +83,29 @@ def _fetch_ciks_for_sic(sic: str, max_pages: int = MAX_PAGES_PER_SIC) -> list[in
     return ciks
 
 
-def _fetch_company_tickers(cik: int) -> list[str]:
+def fetch_company_profile(cik: int) -> dict | None:
     """
-    Look up a CIK's current US ticker(s) via SEC's submissions API.
-    Returns an empty list for foreign private issuers, shell companies, or
-    anything else without a standard US ticker.
+    Fetch a CIK's full submissions profile (tickers, SIC code, name, etc.)
+    via SEC's submissions API. Returns None for foreign private issuers,
+    shell companies, or any CIK with no submissions on file (404) — this
+    also covers delisted/acquired companies, since EDGAR keeps their
+    historical submissions data indefinitely even after delisting.
     """
     resp = requests.get(SUBMISSIONS_URL.format(cik=cik), headers=HEADERS, timeout=REQUEST_TIMEOUT_SECONDS)
     if resp.status_code == 404:
-        return []
+        return None
     resp.raise_for_status()
-    data = resp.json()
-    return [t for t in data.get("tickers", []) if t]
+    return resp.json()
+
+
+def _fetch_company_tickers(cik: int) -> list[str]:
+    """Look up a CIK's current US ticker(s). Returns an empty list for
+    foreign private issuers, shell companies, or anything else without a
+    standard US ticker."""
+    profile = fetch_company_profile(cik)
+    if profile is None:
+        return []
+    return [t for t in profile.get("tickers", []) if t]
 
 
 def discover_tickers_by_sic(sic_codes: list[str]) -> list[str]:

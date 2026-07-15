@@ -1,236 +1,146 @@
-import json
-from pathlib import Path
-
 import numpy as np
 import pandas as pd
-import shap
-import xgboost as xgb
-from sklearn.model_selection import KFold
 
 from src import get_logger
-from src.feature_builder import LABEL_COLUMN, LLM_CATEGORICAL_FIELDS
+from src.feature_builder import FINANCIAL_FEATURE_COLUMNS, LABEL_COLUMN, median_for
 
 logger = get_logger(__name__)
 
-MODEL_DIR = Path("data/models")
-MODEL_PATH = MODEL_DIR / "xgb_model.json"
-MEDIANS_PATH = MODEL_DIR / "imputation_medians.json"
-# CV-derived outputs (feature importance, company scores, CV RMSE) are tied
-# to a specific training run, so they're cached alongside the model itself —
-# loading the model without these would mean recomputing them via more
-# fit() calls, defeating the point of skipping retraining.
-SCORER_CACHE_PATH = MODEL_DIR / "scorer_cache.json"
+TOP_N_FEATURE_BREAKDOWN = 5
+DEFAULT_WEIGHT = 1.0
+DEFAULT_WEIGHT_TEMPLATE = "default"
 
-XGB_PARAMS = dict(
-    n_estimators=300,
-    max_depth=4,
-    learning_rate=0.05,
-    subsample=0.8,
-    colsample_bytree=0.8,
-    min_child_weight=5,
-    reg_alpha=0.1,
-    reg_lambda=1.0,
-    objective="reg:squarederror",
-    eval_metric="rmse",
-    early_stopping_rounds=30,
-    random_state=42,
-)
-
-N_CV_FOLDS = 5
-TOP_N_FEATURE_IMPORTANCE_CHECK = 5
-SANITY_CHECK_FEATURES = ("ebitda_margin", "revenue_cagr_3yr")
-TARGET_RANGE_MULTIPLIER = 1.5
+# config.yaml target_company keys that directly supply a financial feature's
+# value for the target. revenue is handled separately below (it comes in as
+# revenue_usd_mm and is log-transformed); every other feature an analyst
+# leaves unset falls back to a peer-group median AND drops out of the distance
+# (see _distance_to_target).
+TARGET_FEATURE_CONFIG_KEYS = {
+    "ebitda_margin": "ebitda_margin_estimate",
+    "gross_margin": "gross_margin_estimate",
+    "revenue_cagr_3yr": "revenue_cagr_3yr_estimate",
+    "net_debt_ebitda": "net_debt_ebitda_estimate",
+    "capex_revenue": "capex_revenue_estimate",
+}
 
 
-def _make_model() -> xgb.XGBRegressor:
-    return xgb.XGBRegressor(**XGB_PARAMS)
+def _standardize(financial_df: pd.DataFrame) -> tuple[pd.DataFrame, pd.Series, pd.Series]:
+    means = financial_df.mean()
+    stds = financial_df.std().replace(0, 1.0)
+    return (financial_df - means) / stds, means, stds
 
 
-def _cross_validate(X: pd.DataFrame, y: pd.Series) -> tuple[float, float, np.ndarray]:
+def _feature_weights(feature_weights_config: dict, business_model: str | None) -> pd.Series:
     """
-    Returns (cv_rmse_log, cv_mae_median, oof_predictions).
+    Resolves the per-feature weight vector for distance scoring, looked up
+    by the *target's* business_model so every candidate is measured against
+    the same ruler (using each candidate's own business_model instead would
+    make distances incomparable across candidates).
 
-    cv_rmse_log is RMSE in log1p space — the actual model-quality metric,
-    and the right space to build a symmetric +/- confidence band in (then
-    exponentiate the *bounds*, not the RMSE itself — see predict_target).
-
-    cv_mae_median is the median absolute error in multiple space, for
-    human-readable reporting. It is NOT numpy.expm1(cv_rmse_log) — that
-    transform doesn't carry over between an aggregate statistic and a
-    single value, and empirically understated the real error by ~24x here
-    (0.57x vs. a true direct RMSE of ~14x, which itself is skewed by a
-    handful of companies with genuinely extreme multiples). The median is
-    robust to those outliers and matches the typical per-company residual.
+    Lookup order: the business_model's own template -> the "default"
+    template -> 1.0 for any feature missing from whichever template was
+    found. An empty feature_weights_config (the default) uses unweighted
+    Euclidean distance.
     """
-    kfold = KFold(n_splits=N_CV_FOLDS, shuffle=True, random_state=42)
-    oof_predictions = np.full(len(y), np.nan)
-
-    for train_idx, val_idx in kfold.split(X):
-        X_train, X_val = X.iloc[train_idx], X.iloc[val_idx]
-        y_train, y_val = y.iloc[train_idx], y.iloc[val_idx]
-
-        model = _make_model()
-        model.fit(X_train, y_train, eval_set=[(X_val, y_val)], verbose=False)
-        oof_predictions[val_idx] = model.predict(X_val)
-
-    actual_log = y.to_numpy()
-    cv_rmse_log = float(np.sqrt(np.mean((oof_predictions - actual_log) ** 2)))
-
-    actual_multiple = np.expm1(actual_log)
-    predicted_multiple = np.expm1(oof_predictions)
-    cv_mae_median = float(np.median(np.abs(actual_multiple - predicted_multiple)))
-
-    return cv_rmse_log, cv_mae_median, oof_predictions
+    group = business_model or DEFAULT_WEIGHT_TEMPLATE
+    template = feature_weights_config.get(group) or feature_weights_config.get(DEFAULT_WEIGHT_TEMPLATE) or {}
+    return pd.Series({col: template.get(col, DEFAULT_WEIGHT) for col in FINANCIAL_FEATURE_COLUMNS})
 
 
-def _train_final_model(X: pd.DataFrame, y: pd.Series) -> xgb.XGBRegressor:
-    model = _make_model()
-    # Spec calls for training on ALL data with no held-out set. early_stopping_rounds
-    # requires an eval_set to function at all, so we pass the training data back to
-    # itself purely to satisfy that API requirement (not as a real validation signal).
-    model.fit(X, y, eval_set=[(X, y)], verbose=False)
-    return model
+def _target_financial_row(
+    target_config: dict, imputation_medians: dict, target_business_model: str | None,
+) -> tuple[dict, list[str]]:
+    """
+    Builds the target's financial feature vector and the list of features the
+    analyst actually provided ("observed"). Provided features (revenue plus any
+    of the optional *_estimate fields in config.yaml's target_company) are used
+    directly; features the private target cannot source fall back to
+    business-model medians, then global medians — but those imputed features are
+    reported as *not* observed so _distance_to_target can exclude them. The
+    imputed value is still returned (it's a harmless placeholder once excluded)
+    to keep the row a complete 6-feature vector for any caller that needs one.
+    """
+    def median(field: str) -> float | None:
+        return median_for(imputation_medians, field, target_business_model)
+
+    observed: list[str] = []
+
+    revenue = target_config.get("revenue_usd_mm")
+    if revenue is not None:
+        revenue_log = np.log1p(revenue)
+        observed.append("revenue_ttm_log")
+    else:
+        revenue_log = median("revenue_ttm_log")
+
+    target_row = {"revenue_ttm_log": revenue_log}
+    for feature, config_key in TARGET_FEATURE_CONFIG_KEYS.items():
+        provided = target_config.get(config_key)
+        if provided is not None:
+            target_row[feature] = provided
+            observed.append(feature)
+        else:
+            target_row[feature] = median(feature)
+
+    return target_row, observed
 
 
-def _feature_importance(model: xgb.XGBRegressor, X: pd.DataFrame) -> pd.DataFrame:
-    explainer = shap.TreeExplainer(model)
-    shap_values = explainer.shap_values(X)
-    mean_abs_shap = np.abs(shap_values).mean(axis=0)
+def _distance_to_target(
+    financial_df: pd.DataFrame, target_row: dict, weights: pd.Series, observed_features: list[str],
+) -> tuple[pd.Series, pd.DataFrame]:
+    """
+    Standardizes each financial feature (z-score across the comp universe),
+    weights each feature's squared deviation per `weights` (1.0 everywhere
+    reproduces plain Euclidean distance), and computes every company's
+    distance to the target's standardized financial profile. Smaller distance
+    = more financially similar to the target.
 
-    importance = pd.DataFrame({
-        "feature": X.columns,
-        "mean_abs_shap": mean_abs_shap,
-    }).sort_values("mean_abs_shap", ascending=False).reset_index(drop=True)
+    Only features in `observed_features` contribute to the distance. Features
+    the private target couldn't source (imputed to a peer median) carry no real
+    information about the target — including them would just pull the ranking
+    toward whichever comps happen to sit near the pool median on that axis. We
+    zero their contribution rather than drop the columns so the returned
+    per-feature breakdown keeps a stable 6-feature shape (an imputed feature
+    simply shows 0 contribution — it drove nothing).
 
-    top_features = set(importance["feature"].head(TOP_N_FEATURE_IMPORTANCE_CHECK))
-    if not (set(SANITY_CHECK_FEATURES) & top_features):
-        logger.warning("Expected financial features not in top 5 — check data quality")
+    Returns (distance, per_feature_weighted_sq_diff); the latter lets
+    callers attribute a company's distance to individual features (already
+    weighted, so it reflects what actually drove the ranking) for the
+    post-hoc diagnostic breakdown of the selected Top-N.
+    """
+    standardized, means, stds = _standardize(financial_df)
+    target_standardized = pd.Series(
+        {col: (target_row.get(col, means[col]) - means[col]) / stds[col] for col in financial_df.columns},
+    )
+    sq_diff = standardized.subtract(target_standardized, axis=1) ** 2
+    weighted_sq_diff = sq_diff.multiply(weights, axis=1)
+    unobserved = [col for col in financial_df.columns if col not in observed_features]
+    if unobserved:
+        weighted_sq_diff[unobserved] = 0.0
+    distance = np.sqrt(weighted_sq_diff.sum(axis=1))
+    return distance, weighted_sq_diff
 
-    return importance
 
-
-def _company_scores(ev_ebitda_raw: pd.Series, oof_log_predictions: np.ndarray) -> pd.DataFrame:
-    actual = ev_ebitda_raw.to_numpy()
-    predicted = np.expm1(oof_log_predictions)
-    residual_abs = np.abs(actual - predicted)
-    residual_pct = residual_abs / actual
-
+def _company_scores(ev_ebitda_raw: pd.Series, distance: pd.Series) -> pd.DataFrame:
     return pd.DataFrame({
-        "ev_ebitda_actual": actual,
-        "ev_ebitda_predicted": predicted,
-        "residual_abs": residual_abs,
-        "residual_pct": residual_pct,
+        "ev_ebitda_actual": ev_ebitda_raw,
+        "residual_abs": distance,
     }, index=ev_ebitda_raw.index)
 
 
-def _save_artifacts(
-    model: xgb.XGBRegressor, imputation_medians: dict, cv_rmse_log: float,
-    cv_mae_median: float, feature_importance: pd.DataFrame, company_scores: pd.DataFrame,
-) -> None:
-    MODEL_DIR.mkdir(parents=True, exist_ok=True)
-    model.save_model(str(MODEL_PATH))
-
-    with open(MEDIANS_PATH, "w", encoding="utf-8") as f:
-        json.dump(imputation_medians, f, indent=2)
-
-    cache = {
-        "cv_rmse_log": cv_rmse_log,
-        "cv_mae_median": cv_mae_median,
-        "feature_importance": feature_importance.to_dict(orient="records"),
-        "company_scores": company_scores.reset_index(names="ticker").to_dict(orient="records"),
-    }
-    with open(SCORER_CACHE_PATH, "w", encoding="utf-8") as f:
-        json.dump(cache, f, indent=2)
-
-
-def _load_artifacts() -> tuple[xgb.XGBRegressor, float, float, pd.DataFrame, pd.DataFrame]:
-    model = xgb.XGBRegressor()
-    model.load_model(str(MODEL_PATH))
-
-    with open(SCORER_CACHE_PATH, "r", encoding="utf-8") as f:
-        cache = json.load(f)
-
-    feature_importance = pd.DataFrame(cache["feature_importance"])
-    company_scores = pd.DataFrame(cache["company_scores"]).set_index("ticker")
-
-    return model, cache["cv_rmse_log"], cache["cv_mae_median"], feature_importance, company_scores
-
-
-def _existing_artifacts_present() -> bool:
-    return MODEL_PATH.exists() and SCORER_CACHE_PATH.exists()
-
-
-def _one_hot_target_row(target_llm_features: dict, feature_columns: list) -> dict:
-    """Map the target's LLM categorical fields onto the exact one-hot column
-    structure used during training. Columns not matched stay 0 — this
-    correctly represents both "unknown" values and the drop_first reference
-    category."""
-    llm_columns = [
-        col for col in feature_columns
-        if any(col.startswith(f"{field}_") for field in LLM_CATEGORICAL_FIELDS)
-    ]
-    encoded = {col: 0 for col in llm_columns}
-
-    for field in LLM_CATEGORICAL_FIELDS:
-        value = target_llm_features.get(field) or "unknown"
-        col_name = f"{field}_{value}"
-        if col_name in encoded:
-            encoded[col_name] = 1
-
-    return encoded
-
-
-def predict_target(
-    model: xgb.XGBRegressor,
-    target_config: dict,
-    target_llm_features: dict,
-    feature_columns: list,
-    imputation_medians: dict,
-    cv_rmse_log: float,
-    cv_mae_median: float,
-) -> dict:
+def feature_distance_breakdown(sq_diff: pd.DataFrame, tickers: list[str], top_n: int = TOP_N_FEATURE_BREAKDOWN) -> pd.DataFrame:
     """
-    Predict EV/EBITDA for the private target company.
-
-    The +/- band is applied in log space (where cv_rmse_log was actually
-    computed) and only then exponentiated into each bound separately. This
-    is what makes the resulting range correctly asymmetric — expm1 is
-    convex, so the same log-space delta maps to a bigger move on the high
-    side than the low side, matching the real right-skew of EV/EBITDA
-    multiples. Applying a flat +/- in multiple space (the original approach)
-    loses that and used a badly miscalibrated delta besides.
+    Post-hoc diagnostic: averages each financial feature's (weighted)
+    squared distance to the target across a set of companies (typically the
+    selected Top-N), showing which features drive how close/far those comps
+    are from the target's financial profile — reflects scorer.feature_weights
+    if configured, so this matches what actually drove the ranking rather
+    than an unweighted view of it.
     """
-    revenue = target_config.get("revenue_usd_mm")
-    revenue_log = np.log1p(revenue) if revenue is not None else imputation_medians.get("revenue_ttm_log")
-
-    ebitda_margin = target_config.get("ebitda_margin_estimate")
-    if ebitda_margin is None:
-        ebitda_margin = imputation_medians.get("ebitda_margin")
-
-    row = {
-        "revenue_ttm_log": revenue_log,
-        "ebitda_margin": ebitda_margin,
-        "gross_margin": imputation_medians.get("gross_margin"),
-        "revenue_cagr_3yr": imputation_medians.get("revenue_cagr_3yr"),
-        "net_debt_ebitda": imputation_medians.get("net_debt_ebitda"),
-        "capex_revenue": imputation_medians.get("capex_revenue"),
-    }
-    row.update(_one_hot_target_row(target_llm_features, feature_columns))
-
-    X_target = pd.DataFrame([row], columns=feature_columns)
-    predicted_log = float(model.predict(X_target)[0])
-    predicted = float(np.expm1(predicted_log))
-
-    range_low = float(np.expm1(predicted_log - TARGET_RANGE_MULTIPLIER * cv_rmse_log))
-    range_high = float(np.expm1(predicted_log + TARGET_RANGE_MULTIPLIER * cv_rmse_log))
-
-    return {
-        "predicted_ev_ebitda": predicted,
-        "range_low": range_low,
-        "range_high": range_high,
-        "cv_rmse_log": cv_rmse_log,
-        "cv_mae_median": cv_mae_median,
-    }
+    mean_sq = sq_diff.loc[tickers].mean(axis=0)
+    return pd.DataFrame({
+        "feature": mean_sq.index,
+        "mean_sq_distance": mean_sq.to_numpy(),
+    }).sort_values("mean_sq_distance", ascending=False).reset_index(drop=True).head(top_n)
 
 
 def run(
@@ -238,46 +148,43 @@ def run(
     target_config: dict,
     target_llm_features: dict,
     imputation_medians: dict,
-    force_retrain: bool = False,
+    feature_weights_config: dict | None = None,
 ) -> dict:
     """
-    Full scoring run.
+    Ranks comps by financial-feature distance to the target. This is directly
+    interpretable per company and pairs with the business-attribute hard/soft
+    filters in reporter._select_top_15.
 
-    Note: imputation_medians is required here (from feature_builder.build())
-    even though it isn't part of the financial feature matrix itself — it's
-    needed to fill in missing fields for the target company in predict_target().
+    feature_weights_config (config.yaml's scorer.feature_weights) lets
+    different industries weight the 6 financial features differently — e.g.
+    growth matters more for SaaS, EBITDA margin matters more for asset-heavy
+    manufacturing — instead of treating them as equally informative for
+    every target. Omit it (or leave it empty) to use unweighted Euclidean
+    distance.
     """
-    feature_columns = [c for c in feature_matrix.columns if c != LABEL_COLUMN]
-    X = feature_matrix[feature_columns]
-    y = feature_matrix[LABEL_COLUMN]
+    target_business_model = target_llm_features.get("business_model")
+    financial_df = feature_matrix[list(FINANCIAL_FEATURE_COLUMNS)]
+    ev_ebitda_raw = np.expm1(feature_matrix[LABEL_COLUMN])
 
-    if not force_retrain and _existing_artifacts_present():
-        logger.info(f"Loaded existing model from {MODEL_PATH}")
-        model, cv_rmse_log, cv_mae_median, feature_importance, company_scores = _load_artifacts()
-    else:
-        cv_rmse_log, cv_mae_median, oof_predictions = _cross_validate(X, y)
-        model = _train_final_model(X, y)
-        feature_importance = _feature_importance(model, X)
+    target_row, observed_features = _target_financial_row(target_config, imputation_medians, target_business_model)
+    if not observed_features:
+        # No analyst-provided features at all (target gives neither revenue nor
+        # any margin/growth/leverage estimate). Excluding everything would make
+        # every distance zero, so fall back to the old behaviour — all six
+        # features, imputed — and flag it, rather than emit a degenerate ranking.
+        logger.warning(
+            "Target has no analyst-provided financial features; falling back to "
+            "all six (fully imputed) features for distance scoring."
+        )
+        observed_features = list(FINANCIAL_FEATURE_COLUMNS)
 
-        ev_ebitda_raw = np.expm1(y)
-        ev_ebitda_raw.index = feature_matrix.index
-        company_scores = _company_scores(ev_ebitda_raw, oof_predictions)
+    weights = _feature_weights(feature_weights_config or {}, target_business_model)
+    distance, sq_diff = _distance_to_target(financial_df, target_row, weights, observed_features)
 
-        _save_artifacts(model, imputation_medians, cv_rmse_log, cv_mae_median, feature_importance, company_scores)
-
-    target_prediction = predict_target(
-        model, target_config, target_llm_features, feature_columns, imputation_medians, cv_rmse_log, cv_mae_median,
-    )
+    company_scores = _company_scores(ev_ebitda_raw, distance)
 
     return {
-        "model": model,
-        "feature_columns": feature_columns,
-        "cv_rmse_log": cv_rmse_log,
-        # Field name kept for backward compatibility; the value is now the
-        # median absolute error in multiple space, not expm1(cv_rmse_log).
-        "cv_rmse_multiple_space": cv_mae_median,
-        "cv_mae_median": cv_mae_median,
-        "feature_importance": feature_importance,
         "company_scores": company_scores,
-        "target_prediction": target_prediction,
+        "feature_distance_sq_diff": sq_diff,
+        "observed_target_features": observed_features,
     }

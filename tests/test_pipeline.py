@@ -1,3 +1,4 @@
+import sys
 from pathlib import Path
 
 import pandas as pd
@@ -41,14 +42,8 @@ def _mock_all_steps(mocker, tmp_path):
     imputation_medians = {"ebitda_margin": 0.2}
     company_scores = pd.DataFrame({"residual_abs": [0.5]}, index=["AAA"])
     scorer_results = {
-        "model": None,
-        "feature_columns": ["ebitda_margin"],
-        "cv_rmse_log": 0.4,
-        "cv_mae_median": 5.0,
-        "cv_rmse_multiple_space": 5.0,
-        "feature_importance": pd.DataFrame({"feature": ["ebitda_margin"], "mean_abs_shap": [0.1]}),
         "company_scores": company_scores,
-        "target_prediction": {"predicted_ev_ebitda": 15.0, "range_low": 10.0, "range_high": 22.0, "cv_rmse_log": 0.4, "cv_mae_median": 5.0},
+        "feature_distance_sq_diff": pd.DataFrame({"ebitda_margin": [0.1]}, index=["AAA"]),
     }
 
     def _fake_generate(*args, **kwargs):
@@ -80,7 +75,7 @@ def test_pipeline_calls_all_six_steps(mocker, tmp_path, monkeypatch):
     config_path = _write_config(tmp_path)
     mocks = _mock_all_steps(mocker, tmp_path)
 
-    pipeline.run_pipeline(str(config_path), force_retrain=False)
+    pipeline.run_pipeline(str(config_path))
 
     for name, mock in mocks.items():
         assert mock.call_count == 1, f"{name} was called {mock.call_count} times, expected 1"
@@ -94,9 +89,9 @@ def test_pipeline_logs_step_headers(mocker, tmp_path):
     log_path.parent.mkdir(exist_ok=True)
     before_size = log_path.stat().st_size if log_path.exists() else 0
 
-    pipeline.run_pipeline(str(config_path), force_retrain=False)
+    pipeline.run_pipeline(str(config_path))
 
-    with open(log_path, "r", encoding="utf-8") as f:
+    with open(log_path, encoding="utf-8") as f:
         f.seek(before_size)
         new_content = f.read()
 
@@ -112,7 +107,42 @@ def test_pipeline_creates_required_directories(mocker, tmp_path, monkeypatch):
     assert not (tmp_path / "outputs").exists()
     assert not (tmp_path / "logs").exists()
 
-    pipeline.run_pipeline(str(config_path), force_retrain=False)
+    pipeline.run_pipeline(str(config_path))
 
     assert (tmp_path / "outputs").exists()
     assert (tmp_path / "logs").exists()
+
+
+def test_main_suggest_sic_codes_prints_suggestions_without_running_pipeline(mocker, tmp_path, monkeypatch, capsys):
+    config_path = _write_config(tmp_path)
+    mock_suggest = mocker.patch(
+        "src.pipeline.llm_analyzer.suggest_sic_codes",
+        return_value=[
+            {"sic_code": "3714", "title": "Motor Vehicle Parts", "bucket": "primary", "reason": "matches", "confidence": "high"},
+        ],
+    )
+    mock_run = mocker.patch("src.pipeline.run_pipeline")
+
+    monkeypatch.setattr(sys, "argv", ["pe-comps", "--config", str(config_path), "--suggest-sic-codes"])
+
+    pipeline.main()
+
+    output = capsys.readouterr().out
+    assert "SIC 3714" in output
+    assert "Motor Vehicle Parts" in output
+    mock_suggest.assert_called_once()
+    mock_run.assert_not_called()
+
+
+def test_main_suggest_sic_codes_handles_empty_suggestions(mocker, tmp_path, monkeypatch, capsys):
+    config_path = _write_config(tmp_path)
+    mocker.patch("src.pipeline.llm_analyzer.suggest_sic_codes", return_value=[])
+    mock_run = mocker.patch("src.pipeline.run_pipeline")
+
+    monkeypatch.setattr(sys, "argv", ["pe-comps", "--config", str(config_path), "--suggest-sic-codes"])
+
+    pipeline.main()
+
+    output = capsys.readouterr().out
+    assert "No SIC code suggestions" in output
+    mock_run.assert_not_called()

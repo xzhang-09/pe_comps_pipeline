@@ -1,5 +1,6 @@
 import csv
 import json
+import os
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -16,15 +17,20 @@ CACHE_DIR = Path("data/cache")
 OUTPUTS_DIR = Path("outputs")
 FAILED_TICKERS_CSV = OUTPUTS_DIR / "failed_tickers.csv"
 
-EDGAR_IDENTITY = "PE-Comps-Pipeline research@example.com"
+DEFAULT_SEC_IDENTITY = "PE-Comps-Pipeline research@example.com"
+EDGAR_IDENTITY = os.environ.get("SEC_IDENTITY", DEFAULT_SEC_IDENTITY)
 edgar.set_identity(EDGAR_IDENTITY)
 
 BUSINESS_DESCRIPTION_MAX_CHARS = 1500
 
-# FMP is only used for market cap / sector / description-fallback now — its
-# free tier doesn't expose balance-sheet/key-metrics for non-demo tickers,
-# so debt, cash, revenue, EBITDA, gross profit, and capex all come from
-# SEC XBRL via edgartools instead.
+# Revenue, EBITDA, gross profit, capex, and net_debt_ebitda all come from
+# SEC XBRL via edgartools (see _fetch_single). FMP is only ever called for
+# get_profile() (market cap, sector, description fallback) — by design, see
+# README's "Using a paid FMP plan" note. EV/EBITDA/EV-Revenue are then
+# derived from that market cap plus the EDGAR-sourced figures above (see
+# _enrich_with_fmp_data) rather than pulled directly from FMP's key-metrics/
+# enterprise-values endpoints, which return 402 on FMP's free tier for
+# anything beyond a handful of demo mega-caps.
 FMP_REQUEST_DELAY_SECONDS = 1
 
 # Columns in edgartools' Statement.to_dataframe() that aren't fiscal-period values.
@@ -39,8 +45,32 @@ EMPTY_FIELDS = (
     "company_name", "market_cap_usd_mm", "revenue_ttm_usd_mm", "ebitda_margin",
     "gross_margin", "revenue_cagr_3yr", "net_debt_ebitda", "capex_revenue",
     "ev_ebitda", "ev_revenue", "gics_sector", "business_description",
-    "description_source",
+    "description_source", "enterprise_value_usd_mm", "ebitda_usd_mm",
+    "valuation_source", "ev_ebitda_source_value", "ev_revenue_source_value",
+    "net_debt_usd_mm", "minority_interest_usd_mm", "preferred_equity_usd_mm",
+    "operating_lease_liability_usd_mm",
 )
+
+# Enterprise-value bridge items beyond debt/cash. Each is looked up by trying
+# a list of candidate XBRL standard_concept names (edgartools' normalization
+# isn't perfectly stable across filers, and noncontrolling interest /
+# preferred / operating-lease lines are tagged a few different ways), taking
+# the first that matches. Absent entirely -> treated as 0 in the bridge, which
+# is correct for the many companies that simply have no minority interest or
+# preferred stock.
+MINORITY_INTEREST_CONCEPTS = (
+    "MinorityInterest",
+    "NoncontrollingInterest",
+    "MinorityInterestInNetAssetsOfConsolidatedSubsidiaries",
+)
+PREFERRED_EQUITY_CONCEPTS = (
+    "PreferredStockValue",
+    "PreferredStockValueOutstanding",
+    "PreferredStockIncludingAdditionalPaidInCapitalNetOfDiscount",
+)
+OPERATING_LEASE_LIABILITY_CONCEPTS = ("OperatingLeaseLiability",)
+OPERATING_LEASE_CURRENT_CONCEPTS = ("OperatingLeaseLiabilityCurrent",)
+OPERATING_LEASE_NONCURRENT_CONCEPTS = ("OperatingLeaseLiabilityNoncurrent",)
 
 
 def _cache_path(ticker: str) -> Path:
@@ -51,7 +81,7 @@ def _load_cache(ticker: str) -> dict | None:
     path = _cache_path(ticker)
     if not path.exists():
         return None
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         return json.load(f)
 
 
@@ -61,12 +91,42 @@ def _save_cache(ticker: str, record: dict) -> None:
         json.dump(record, f, indent=2)
 
 
+def _candidate_ticker(candidate: str | dict) -> str:
+    return candidate["ticker"] if isinstance(candidate, dict) else candidate
+
+
+def _candidate_metadata(candidate: str | dict) -> dict:
+    if not isinstance(candidate, dict):
+        return {}
+    return {
+        key: candidate.get(key)
+        for key in (
+            "matched_sic_codes", "primary_matched_sic_codes", "adjacent_matched_sic_codes",
+            "source_bucket", "sic_2_digit", "sic_3_digit", "industry_cluster", "candidate_source",
+        )
+        if candidate.get(key) is not None
+    }
+
+
+def _attach_universe_metadata(record: dict, candidate: str | dict) -> dict:
+    metadata = _candidate_metadata(candidate)
+    if not metadata:
+        record.setdefault("universe_metadata", {})
+        return record
+
+    existing = record.get("universe_metadata") or {}
+    merged = {**existing, **metadata}
+    record["universe_metadata"] = merged
+    for key in ("source_bucket", "sic_2_digit", "sic_3_digit", "industry_cluster"):
+        if merged.get(key) is not None:
+            record[key] = merged[key]
+    return record
+
+
 def _reset_failed_tickers_csv() -> None:
     """
-    Start each fetch_batch() run with a clean file. Without this, failures
-    from past runs (including ones from since-removed code paths, e.g. the
-    old Yahoo Finance fetcher) accumulate indefinitely and get double-counted
-    by reporter.py's failed_fetch_count, which just counts rows in this file.
+    Start each fetch_batch() run with a clean file so reporter.py's
+    failed_fetch_count reflects the current run.
     """
     OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
     with open(FAILED_TICKERS_CSV, "w", newline="", encoding="utf-8") as f:
@@ -115,6 +175,34 @@ def _concept_series(df: pd.DataFrame, standard_concept: str) -> list[float]:
 def _concept_value(df: pd.DataFrame, standard_concept: str) -> float | None:
     values = _concept_series(df, standard_concept)
     return values[0] if values else None
+
+
+def _concept_value_any(df: pd.DataFrame, concepts: tuple[str, ...]) -> float | None:
+    """First non-null value among a list of candidate standard_concept names —
+    used where edgartools may tag the same economic line under one of several
+    concept names across filers (see the EV-bridge concept lists above)."""
+    for concept in concepts:
+        value = _concept_value(df, concept)
+        if value is not None:
+            return value
+    return None
+
+
+def _operating_lease_liability(balance_sheet_df: pd.DataFrame) -> float | None:
+    """Total operating-lease liability (ASC 842). Prefers a single reported
+    total; otherwise sums the current and noncurrent lines. Finance leases are
+    deliberately excluded — those are typically already inside the debt lines
+    picked up by _net_debt. Returns None only when no operating-lease line is
+    tagged at all (vs. 0, which would wrongly assert the company has none)."""
+    total = _concept_value_any(balance_sheet_df, OPERATING_LEASE_LIABILITY_CONCEPTS)
+    if total is not None:
+        return total
+
+    current = _concept_value_any(balance_sheet_df, OPERATING_LEASE_CURRENT_CONCEPTS)
+    noncurrent = _concept_value_any(balance_sheet_df, OPERATING_LEASE_NONCURRENT_CONCEPTS)
+    if current is None and noncurrent is None:
+        return None
+    return (current or 0.0) + (noncurrent or 0.0)
 
 
 def _revenue_and_cagr(ticker: str, income_df: pd.DataFrame) -> tuple[float | None, float | None]:
@@ -273,6 +361,17 @@ def _fetch_single(ticker: str) -> dict:
 
     net_debt = _net_debt(ticker, balance_sheet_df)
     net_debt_ebitda = net_debt / ebitda if (net_debt is not None and ebitda) else None
+    ebitda_usd_mm = ebitda / 1e6 if ebitda is not None else None
+
+    # EV-bridge items beyond net debt. Minority interest and preferred equity
+    # are standard enterprise-value additions (they're claims on the
+    # consolidated business that sit above common equity) and are NOT part of
+    # net_debt / the leverage feature — they only enter the EV built in
+    # _enrich_with_fmp_data. Operating-lease liability is captured here too but
+    # only added to EV when config opts in (see _enrich_with_fmp_data).
+    minority_interest = _concept_value_any(balance_sheet_df, MINORITY_INTEREST_CONCEPTS)
+    preferred_equity = _concept_value_any(balance_sheet_df, PREFERRED_EQUITY_CONCEPTS)
+    operating_lease_liability = _operating_lease_liability(balance_sheet_df)
 
     business_description, description_source = _fetch_business_description(ticker)
 
@@ -286,21 +385,66 @@ def _fetch_single(ticker: str) -> dict:
         "revenue_cagr_3yr": revenue_cagr_3yr,
         "net_debt_ebitda": net_debt_ebitda,
         "capex_revenue": capex_revenue,
+        "net_debt_usd_mm": net_debt / 1e6 if net_debt is not None else None,
+        "minority_interest_usd_mm": minority_interest / 1e6 if minority_interest is not None else None,
+        "preferred_equity_usd_mm": preferred_equity / 1e6 if preferred_equity is not None else None,
+        "operating_lease_liability_usd_mm": (
+            operating_lease_liability / 1e6 if operating_lease_liability is not None else None
+        ),
+        "enterprise_value_usd_mm": None,
+        "ebitda_usd_mm": ebitda_usd_mm,
         "ev_ebitda": None,
         "ev_revenue": None,
+        "valuation_source": None,
+        "ev_ebitda_source_value": None,
+        "ev_revenue_source_value": None,
         "gics_sector": None,
         "business_description": business_description,
         "description_source": description_source,
+        "universe_metadata": {},
+        "raw_fmp_profile": None,
+        "missing_flags": {},
         "fetch_timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
-def _enrich_with_fmp_data(record: dict, ticker: str, sleep_before: bool) -> None:
+def _include_operating_leases(config: dict) -> bool:
+    """Whether to capitalize operating leases into EV. Defaults False: under
+    ASC 842 operating-lease cost still runs through operating income, so EBITDA
+    is net of rent — adding the lease liability to EV without also adding rent
+    back (i.e. moving to EV/EBITDAR) would make the multiple internally
+    inconsistent. The toggle exists for lease-heavy targets where the analyst
+    wants the lease-capitalized view and accepts that caveat."""
+    return bool((config.get("valuation") or {}).get("include_operating_leases_in_ev", False))
+
+
+def _ev_from_bridge(record: dict, market_cap_usd_mm: float, include_leases: bool) -> float:
+    """Enterprise value = equity value (market cap) + net debt + minority
+    interest + preferred equity (+ operating leases if opted in). Minority
+    interest and preferred are senior claims on the consolidated business, so
+    omitting them — as the earlier market_cap + net_debt bridge did —
+    understates EV (and thus EV/EBITDA) for any company that has them, which
+    biases the comp set against, and the implied valuation away from, those
+    capital structures. Absent components are treated as 0."""
+    net_debt_usd_mm = record.get("net_debt_usd_mm") or 0.0
+    minority = record.get("minority_interest_usd_mm") or 0.0
+    preferred = record.get("preferred_equity_usd_mm") or 0.0
+    leases = (record.get("operating_lease_liability_usd_mm") or 0.0) if include_leases else 0.0
+    return market_cap_usd_mm + net_debt_usd_mm + minority + preferred + leases
+
+
+def _enrich_with_fmp_data(record: dict, ticker: str, config: dict, sleep_before: bool) -> None:
     """
-    Best-effort FMP lookup for market cap / sector, and a fallback for
-    business_description when EDGAR's didn't come through. Never raises and
-    never causes the company to be dropped — on any failure the record just
-    keeps its EDGAR-sourced fields with market_cap/EV left as None.
+    Best-effort FMP lookup via get_profile() only — market cap, sector, and
+    a fallback for business_description when EDGAR's didn't come through.
+    Never raises and never causes the company to be dropped — on any
+    failure the record just keeps its EDGAR-sourced fields with
+    market_cap/EV left as None. ev_ebitda/ev_revenue are then derived below
+    from this market cap plus the EDGAR-sourced EV bridge already on the
+    record (net debt, minority interest, preferred equity, and optionally
+    operating leases — see _ev_from_bridge), rather than pulled directly from
+    FMP's key-metrics/enterprise-values endpoints (paid-tier only on FMP —
+    see README's "Using a paid FMP plan" note if you have access to them).
     """
     if sleep_before:
         time.sleep(FMP_REQUEST_DELAY_SECONDS)
@@ -314,6 +458,7 @@ def _enrich_with_fmp_data(record: dict, ticker: str, sleep_before: bool) -> None
     if not profile:
         logger.warning(f"{ticker} — FMP returned no profile data. Leaving market data as None.")
         return
+    record["raw_fmp_profile"] = profile
 
     if not record.get("business_description"):
         description = profile.get("description")
@@ -322,31 +467,35 @@ def _enrich_with_fmp_data(record: dict, ticker: str, sleep_before: bool) -> None
             record["description_source"] = "fmp"
 
     market_cap = profile.get("marketCap")
-    record["market_cap_usd_mm"] = market_cap / 1e6 if market_cap is not None else None
+    if market_cap is not None and record.get("market_cap_usd_mm") is None:
+        record["market_cap_usd_mm"] = market_cap / 1e6
     record["gics_sector"] = profile.get("sector")
 
     if market_cap is None:
         return
 
     revenue = record.get("revenue_ttm_usd_mm")
-    ebitda_margin = record.get("ebitda_margin")
-    ebitda_usd_mm = ebitda_margin * revenue if (ebitda_margin is not None and revenue is not None) else None
+    ebitda_usd_mm = record.get("ebitda_usd_mm")
 
-    # net_debt_ebitda was already computed from EDGAR alone in _fetch_single;
-    # recover net_debt_usd_mm from it here to build EV without re-fetching.
-    net_debt_ebitda = record.get("net_debt_ebitda")
-    net_debt_usd_mm = net_debt_ebitda * ebitda_usd_mm if (net_debt_ebitda is not None and ebitda_usd_mm) else None
-
-    if net_debt_usd_mm is None:
+    # Net debt is required for the bridge; without it we can't build a
+    # defensible EV, so leave market_cap set but EV/multiples None.
+    if record.get("net_debt_usd_mm") is None:
         return
 
     market_cap_usd_mm = market_cap / 1e6
-    ev_usd_mm = market_cap_usd_mm + net_debt_usd_mm
+    include_leases = _include_operating_leases(config)
+    ev_usd_mm = _ev_from_bridge(record, market_cap_usd_mm, include_leases)
 
     if ebitda_usd_mm:
         record["ev_ebitda"] = ev_usd_mm / ebitda_usd_mm
+        record["ev_ebitda_source_value"] = record["ev_ebitda"]
+        record["enterprise_value_usd_mm"] = ev_usd_mm
+        record["valuation_source"] = (
+            "sec_xbrl_derived_lease_adj" if include_leases else "sec_xbrl_derived"
+        )
     if revenue:
         record["ev_revenue"] = ev_usd_mm / revenue
+        record["ev_revenue_source_value"] = record["ev_revenue"]
 
 
 def _validate(record: dict, ticker: str) -> dict:
@@ -370,17 +519,28 @@ def _validate(record: dict, ticker: str) -> dict:
         logger.warning(f"{ticker} — gross_margin outlier ({gross_margin}), setting None")
         record["gross_margin"] = None
 
+    record["missing_flags"] = {
+        field: record.get(field) is None
+        for field in (
+            "market_cap_usd_mm", "revenue_ttm_usd_mm", "ebitda_margin", "gross_margin",
+            "revenue_cagr_3yr", "net_debt_ebitda", "capex_revenue", "ev_ebitda", "ev_revenue",
+            "business_description",
+        )
+    }
     return record
 
 
 def _empty_record(ticker: str) -> dict:
     record = {field: None for field in EMPTY_FIELDS}
     record["ticker"] = ticker
+    record["universe_metadata"] = {}
+    record["raw_fmp_profile"] = None
+    record["missing_flags"] = {field: True for field in EMPTY_FIELDS}
     record["fetch_timestamp"] = datetime.now(timezone.utc).isoformat()
     return record
 
 
-def fetch_batch(tickers: list[str], config: dict) -> list[dict]:
+def fetch_batch(tickers: list[str | dict], config: dict) -> list[dict]:
     """
     Fetch financial data for all tickers.
     Returns list of dicts (one per ticker, including failed ones with None values).
@@ -393,13 +553,14 @@ def fetch_batch(tickers: list[str], config: dict) -> list[dict]:
 
     _reset_failed_tickers_csv()
 
-    for i, ticker in enumerate(tickers, start=1):
+    for i, candidate in enumerate(tickers, start=1):
+        ticker = _candidate_ticker(candidate)
         logger.info(f"Processing {i}/{total}: {ticker}")
 
         cached = _load_cache(ticker)
         if cached is not None:
             logger.info(f"{ticker} — loaded from cache")
-            results.append(cached)
+            results.append(_attach_universe_metadata(cached, candidate))
             continue
 
         try:
@@ -407,10 +568,11 @@ def fetch_batch(tickers: list[str], config: dict) -> list[dict]:
         except Exception as e:
             logger.error(f"{ticker} — failed after 3 retries: {e}")
             _record_failed_ticker(ticker, type(e).__name__, str(e))
-            results.append(_empty_record(ticker))
+            results.append(_attach_universe_metadata(_empty_record(ticker), candidate))
             continue
 
-        _enrich_with_fmp_data(record, ticker, sleep_before=fmp_calls_made > 0)
+        record = _attach_universe_metadata(record, candidate)
+        _enrich_with_fmp_data(record, ticker, config, sleep_before=fmp_calls_made > 0)
         fmp_calls_made += 1
 
         record = _validate(record, ticker)

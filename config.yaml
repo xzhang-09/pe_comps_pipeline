@@ -9,14 +9,23 @@ target_company:
   gics_industry: "2010"
   revenue_usd_mm: 150
   ebitda_margin_estimate: 0.18
+  # Optional analyst estimates for the target's other financial features. Any
+  # you provide are used directly in the comp-distance scoring; any you leave
+  # unset are imputed from a peer-group median AND excluded from the distance,
+  # so an imputed feature can't pull the ranking toward the pool median. Fill
+  # in whatever the CIM / management accounts give you for a sharper match.
+  # gross_margin_estimate: 0.32
+  # revenue_cagr_3yr_estimate: 0.04
+  # net_debt_ebitda_estimate: 2.5
+  # capex_revenue_estimate: 0.05
   geography: "north_america"
   # Most directly relevant to "automotive OEM parts manufacturer": motor
   # vehicle parts plus general industrial machinery/fabricated metal.
   primary_sic_codes: ["3714", "3559", "3569", "3490"]
   # Broader industrial machinery/equipment/building-products SIC codes —
-  # not central to the target's actual business, but close enough to add
-  # real training-data volume without any hardcoded ticker list. Explicitly
-  # excludes aerospace/defense SIC codes (3760/3721/3724/3812/etc).
+  # not central to the target's actual business, but close enough to widen
+  # the comp pool's recall/diversity without any hardcoded ticker list.
+  # Explicitly excludes aerospace/defense SIC codes (3760/3721/3724/3812/etc).
   adjacent_sic_codes: [
     "3612", "3613", "3621", "3640",
     "3531", "3523", "3533", "3541", "3564", "3585", "3823", "3442", "3448", "5084",
@@ -28,10 +37,30 @@ universe:
   min_revenue_usd_mm: 30
   max_revenue_usd_mm: 800
   min_ebitda_margin: 0.05
+  sic_clusters:
+    "3714": "auto_parts"
+    "3559": "industrial_machinery"
+    "3569": "general_industrial_equipment"
+    "3490": "fabricated_metal_products"
+    "3612": "electrical_equipment"
+    "3613": "electrical_equipment"
+    "3621": "electrical_equipment"
+    "3640": "lighting_equipment"
+    "3531": "construction_machinery"
+    "3523": "agricultural_machinery"
+    "3533": "industrial_machinery"
+    "3541": "machine_tools"
+    "3564": "industrial_equipment"
+    "3585": "industrial_equipment"
+    "3823": "measurement_instruments"
+    "3442": "metal_building_products"
+    "3448": "prefabricated_metal_products"
+    "5084": "industrial_distribution"
 
 llm:
   extraction_model: "gpt-4.1"
   judge_model: "gpt-4.1-mini"
+  embedding_model: "text-embedding-3-small"
   temperature: 0
   max_tokens: 500
   batch_size: 20
@@ -42,3 +71,70 @@ output:
   report_formats:
     - csv
     - html
+  # Shown in the footer for attribution. Placeholder — replace with the
+  # preparing analyst/team for a real work product.
+  prepared_by: "PE Comps Pipeline (demo) — replace with analyst/team name"
+  confidential: false
+
+valuation:
+  # Net haircut applied to the comp-derived implied EV. Public trading comps
+  # are large-cap, liquid, minority-interest multiples; applied straight to a
+  # ~$150mm-revenue private target they overstate value. 0.25 here reflects a
+  # size/illiquidity (marketability) discount net of an assumed control
+  # premium — a directional default, tune per deal. Set to 0.0 to disable and
+  # show only the raw comp range.
+  size_marketability_discount: 0.25
+  discount_note: >
+    25% net private-company adjustment: size/illiquidity (marketability)
+    discount partially offset by a control premium. Directional placeholder —
+    replace with deal-team assumptions.
+  # Capitalize operating-lease liabilities (ASC 842) into enterprise value.
+  # Default false keeps EV/EBITDA pre-lease-capitalization, consistent with
+  # EBITDA being net of operating-lease cost. Set true for a lease-heavy
+  # target if you want the lease-capitalized view (note: the resulting
+  # EV/EBITDA is then on a different basis than the unadjusted comps — a true
+  # like-for-like would use EV-incl-leases over EBITDAR). Minority interest
+  # and preferred equity are always included in the EV bridge regardless.
+  include_operating_leases_in_ev: false
+
+scorer:
+  # {business_model: {financial_feature: weight}} for the comp-distance
+  # calculation, looked up by the TARGET's business_model (every candidate
+  # is measured against the same ruler). Features omitted from a template
+  # default to 1.0; an unmatched/null business_model falls back to
+  # "default". Leave this whole block empty to use plain unweighted
+  # Euclidean distance.
+  feature_weights:
+    manufacturing:
+      ebitda_margin: 2.0
+      net_debt_ebitda: 1.5
+      revenue_cagr_3yr: 0.75
+    SaaS:
+      revenue_cagr_3yr: 3.0
+      gross_margin: 1.5
+      ebitda_margin: 0.5
+    default:
+      revenue_ttm_log: 1.0
+      ebitda_margin: 1.0
+      gross_margin: 1.0
+      revenue_cagr_3yr: 1.0
+      net_debt_ebitda: 1.0
+      capex_revenue: 1.0
+
+  # Soft penalties added to a candidate's rank (not exclusions) in the
+  # Top-N selection. See src/config_schema.py's RankingPenaltiesConfig for
+  # what each one does; defaults below match the values this project's
+  # real runs have been tuned against so far.
+  ranking_penalties:
+    business_model_penalty: 10
+    customer_type_penalty: 10
+    # Tightened end-market filter: 0.6 (was 0.5) penalizes comps whose
+    # sub-sector drifts from the target's auto-OEM end market (HVAC, water,
+    # filtration), and 15 (was 10) gives that mismatch more weight relative
+    # to pure financial distance.
+    subsector_similarity_threshold: 0.6
+    subsector_mismatch_penalty: 15
+    # Tighter size band: 0.7 log10 (~±5x, was ±10x) so much-larger comps
+    # start taking a rank penalty sooner.
+    size_penalty_free_log10_range: 0.7
+    size_penalty_per_extra_log10: 10.0

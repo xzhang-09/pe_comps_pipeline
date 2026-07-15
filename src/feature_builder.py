@@ -17,13 +17,19 @@ FINANCIAL_FEATURE_COLUMNS = (
     "revenue_cagr_3yr", "net_debt_ebitda", "capex_revenue",
 )
 
-LLM_CATEGORICAL_FIELDS = (
-    "business_model", "revenue_recurrence", "customer_type",
-    "capital_intensity", "primary_value_driver",
-)
-
 MAX_MISSING_FINANCIAL_FEATURES = 3
 LABEL_COLUMN = "ev_ebitda_log"
+
+# Imputing a missing financial value with the *global* median pulls in
+# whatever's in the (possibly heterogeneous) adjacent bucket — e.g. a
+# light-asset SaaS company's missing capex_revenue getting filled with a
+# traditional manufacturer's median. Grouping by business_model keeps the
+# fallback within companies that actually look like the one being imputed.
+# Below this group size, the group's own median is too noisy to trust, so
+# it falls back to the global median instead.
+MIN_GROUP_SIZE_FOR_IMPUTATION = 5
+UNKNOWN_GROUP = "unknown"
+GLOBAL_GROUP_KEY = "global"
 
 
 def _financial_raw_values(company: dict) -> dict:
@@ -76,29 +82,46 @@ def _build_financial_dataframe(companies: list[dict], tickers: list[str]) -> pd.
     return df
 
 
-def _impute_medians(financial_df: pd.DataFrame) -> dict:
-    imputation_medians = {}
+def _group_key(company: dict, llm_features: dict[str, dict]) -> str:
+    llm = llm_features.get(company["ticker"]) or {}
+    return llm.get("business_model") or UNKNOWN_GROUP
+
+
+def median_for(imputation_medians: dict, field: str, business_model: str | None) -> float | None:
+    """Look up the imputation fallback for `field`, preferring the median
+    within `business_model`'s group and falling back to the global median
+    if that group wasn't large enough to get its own (see
+    MIN_GROUP_SIZE_FOR_IMPUTATION)."""
+    group = business_model or UNKNOWN_GROUP
+    by_group = imputation_medians.get("by_group", {})
+    if group in by_group and field in by_group[group]:
+        return by_group[group][field]
+    return imputation_medians.get(GLOBAL_GROUP_KEY, {}).get(field)
+
+
+def _impute_medians(financial_df: pd.DataFrame, group_keys: list[str]) -> dict:
+    global_medians = {col: financial_df[col].median() for col in FINANCIAL_FEATURE_COLUMNS}
+
+    group_medians: dict[str, dict] = {}
+    for group in sorted(set(group_keys)):
+        in_group = financial_df.loc[[g == group for g in group_keys]]
+        group_medians[group] = {}
+        for col in FINANCIAL_FEATURE_COLUMNS:
+            non_null = in_group[col].dropna()
+            if len(non_null) >= MIN_GROUP_SIZE_FOR_IMPUTATION:
+                group_medians[group][col] = float(non_null.median())
+            else:
+                group_medians[group][col] = global_medians[col]
+
+    fill_values_by_row = pd.Series(group_keys, index=financial_df.index)
     for col in FINANCIAL_FEATURE_COLUMNS:
-        median = financial_df[col].median()
-        imputation_medians[col] = median
         n_missing = int(financial_df[col].isna().sum())
         if n_missing > 0:
-            logger.info(f"Imputed {n_missing} missing values in {col} with median {median}")
-        financial_df[col] = financial_df[col].fillna(median)
-    return imputation_medians
+            fill_values = fill_values_by_row.map(lambda g: group_medians[g][col])
+            logger.info(f"Imputed {n_missing} missing values in {col} with group/global medians")
+            financial_df[col] = financial_df[col].fillna(fill_values)
 
-
-def _build_llm_dataframe(companies: list[dict], llm_features: dict[str, dict], tickers: list[str]) -> pd.DataFrame:
-    rows = []
-    for c in companies:
-        llm = llm_features[c["ticker"]]
-        row = {}
-        for field in LLM_CATEGORICAL_FIELDS:
-            value = llm.get(field)
-            row[field] = value if value is not None else "unknown"
-        rows.append(row)
-    df = pd.DataFrame(rows, index=tickers)
-    return pd.get_dummies(df, columns=list(LLM_CATEGORICAL_FIELDS), drop_first=True)
+    return {"by_group": group_medians, GLOBAL_GROUP_KEY: global_medians}
 
 
 def build(
@@ -107,21 +130,23 @@ def build(
 ) -> tuple[pd.DataFrame, pd.Series, dict]:
     """
     Returns:
-        feature_matrix: DataFrame with features + ev_ebitda_log, indexed by ticker
+        feature_matrix: DataFrame with the 6 financial features + ev_ebitda_log,
+            indexed by ticker
         ev_ebitda_raw: Series of untransformed ev_ebitda values, indexed by ticker
-        imputation_medians: dict mapping column_name -> median_value
+        imputation_medians: {"by_group": {business_model: {col: median}},
+            "global": {col: median}} — use median_for() to look up a value
+            rather than indexing this directly.
     """
     kept = _drop_rows(companies, llm_features)
     tickers = [c["ticker"] for c in kept]
+    group_keys = [_group_key(c, llm_features) for c in kept]
 
     financial_df = _build_financial_dataframe(kept, tickers)
-    imputation_medians = _impute_medians(financial_df)
-
-    llm_encoded = _build_llm_dataframe(kept, llm_features, tickers)
+    imputation_medians = _impute_medians(financial_df, group_keys)
 
     ev_ebitda_raw = pd.Series([c["ev_ebitda"] for c in kept], index=tickers, name="ev_ebitda")
 
-    feature_matrix = pd.concat([financial_df, llm_encoded], axis=1)
+    feature_matrix = financial_df.copy()
     feature_matrix[LABEL_COLUMN] = np.log1p(ev_ebitda_raw)
 
     return feature_matrix, ev_ebitda_raw, imputation_medians

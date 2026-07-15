@@ -5,8 +5,8 @@ import src.feature_builder as feature_builder
 
 
 def _company(ticker, ev_ebitda=12.0, revenue=100.0, ebitda_margin=0.2, gross_margin=0.4,
-             revenue_cagr_3yr=0.05, net_debt_ebitda=1.5, capex_revenue=0.03):
-    return {
+             revenue_cagr_3yr=0.05, net_debt_ebitda=1.5, capex_revenue=0.03, **overrides):
+    base = {
         "ticker": ticker,
         "ev_ebitda": ev_ebitda,
         "revenue_ttm_usd_mm": revenue,
@@ -16,6 +16,8 @@ def _company(ticker, ev_ebitda=12.0, revenue=100.0, ebitda_margin=0.2, gross_mar
         "net_debt_ebitda": net_debt_ebitda,
         "capex_revenue": capex_revenue,
     }
+    base.update(overrides)
+    return base
 
 
 def _llm(business_model="manufacturing", **overrides):
@@ -70,6 +72,9 @@ def test_ev_ebitda_log_transform_is_label():
 
 
 def test_nan_imputed_with_median():
+    # All 3 companies share business_model="manufacturing" but the group is
+    # below MIN_GROUP_SIZE_FOR_IMPUTATION, so this exercises the fallback to
+    # the global median rather than a real per-group median.
     companies = [
         _company("AAA", ebitda_margin=0.20),
         _company("BBB", ebitda_margin=0.30),
@@ -80,16 +85,61 @@ def test_nan_imputed_with_median():
     feature_matrix, _, medians = feature_builder.build(companies, llm_features)
 
     assert feature_matrix.loc["CCC", "ebitda_margin"] == pytest.approx(0.25)
-    assert medians["ebitda_margin"] == pytest.approx(0.25)
+    assert medians["global"]["ebitda_margin"] == pytest.approx(0.25)
+    assert feature_builder.median_for(medians, "ebitda_margin", "manufacturing") == pytest.approx(0.25)
 
 
-def test_llm_fields_one_hot_encoded():
-    companies = [_company("AAA"), _company("BBB")]
+def test_group_median_used_when_group_large_enough():
+    # 5 manufacturing companies (meets MIN_GROUP_SIZE_FOR_IMPUTATION) with a
+    # distinctly different ebitda_margin than 5 services companies — the
+    # missing value in a manufacturing row should be filled with the
+    # manufacturing group's own median, not the global median across both.
+    manufacturing = [
+        _company(f"MFG{i}", ebitda_margin=0.10 + i * 0.01) for i in range(5)
+    ] + [_company("MFG_MISSING", ebitda_margin=None)]
+    services = [_company(f"SVC{i}", ebitda_margin=0.50 + i * 0.01) for i in range(5)]
+    companies = manufacturing + services
     llm_features = {
-        "AAA": _llm(business_model="manufacturing"),
-        "BBB": _llm(business_model="services"),
+        **{c["ticker"]: _llm(business_model="manufacturing") for c in manufacturing},
+        **{c["ticker"]: _llm(business_model="services") for c in services},
     }
+
+    feature_matrix, _, medians = feature_builder.build(companies, llm_features)
+
+    manufacturing_group_median = feature_builder.median_for(medians, "ebitda_margin", "manufacturing")
+    global_median = medians["global"]["ebitda_margin"]
+    assert manufacturing_group_median != pytest.approx(global_median)
+    assert feature_matrix.loc["MFG_MISSING", "ebitda_margin"] == pytest.approx(manufacturing_group_median)
+
+
+def test_group_median_falls_back_to_global_when_group_too_small():
+    # Only 2 manufacturing companies — below MIN_GROUP_SIZE_FOR_IMPUTATION —
+    # so the missing value should fall back to the global median across
+    # every company, not a noisy 2-company "group median".
+    companies = [
+        _company("MFG1", ebitda_margin=0.10),
+        _company("MFG_MISSING", ebitda_margin=None),
+        _company("SVC1", ebitda_margin=0.50),
+        _company("SVC2", ebitda_margin=0.60),
+    ]
+    llm_features = {
+        "MFG1": _llm(business_model="manufacturing"),
+        "MFG_MISSING": _llm(business_model="manufacturing"),
+        "SVC1": _llm(business_model="services"),
+        "SVC2": _llm(business_model="services"),
+    }
+
+    feature_matrix, _, medians = feature_builder.build(companies, llm_features)
+
+    global_median = medians["global"]["ebitda_margin"]
+    assert feature_matrix.loc["MFG_MISSING", "ebitda_margin"] == pytest.approx(global_median)
+
+
+def test_feature_matrix_has_only_financial_columns_and_label():
+    companies = [_company("AAA"), _company("BBB")]
+    llm_features = {c["ticker"]: _llm() for c in companies}
 
     feature_matrix, _, _ = feature_builder.build(companies, llm_features)
 
-    assert any(col.startswith("business_model_") for col in feature_matrix.columns)
+    expected = set(feature_builder.FINANCIAL_FEATURE_COLUMNS) | {feature_builder.LABEL_COLUMN}
+    assert set(feature_matrix.columns) == expected

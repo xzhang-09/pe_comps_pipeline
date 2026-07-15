@@ -48,6 +48,36 @@
     padding: 16px 20px;
     margin: 16px 0;
   }
+  .snapshot-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 12px;
+    margin: 16px 0 8px 0;
+  }
+  .snapshot-item {
+    border: 1px solid #dddddd;
+    border-radius: 4px;
+    padding: 12px;
+    background: #ffffff;
+  }
+  .snapshot-value {
+    color: #1a3a5c;
+    display: block;
+    font-size: 24px;
+    font-weight: bold;
+    line-height: 1.2;
+  }
+  .snapshot-label {
+    color: #555555;
+    display: block;
+    font-size: 12px;
+    margin-top: 4px;
+  }
+  .note {
+    color: #555555;
+    font-size: 13px;
+    margin-top: 8px;
+  }
   .disclaimer {
     font-size: 12px;
     color: #888888;
@@ -60,26 +90,265 @@
     border-top: 1px solid #dddddd;
     padding-top: 12px;
   }
+  .confidential-banner {
+    background: #1a3a5c;
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: bold;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    text-align: center;
+    padding: 6px;
+    margin: -40px -40px 24px -40px;
+  }
+  tr.fit-strong { border-left: 4px solid #2e7d32; }
+  tr.fit-weak { border-left: 4px solid #c0392b; }
+  .tier-core { color: #2e7d32; font-weight: bold; }
+  .tier-secondary { color: #555555; }
+  .tier-review_exclude { color: #c0392b; font-weight: bold; }
+  .tier-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    margin: 12px 0;
+  }
+  .tier-summary-item {
+    border: 1px solid #dddddd;
+    border-radius: 4px;
+    padding: 10px 14px;
+    background: #ffffff;
+  }
+  .toc {
+    font-size: 13px;
+    margin: 16px 0 8px 0;
+  }
+  .toc strong { color: #1a3a5c; }
+  .toc ol {
+    columns: 2;
+    margin: 6px 0 0 0;
+    padding-left: 20px;
+  }
+  .toc a { color: #1a3a5c; text-decoration: none; }
+  .toc a:hover { text-decoration: underline; }
 </style>
 </head>
 <body>
 
-<h1>Comparable Company Analysis</h1>
+{% if confidential %}<div class="confidential-banner">Privileged and Confidential — Internal Use Only</div>{% endif %}
 
-<!-- Section 1: Target Company Summary -->
-<h2>1. Target Company Summary</h2>
+<h1>Comparable Company Analysis — {{ target_name }}</h1>
+
+<!-- Executive Summary -->
+{% set led_with_adjusted = executive_summary.size_anchor_ev is not none or executive_summary.adjusted_ev_low is not none %}
+<div class="summary-box">
+  {% if led_with_adjusted %}
+  <p><strong>Bottom line (directional):</strong>
+    {% if executive_summary.size_anchor_ev is not none %}
+    For a target this small, the most decision-relevant anchor is the {{ executive_summary.size_anchor_n }} comps genuinely close to its revenue, which imply roughly
+    <strong>${{ "%.0f"|format(executive_summary.size_anchor_ev) }}mm</strong> (median EV/EBITDA {{ "%.1f"|format(executive_summary.size_anchor_multiple) }}x × target EBITDA){% if executive_summary.adjusted_ev_low is not none %}; applying a {{ "%.0f"|format(executive_summary.discount_pct) }}% net private-company (size/marketability) discount to the full comp set gives <strong>${{ "%.0f"|format(executive_summary.adjusted_ev_low) }}mm–${{ "%.0f"|format(executive_summary.adjusted_ev_high) }}mm</strong>{% endif %}. Treat these, not the unadjusted full-set range below, as the working figures — the size-comparable sample is thin, so this is directional, not a precise pricing recommendation (see Section 4).
+    {% else %}
+    After a {{ "%.0f"|format(executive_summary.discount_pct) }}% net private-company (size/marketability) discount, the target's directional implied enterprise value is approximately
+    <strong>${{ "%.0f"|format(executive_summary.adjusted_ev_low) }}mm–${{ "%.0f"|format(executive_summary.adjusted_ev_high) }}mm</strong> — treat this, not the unadjusted range below, as the working figure (see Section 4).
+    {% endif %}
+  </p>
+  {% elif executive_summary.implied_ev_low is not none %}
+  <p><strong>Bottom line (directional):</strong>
+    Based on {{ executive_summary.n_comps }} selected comps, the target's directional implied enterprise value is approximately
+    ${{ "%.0f"|format(executive_summary.implied_ev_low) }}mm–${{ "%.0f"|format(executive_summary.implied_ev_high) }}mm
+    (P25–P75, by {{ executive_summary.implied_basis }}) — a wide, comp-set-driven range, not a precise pricing recommendation.</p>
+  {% else %}
+  <p><strong>Bottom line (directional):</strong> Implied valuation range not available — target revenue/EBITDA inputs are incomplete.</p>
+  {% endif %}
+  {% if executive_summary.fit_score is not none %}
+  <p><strong>Comparable Fit Review:</strong> {{ executive_summary.fit_score }} / 100 ({{ executive_summary.fit_label }}).</p>
+
+  {% endif %}
+  {% if executive_summary.top_caveat %}
+  <p><strong>Key caveat:</strong> {{ executive_summary.top_caveat }}</p>
+
+  {% endif %}
+  {% if led_with_adjusted and executive_summary.implied_ev_low is not none %}
+  <p class="note"><strong>For reference — unadjusted full comp set:</strong> all {{ executive_summary.n_comps }} comps imply
+    ${{ "%.0f"|format(executive_summary.implied_ev_low) }}mm–${{ "%.0f"|format(executive_summary.implied_ev_high) }}mm (P25–P75, by {{ executive_summary.implied_basis }}){% if executive_summary.excl_flagged_ev_low is not none %}; excluding weaker-fit/outlier comps {{ "narrows" if executive_summary.excl_flagged_is_narrower else "changes" }} this to ${{ "%.0f"|format(executive_summary.excl_flagged_ev_low) }}mm–${{ "%.0f"|format(executive_summary.excl_flagged_ev_high) }}mm{% endif %}. These are large-cap trading multiples applied to a small private target, so they read high relative to the adjusted figures above.</p>
+  {% elif executive_summary.excl_flagged_ev_low is not none %}
+  <p><strong>Refined range:</strong> excluding comps flagged as weaker fits or statistical outliers {{ "narrows" if executive_summary.excl_flagged_is_narrower else "changes" }} this to
+    ${{ "%.0f"|format(executive_summary.excl_flagged_ev_low) }}mm–${{ "%.0f"|format(executive_summary.excl_flagged_ev_high) }}mm{% if not executive_summary.excl_flagged_is_narrower %} (a different subset's range, not necessarily a tighter one — on a set this small, dropping a few comps can shift either end in either direction){% endif %} — treat this, not the wider headline range, as the more decision-relevant case (see Section 4 for this and other sensitivity cases).</p>
+
+  {% endif %}
+  <p class="note">See Section 4 for the full implied-valuation build, sensitivity cases, and a size-adjusted cross-check, and Section 3 for the qualitative fit review behind this score.</p>
+</div>
+
+<nav class="toc">
+  <strong>Contents</strong>
+  <ol>
+    <li><a href="#sec1">Target and Selection Snapshot</a></li>
+    <li><a href="#sec2">Top {{ n_comps }} Comparable Companies</a></li>
+    <li><a href="#sec3">Comparable Fit Review</a></li>
+    <li><a href="#sec4">Valuation and Financial Benchmarks</a></li>
+    <li><a href="#sec5">Near-Miss Candidates</a></li>
+    <li><a href="#sec6">Selection Diagnostics</a></li>
+    <li><a href="#sec7">Data Notes</a></li>
+    <li><a href="#sec8">Methodology Notes</a></li>
+  </ol>
+</nav>
+
+<!-- Section 1: Target and Selection Snapshot -->
+<h2 id="sec1">1. Target and Selection Snapshot</h2>
 <div class="summary-box">
   <p><strong>{{ target_name }}</strong></p>
   <p>{{ target_description }}</p>
-  <p><strong>Predicted EV/EBITDA range:</strong>
-    {{ "%.1f"|format(target_prediction.range_low) }}x — {{ "%.1f"|format(target_prediction.range_high) }}x
-    (center: {{ "%.1f"|format(target_prediction.predicted_ev_ebitda) }}x)</p>
-  <p><strong>Comparable companies analyzed:</strong> {{ n_comps }}</p>
-  <p><strong>Pipeline run:</strong> {{ generated_at }}</p>
 </div>
 
-<!-- Section 2: Valuation Multiple Distribution -->
-<h2>2. Valuation Multiple Distribution</h2>
+<h3>Selection Snapshot</h3>
+<div class="snapshot-grid">
+  <div class="snapshot-item">
+    <span class="snapshot-value">{{ selection_summary.n_top_comps }}</span>
+    <span class="snapshot-label">selected comps</span>
+  </div>
+  <div class="snapshot-item">
+    <span class="snapshot-value">{{ selection_summary.n_scored_companies }}</span>
+    <span class="snapshot-label">companies in scoring pool</span>
+  </div>
+  <div class="snapshot-item">
+    <span class="snapshot-value">{{ selection_summary.n_eligible_candidates }}</span>
+    <span class="snapshot-label">eligible after hard filters</span>
+  </div>
+  <div class="snapshot-item">
+    <span class="snapshot-value">{% if selection_summary.dispersion_ratio is not none %}{{ "%.0f"|format(selection_summary.dispersion_ratio * 100) }}%{% else %}N/A{% endif %}</span>
+    <span class="snapshot-label">Top {{ n_comps }} EV/EBITDA IQR vs. eligible pool{% if selection_summary.dispersion_ratio is not none %} (lower = tighter;{% if selection_summary.dispersion_ratio >= meaningful_narrowing_ratio %} ~100% = selection barely narrowed the spread{% else %} selection narrowed the spread{% endif %}){% endif %}</span>
+  </div>
+  <div class="snapshot-item">
+    <span class="snapshot-value">{{ selection_summary.low_confidence_count }}</span>
+    <span class="snapshot-label">companies excluded for weak source support</span>
+  </div>
+  <div class="snapshot-item">
+    <span class="snapshot-value">{{ selection_summary.failed_fetch_count }}</span>
+    <span class="snapshot-label">companies excluded for missing market / filing data</span>
+  </div>
+</div>
+<p class="note">Selection quality reflects financial similarity, business-model fit, customer/end-market alignment, revenue scale, near-miss review, and data availability.</p>
+
+<!-- Section 2: Top 15 Comparable Companies -->
+<h2 id="sec2">2. Top {{ n_comps }} Comparable Companies</h2>
+{% if top15 and top15[0].business_model %}<p class="note">All Top {{ n_comps }} comps share the target's business model ({{ top15[0].business_model }}).</p>{% endif %}
+<p class="note">Financial Distance: standardized distance to the target's financial profile (lower = more similar). Rank combines this with business-model, customer-type, revenue-scale, and end-market fit — see Section 8 for the full definition.</p>
+<p class="note">Rows outlined in green/red were flagged as a strongest/weaker fit by the Comparable Fit Review in Section 3. A dagger (†) next to EV/EBITDA marks a statistical outlier within this set's own distribution (Tukey fence, {{ tukey_fence_multiplier }}× IQR) — independent of the Section 3 judgment.</p>
+
+<h3>Comp Tiers</h3>
+<p class="note">Core = explicitly endorsed by the Comparable Fit Review; Review/Exclude = flagged as a weaker fit by that review, a statistical EV/EBITDA outlier, or both; Secondary = neither flag applies. Use Core comps as the most defensible anchor and treat Review/Exclude comps with caution.</p>
+<p class="note">Tier is the fit review's qualitative endorsement (business/customer-type/end-market) and does not account for revenue scale, so it can diverge from both scale and the table's Rank (standardized financial distance): a Core comp can be far larger than the target, and a comp ranked lower on financial distance can still be a Core qualitative match. See the revenue-screened sensitivity case in Section 4 for a scale-based view.</p>
+<div class="tier-summary-grid">
+  {% for t in tier_summary %}
+  <div class="tier-summary-item">
+    <strong class="tier-{{ t.tier }}">{{ t.label }}</strong> ({{ t.n }}): {{ t.tickers | join(", ") if t.tickers else "none" }}
+  </div>
+  {% endfor %}
+</div>
+{% if low_margin_comps %}
+<p class="note"><strong>Company-specific caution:</strong> {% for c in low_margin_comps %}{{ c.ticker }} ({{ "%.1f"|format(c.ebitda_margin * 100) }}% EBITDA margin){% if not loop.last %}, {% endif %}{% endfor %} — a depressed margin typically drags a company's own EV/EBITDA and EV/Revenue down for company-specific reasons, so read {% if low_margin_comps|length == 1 %}its low multiple{% else %}their low multiples{% endif %} as a soft data point, not a clean market multiple.</p>
+{% endif %}
+
+<table>
+  <tr>
+    <th>Rank</th><th>Ticker</th><th>Company</th><th>Tier</th><th>Financial Distance</th><th>EV/EBITDA</th><th>EBITDA Margin</th>
+    <th>Revenue ($M)</th><th>Rev Growth</th><th>Business Model</th><th>Business Description</th>
+  </tr>
+  {% for c in top15 %}
+  <tr class="{{ 'top-rank' if c.rank == 1 else ('row-odd' if loop.index is odd else 'row-even') }}{{ ' low-confidence' if c.low_confidence_flag else '' }}{{ ' fit-strong' if c.fit_flag == 'strong' else (' fit-weak' if c.fit_flag == 'weak' else '') }}">
+    <td>{{ c.rank }}</td>
+    <td>{{ c.ticker }}</td>
+    <td>{{ c.company_name }}</td>
+    <td class="tier-{{ c.tier }}">{{ TIER_LABELS[c.tier] }}</td>
+    <td>{{ "%.2f"|format(c.residual_abs) }}</td>
+    <td>{{ "%.1f"|format(c.ev_ebitda_actual) if c.ev_ebitda_actual is not none else "N/A" }}x{{ "†" if c.outlier_flag else "" }}</td>
+    <td>{{ "%.1f"|format(c.ebitda_margin * 100) if c.ebitda_margin is not none else "N/A" }}%</td>
+    <td>{{ "%.0f"|format(c.revenue_ttm_usd_mm) if c.revenue_ttm_usd_mm is not none else "N/A" }}</td>
+    <td>{{ "%.1f"|format(c.revenue_cagr_3yr * 100) if c.revenue_cagr_3yr is not none else "N/A" }}%</td>
+    <td>{{ c.business_model or "N/A" }}</td>
+    <td>{{ c.sub_sector_description or "N/A" }}</td>
+  </tr>
+  {% endfor %}
+</table>
+
+<!-- Section 3: Comparable Fit Review -->
+<h2 id="sec3">3. Comparable Fit Review</h2>
+<div class="summary-box">
+{% if comp_fit_review.status == "available" %}
+  <p><strong>Overall Top {{ n_comps }} Fit:</strong> {{ comp_fit_review.overall_score }} / 100{% if comp_fit_review.fit_label %} ({{ comp_fit_review.fit_label }}){% endif %} — this score is the comp-set confidence signal (business/customer-type/scale/end-market fit).</p>
+  <p><strong>Data confidence:</strong> {{ comp_fit_review.review_confidence | capitalize }} — reflects reliability of the extracted source data (no flagged extraction issues among selected comps), not comp-set fit; see the score above for that.</p>
+  <p>{{ comp_fit_review.summary }}</p>
+  {% if scale_reconciliation_note %}
+  <p class="note">{{ scale_reconciliation_note }}</p>
+
+  {% endif %}
+
+  <h3>Strengths</h3>
+  <ul>
+    {% for item in comp_fit_review.strengths %}
+    <li>{{ item }}</li>
+    {% endfor %}
+  </ul>
+
+  <h3>Weaknesses</h3>
+  <ul>
+    {% for item in comp_fit_review.weaknesses %}
+    <li>{{ item }}</li>
+    {% endfor %}
+  </ul>
+
+  <h3>Strongest Fits</h3>
+  <table>
+    <tr><th>Ticker</th><th>Score</th><th>Reason</th></tr>
+    {% for row in comp_fit_review.top_fits %}
+    <tr class="{{ 'row-odd' if loop.index is odd else 'row-even' }}">
+      <td>{{ row.ticker }}</td>
+      <td>{{ row.score }}</td>
+      <td>{{ row.reason }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+
+  <h3>Weaker Fits to Review</h3>
+  <p class="note">This table is the qualitative review's own judgment only. A comp can also land in Section 2's "Review/Exclude" tier purely as a statistical EV/EBITDA outlier (marked † there) without appearing here — that's a separate, independent check, not an omission. See the Comp Tiers summary in Section 2 for which comps were flagged for which reason.</p>
+  {% if comp_fit_review.questionable_fits %}
+  <table>
+    <tr><th>Ticker</th><th>Score</th><th>Reason</th></tr>
+    {% for row in comp_fit_review.questionable_fits %}
+    <tr class="{{ 'row-odd' if loop.index is odd else 'row-even' }}">
+      <td>{{ row.ticker }}</td>
+      <td>{{ row.score }}</td>
+      <td>{{ row.reason }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p>No weaker fits flagged by the review.</p>
+  {% endif %}
+
+  <h3>Potential Substitutions from Near-Misses</h3>
+  {% if comp_fit_review.near_miss_upgrades %}
+  <table>
+    <tr><th>Ticker</th><th>Score</th><th>Reason</th></tr>
+    {% for row in comp_fit_review.near_miss_upgrades %}
+    <tr class="{{ 'row-odd' if loop.index is odd else 'row-even' }}">
+      <td>{{ row.ticker }}</td>
+      <td>{{ row.score }}</td>
+      <td>{{ row.reason }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p>No potential substitutions flagged by the review.</p>
+  {% endif %}
+{% else %}
+  <p><strong>Status:</strong> Not available for this run.</p>
+  <p>{{ comp_fit_review.reason }}</p>
+{% endif %}
+</div>
+
+<!-- Section 4: Valuation and Financial Benchmarks -->
+<h2 id="sec4">4. Valuation and Financial Benchmarks</h2>
+<h3>Valuation Multiple Distribution</h3>
 <table>
   <tr><th>Metric</th><th>25th pct</th><th>Median</th><th>75th pct</th><th>Mean</th></tr>
   <tr class="row-odd">
@@ -97,79 +366,258 @@
     <td>{{ "%.1f"|format(valuation_multiples.ev_revenue.mean) }}x</td>
   </tr>
 </table>
+{% if valuation_multiples.ev_ebitda.p25 > 0 and valuation_multiples.ev_ebitda.p75 > valuation_multiples.ev_ebitda.p25 * wide_multiple_spread_ratio %}
+<p class="note"><strong>Wide multiple spread:</strong> the Top {{ n_comps }} EV/EBITDA range ({{ "%.1f"|format(valuation_multiples.ev_ebitda.p25) }}x–{{ "%.1f"|format(valuation_multiples.ev_ebitda.p75) }}x, P75 over {{ "%.0f"|format(wide_multiple_spread_ratio) }}× P25) is too dispersed for the headline P25–P75 to read as a tight, usable band. The mean ({{ "%.1f"|format(valuation_multiples.ev_ebitda.mean) }}x) sits above the median ({{ "%.1f"|format(valuation_multiples.ev_ebitda.median) }}x), confirming a right skew from a few high-multiple names — weight the median, the size-comparable anchor, and the flagged-excluded case below over the raw range.</p>
+{% endif %}
 
-<!-- Section 3: Financial Benchmarks -->
-<h2>3. Financial Benchmarks</h2>
+<h3>Revenue vs. EV/EBITDA (Top {{ n_comps }}-scaled view)</h3>
+{% if scatter_data %}
+{{ scatter_data.svg }}
+<p class="note">Background dots are the full eligible pool ({{ selection_summary.n_eligible_candidates }} companies) for context. The dashed line marks the target's own revenue — note how far it sits from most of the comp cloud, and how the colored (Top {{ n_comps }}) dots cluster relative to it. The y-axis is scaled to the Top {{ n_comps }}'s own range{% if scatter_data.n_pool_clipped > 0 %}; {{ scatter_data.n_pool_clipped }} eligible-pool comp{{ "s" if scatter_data.n_pool_clipped != 1 else "" }} with an even higher EV/EBITDA multiple are off-chart and not shown{% endif %}.</p>
+{% else %}
+<p>Scatter plot not available — insufficient data.</p>
+{% endif %}
+
+<h3>Implied Enterprise Value</h3>
+{% if implied_valuation.by_ebitda or implied_valuation.by_revenue %}
+<table>
+  <tr><th>Basis</th><th>P25</th><th>Median</th><th>P75</th></tr>
+  {% if implied_valuation.by_ebitda %}
+  <tr class="row-odd">
+    <td>EV/EBITDA × target EBITDA{{ "*" if implied_valuation.target_ebitda_margin_is_estimated else "" }} (${{ "%.0f"|format(implied_valuation.target_ebitda) }}mm)</td>
+    <td>${{ "%.0f"|format(implied_valuation.by_ebitda.p25) }}mm</td>
+    <td class="median-row">${{ "%.0f"|format(implied_valuation.by_ebitda.median) }}mm</td>
+    <td>${{ "%.0f"|format(implied_valuation.by_ebitda.p75) }}mm</td>
+  </tr>
+  {% endif %}
+  {% if implied_valuation.by_revenue %}
+  <tr class="row-even">
+    <td>EV/Revenue × target revenue (${{ "%.0f"|format(implied_valuation.target_revenue) }}mm)</td>
+    <td>${{ "%.0f"|format(implied_valuation.by_revenue.p25) }}mm</td>
+    <td class="median-row">${{ "%.0f"|format(implied_valuation.by_revenue.median) }}mm</td>
+    <td>${{ "%.0f"|format(implied_valuation.by_revenue.p75) }}mm</td>
+  </tr>
+  {% endif %}
+</table>
+{% if implied_valuation.target_ebitda_margin_is_estimated %}<p class="note">Target EBITDA<sup>*</sup> uses an estimated margin, not a company-reported one — see the Financial Benchmarks note below.</p>{% endif %}
+{% if implied_valuation.median_convergence_pct is not none %}
+<p class="note">Median values are {% if implied_valuation.median_convergence_pct < 15 %}broadly consistent{% else %}notably divergent{% endif %} between the two bases ({{ "%.0f"|format(implied_valuation.median_convergence_pct) }}% apart). {% if implied_valuation.median_convergence_pct < 15 and implied_valuation.revenue_basis_is_wider %}EV/Revenue's P25-P75 range is wider than EV/EBITDA's, so treat EV/Revenue as a secondary cross-check rather than equal-weight with the EV/EBITDA-based range.{% elif implied_valuation.median_convergence_pct < 15 %}Both bases show comparable dispersion, supporting the EV/EBITDA-based range as primary.{% else %}Treat the wider of the two ranges with caution; the comp set's margin profile may not be representative of the target's.{% endif %}</p>
+{% endif %}
+{% if discounted_valuation %}
+<p><strong>Private-company-adjusted implied EV (after {{ "%.0f"|format(discounted_valuation.discount * 100) }}% net size/marketability discount):</strong></p>
+<table>
+  <tr><th>Basis</th><th>P25</th><th>Median</th><th>P75</th></tr>
+  {% if discounted_valuation.by_ebitda %}
+  <tr class="row-odd">
+    <td>EV/EBITDA basis × {{ "%.2f"|format(discounted_valuation.factor) }}</td>
+    <td>${{ "%.0f"|format(discounted_valuation.by_ebitda.p25) }}mm</td>
+    <td class="median-row">${{ "%.0f"|format(discounted_valuation.by_ebitda.median) }}mm</td>
+    <td>${{ "%.0f"|format(discounted_valuation.by_ebitda.p75) }}mm</td>
+  </tr>
+  {% endif %}
+  {% if discounted_valuation.by_revenue %}
+  <tr class="row-even">
+    <td>EV/Revenue basis × {{ "%.2f"|format(discounted_valuation.factor) }}</td>
+    <td>${{ "%.0f"|format(discounted_valuation.by_revenue.p25) }}mm</td>
+    <td class="median-row">${{ "%.0f"|format(discounted_valuation.by_revenue.median) }}mm</td>
+    <td>${{ "%.0f"|format(discounted_valuation.by_revenue.p75) }}mm</td>
+  </tr>
+  {% endif %}
+</table>
+<p class="note">Public trading comps are large-cap, liquid, minority-interest multiples; applied straight to a small private mid-market target they overstate value. This range applies a single net haircut to the comp-derived EV.{% if discount_note %} {{ discount_note }}{% endif %} It is not a substitute for precedent M&A transaction multiples, which are the more direct private-market reference.</p>
+{% endif %}
+{% if implied_valuation_excl_flagged %}
+<p><strong>Sensitivity — excluding weaker/outlier fits ({{ flagged_tickers | join(", ") }}):</strong></p>
+<table>
+  <tr><th>Basis</th><th>P25</th><th>Median</th><th>P75</th></tr>
+  {% if implied_valuation_excl_flagged.by_ebitda %}
+  <tr class="row-odd">
+    <td>EV/EBITDA × target EBITDA (${{ "%.0f"|format(implied_valuation_excl_flagged.target_ebitda) }}mm)</td>
+    <td>${{ "%.0f"|format(implied_valuation_excl_flagged.by_ebitda.p25) }}mm</td>
+    <td class="median-row">${{ "%.0f"|format(implied_valuation_excl_flagged.by_ebitda.median) }}mm</td>
+    <td>${{ "%.0f"|format(implied_valuation_excl_flagged.by_ebitda.p75) }}mm</td>
+  </tr>
+  {% endif %}
+  {% if implied_valuation_excl_flagged.by_revenue %}
+  <tr class="row-even">
+    <td>EV/Revenue × target revenue (${{ "%.0f"|format(implied_valuation_excl_flagged.target_revenue) }}mm)</td>
+    <td>${{ "%.0f"|format(implied_valuation_excl_flagged.by_revenue.p25) }}mm</td>
+    <td class="median-row">${{ "%.0f"|format(implied_valuation_excl_flagged.by_revenue.median) }}mm</td>
+    <td>${{ "%.0f"|format(implied_valuation_excl_flagged.by_revenue.p75) }}mm</td>
+  </tr>
+  {% endif %}
+</table>
+<p class="note">The headline range above includes all Top {{ n_comps }} comps. "Weaker fits" are flagged qualitatively by the Comparable Fit Review in Section 3; "outliers" are comps whose EV/EBITDA falls outside a Tukey fence ({{ tukey_fence_multiplier }}× IQR) of the Top {{ n_comps }}'s own distribution — a statistical check independent of the qualitative review. This sensitivity range shows the combined impact of excluding both.</p>
+{% endif %}
+{% if revenue_screened_valuation %}
+<p><strong>Sensitivity — revenue-screened comps only (within {{ SIZE_BAND_MULTIPLE }}x target revenue: {{ revenue_screened_valuation.n }} of {{ n_comps }} — {{ revenue_screened_valuation.tickers | join(", ") }}):</strong></p>
+<table>
+  <tr><th>Basis</th><th>P25</th><th>Median</th><th>P75</th></tr>
+  {% if revenue_screened_valuation.by_ebitda %}
+  <tr class="row-odd">
+    <td>EV/EBITDA × target EBITDA (${{ "%.0f"|format(revenue_screened_valuation.target_ebitda) }}mm)</td>
+    <td>${{ "%.0f"|format(revenue_screened_valuation.by_ebitda.p25) }}mm</td>
+    <td class="median-row">${{ "%.0f"|format(revenue_screened_valuation.by_ebitda.median) }}mm</td>
+    <td>${{ "%.0f"|format(revenue_screened_valuation.by_ebitda.p75) }}mm</td>
+  </tr>
+  {% endif %}
+  {% if revenue_screened_valuation.by_revenue %}
+  <tr class="row-even">
+    <td>EV/Revenue × target revenue (${{ "%.0f"|format(revenue_screened_valuation.target_revenue) }}mm)</td>
+    <td>${{ "%.0f"|format(revenue_screened_valuation.by_revenue.p25) }}mm</td>
+    <td class="median-row">${{ "%.0f"|format(revenue_screened_valuation.by_revenue.median) }}mm</td>
+    <td>${{ "%.0f"|format(revenue_screened_valuation.by_revenue.p75) }}mm</td>
+  </tr>
+  {% endif %}
+</table>
+<p class="note">Direct answer to the revenue-scale mismatch flagged elsewhere in this report: this range uses only the Top {{ n_comps }} comps within {{ SIZE_BAND_MULTIPLE }}x of the target's own revenue, instead of adjusting for size statistically (see the regression-based cross-check below). This screen controls only for revenue scale — it does not exclude comps already flagged as weaker fits or valuation outliers above, so a comp can appear in this case even if the other sensitivity case excludes it.</p>
+{% if strict_size_screen %}
+<p class="note">A stricter size screen ({{ STRICT_SIZE_BAND_LOWER_MULTIPLE }}x–{{ STRICT_SIZE_BAND_UPPER_MULTIPLE }}x target revenue) leaves only {{ strict_size_screen.n }} comps ({{ strict_size_screen.tickers | join(", ") }}) — too few for a full P25/P75 distribution. Rather than discard them, their median EV/EBITDA of {{ "%.1f"|format(strict_size_screen.median_ev_ebitda) }}x{% if size_anchor %} (≈ ${{ "%.0f"|format(size_anchor.implied_ev) }}mm at the target's EBITDA){% endif %} is carried up to the executive summary as the size-comparable anchor — a directional central case for a target this small, not a standalone range.</p>
+{% endif %}
+{% endif %}
+{% if size_adjusted_valuation %}
+<p><strong>Directional size-adjusted cross-check:</strong> not a substitute for the ranges above — the regression below is {% if size_adjusted_valuation.is_significant %}statistically significant{% else %}<strong>not statistically significant</strong> at this sample size{% endif %}, so treat the implied EV as directional only.</p>
+<table>
+  <tr><th>Pool size (n)</th><th>Slope (EV/EBITDA per log10 revenue)</th><th>R²</th><th>Significant (p&lt;0.05)</th><th>Implied EV (directional)</th></tr>
+  <tr class="row-odd">
+    <td>{{ size_adjusted_valuation.n }}</td>
+    <td>{{ "%.2f"|format(size_adjusted_valuation.slope) }}</td>
+    <td>{{ "%.2f"|format(size_adjusted_valuation.r_squared) }}</td>
+    <td>{{ "Yes" if size_adjusted_valuation.is_significant else "No" }}</td>
+    <td>~${{ "%.0f"|format(size_adjusted_valuation.implied_ev) }}mm</td>
+  </tr>
+</table>
+<p class="note">Regresses EV/EBITDA on log10(revenue) across the full eligible pool ({{ size_adjusted_valuation.n }} companies, not just the Top {{ n_comps }}) to quantify whether this industry's multiples scale with company size, then reads off the predicted multiple at the target's own revenue.</p>
+{% endif %}
+{% else %}
+<p>Implied valuation not available — target revenue or EBITDA estimate is missing from config.</p>
+{% endif %}
+
+<h3>Financial Benchmarks</h3>
+<p class="note">EBITDA Margin's Target Est. (no asterisk) is a target-specific assumption from the deal model, not a peer figure. Target Est.<sup>*</sup> on the other three rows is not company-reported at all — those use peer medians, since the target does not disclose comparable metrics for them.</p>
 <table>
   <tr><th>Metric</th><th>Target Est.</th><th>P25</th><th>Median</th><th>P75</th><th>Target Percentile</th></tr>
   {% for row in financial_benchmarks %}
   <tr class="{{ 'row-odd' if loop.index is odd else 'row-even' }}">
     <td>{{ row.metric }}</td>
     {% if row.format == 'percent' %}
-    <td>{{ "%.1f"|format(row.target_est * 100) }}%</td>
+    <td>{{ "%.1f"|format(row.target_est * 100) }}%{{ "*" if row.target_est_is_estimated else "" }}</td>
     <td>{{ "%.1f"|format(row.p25 * 100) }}%</td>
     <td class="median-row">{{ "%.1f"|format(row.median * 100) }}%</td>
     <td>{{ "%.1f"|format(row.p75 * 100) }}%</td>
     {% else %}
-    <td>{{ "%.1f"|format(row.target_est) }}x</td>
+    <td>{{ "%.1f"|format(row.target_est) }}x{{ "*" if row.target_est_is_estimated else "" }}</td>
     <td>{{ "%.1f"|format(row.p25) }}x</td>
     <td class="median-row">{{ "%.1f"|format(row.median) }}x</td>
     <td>{{ "%.1f"|format(row.p75) }}x</td>
     {% endif %}
-    <td>{{ "%.0f"|format(row.target_percentile) }}th{% if row.target_percentile is none %}N/A{% endif %}</td>
+    <td>{{ row.target_percentile_label }}</td>
   </tr>
   {% endfor %}
 </table>
 
-<!-- Section 4: Top 15 Comparable Companies -->
-<h2>4. Top {{ n_comps }} Comparable Companies</h2>
-<table>
-  <tr>
-    <th>Rank</th><th>Ticker</th><th>Company</th><th>EV/EBITDA</th><th>EBITDA Margin</th>
-    <th>Revenue ($M)</th><th>Rev Growth</th><th>Business Model</th><th>Sub-sector</th><th>Judge Score</th>
-  </tr>
-  {% for c in top15 %}
-  <tr class="{{ 'top-rank' if c.rank == 1 else ('row-odd' if loop.index is odd else 'row-even') }}{{ ' low-confidence' if c.low_confidence_flag else '' }}">
-    <td>{{ c.rank }}</td>
-    <td>{{ c.ticker }}</td>
-    <td>{{ c.company_name }}</td>
-    <td>{{ "%.1f"|format(c.ev_ebitda_actual) if c.ev_ebitda_actual is not none else "N/A" }}x</td>
-    <td>{{ "%.1f"|format(c.ebitda_margin * 100) if c.ebitda_margin is not none else "N/A" }}%</td>
-    <td>{{ "%.0f"|format(c.revenue_ttm_usd_mm) if c.revenue_ttm_usd_mm is not none else "N/A" }}</td>
-    <td>{{ "%.1f"|format(c.revenue_cagr_3yr * 100) if c.revenue_cagr_3yr is not none else "N/A" }}%</td>
-    <td>{{ c.business_model or "N/A" }}</td>
-    <td>{{ c.sub_sector_description or "N/A" }}</td>
-    <td>{{ c.judge_score if c.judge_score is not none else "N/A" }}{{ " (low confidence)" if c.low_confidence_flag else "" }}</td>
-  </tr>
-  {% endfor %}
-</table>
-
-<!-- Section 5: Model Diagnostics -->
-<h2>5. Model Diagnostics</h2>
+<!-- Section 5: Near-Miss Candidates -->
+<h2 id="sec5">5. Near-Miss Candidates (Just Outside the Top {{ n_comps }})</h2>
 <div class="summary-box">
-  <p><strong>Cross-validation error:</strong> ±{{ "%.1f"|format(model_diagnostics.cv_mae_median) }}x EV/EBITDA turns</p>
-  <p><strong>Training companies:</strong> {{ model_diagnostics.n_training_companies }}</p>
-  <p><strong>Top 5 features by SHAP importance:</strong></p>
+<p class="note">"Financial-only rank" ignores the business-model/customer-type/revenue-scale/end-market soft penalties applied in Section 2's Top {{ n_comps }} selection — a candidate ranked here by financial distance alone can still be correctly excluded from Top {{ n_comps }} for one of those other reasons (see the right-hand column).</p>
+{% if audit_trail %}
   <table>
-    <tr><th>Feature</th><th>Mean SHAP value</th></tr>
+    <tr><th>Financial-only rank</th><th>Ticker</th><th>Company</th><th>Primary reason excluded from Top {{ n_comps }}</th></tr>
+    {% for a in audit_trail %}
+    <tr class="{{ 'row-odd' if loop.index is odd else 'row-even' }}">
+      <td>{{ a.base_rank }}</td>
+      <td>{{ a.ticker }}</td>
+      <td>{{ a.company_name }}</td>
+      <td>{{ a.reasons | join("; ") }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+{% else %}
+  <p>No near-miss candidates to show.</p>
+{% endif %}
+</div>
+
+<!-- Section 6: Selection Diagnostics -->
+<h2 id="sec6">6. Selection Diagnostics</h2>
+<div class="summary-box">
+  <p><strong>Average financial distance to target (Top {{ n_comps }}):</strong> {{ "%.2f"|format(model_diagnostics.mean_distance) }}</p>
+  <p><strong>Multiple-spread check:</strong> {% if model_diagnostics.relative_dispersion.ratio is not none %}Top {{ n_comps }} EV/EBITDA IQR is {{ "%.1f"|format(model_diagnostics.relative_dispersion.selected_iqr) }}x vs. {{ "%.1f"|format(model_diagnostics.relative_dispersion.pool_iqr) }}x for the eligible pool ({{ model_diagnostics.relative_dispersion.n_pool }} companies), or {{ "%.0f"|format(model_diagnostics.relative_dispersion.ratio * 100) }}% of the pool IQR. {% if model_diagnostics.relative_dispersion.ratio < meaningful_narrowing_ratio %}This indicates the selection meaningfully narrowed the valuation-multiple spread.{% elif model_diagnostics.relative_dispersion.ratio < 1.0 %}The selection barely narrowed the spread — the Top {{ n_comps }} is almost as dispersed as the pool it was drawn from, so treat the resulting multiple range as noisy and lean on the size-comparable and flagged-excluded sensitivity cases in Section 4.{% else %}This indicates the selected set did not narrow the valuation-multiple spread.{% endif %}{% else %}N/A (not enough companies with a valid EV/EBITDA value to compare){% endif %}</p>
+  <p><strong>Financial attributes most influencing the ranking:</strong></p>
+  <table>
+    <tr><th>Feature</th><th>Relative influence</th></tr>
     {% for f in model_diagnostics.top_features %}
     <tr class="{{ 'row-odd' if loop.index is odd else 'row-even' }}">
       <td>{{ f.label }}</td>
-      <td>{{ "%.3f"|format(f.mean_abs_shap) }}</td>
+      <td>{{ "%.3f"|format(f.mean_sq_distance) }}</td>
     </tr>
     {% endfor %}
   </table>
 </div>
 
-<!-- Section 6: Data Notes -->
-<h2>6. Data Notes</h2>
+<!-- Section 7: Data Notes -->
+<h2 id="sec7">7. Data Notes</h2>
 <div class="summary-box">
-  <p>{{ data_notes.low_confidence_count }} companies had low LLM confidence and were excluded.</p>
-  <p>{{ data_notes.failed_fetch_count }} tickers failed data fetch (see outputs/failed_tickers.csv).</p>
+  <p>{{ data_notes.low_confidence_count }} companies were excluded because their source descriptions did not sufficiently support the extracted business profile.</p>
+  <p>{{ data_notes.failed_fetch_count }} companies were excluded because required market or filing data was unavailable.</p>
+  <p><strong>AI assistance note:</strong> Business-profile extraction and the Comparable Fit Review use LLM assistance. Outputs should be treated as directional support for analyst review, not as final diligence conclusions.</p>
+  <p><strong>Benchmarking note:</strong> The repository does not publish an audited external benchmark for comparable-company selection; use the fit review, near-miss list, and diagnostics as directional quality checks.</p>
   <p class="disclaimer">{{ data_notes.disclaimer }}</p>
 </div>
 
-<div class="footer">Generated by PE Comps Pipeline — {{ generated_at }}</div>
+<h3>Data Appendix</h3>
+<p class="note">Underlying figures behind each Top {{ n_comps }} comp's EV/EBITDA and EV/Revenue (Section 2). Revenue, EBITDA, and net debt are derived from SEC EDGAR/XBRL filings; market cap is FMP-sourced. Enterprise Value = Market Cap + Net Debt; EV/EBITDA and EV/Revenue were computed from these fields for all {{ n_comps }} Top comps, not taken pre-calculated from a vendor. All figures are as of the pipeline run date in the footer below, not a fixed historical date.</p>
+<p class="note"><strong>EBITDA basis:</strong> EBITDA is unadjusted and derived directly from XBRL filings — it is <em>not</em> normalized for stock-based compensation, operating-lease treatment (IFRS 16 / ASC 842), or one-time/non-recurring items, and the same definition is applied to the target's estimate and to every comp. A normalized "adjusted EBITDA" (the basis most PE deal models price on) could shift individual multiples materially; treat the multiples here as a like-for-like screen on a common reported basis, not as adjusted-EBITDA pricing multiples.</p>
+{% if description_sources_vary %}
+<table>
+  <tr><th>Ticker</th><th>Revenue ($M)</th><th>Market Cap ($M)</th><th>Net Debt ($M)</th><th>EBITDA ($M)</th><th>Enterprise Value ($M)</th><th>EV/EBITDA</th><th>EV/Revenue</th><th>Description Source</th></tr>
+  {% for c in top15 %}
+  <tr class="{{ 'row-odd' if loop.index is odd else 'row-even' }}">
+    <td>{{ c.ticker }}</td>
+    <td>{{ c.revenue_ttm_usd_mm | usd_mm }}</td>
+    <td>{{ c.market_cap_usd_mm | usd_mm }}</td>
+    <td>{{ c.net_debt_usd_mm | usd_mm }}</td>
+    <td>{{ c.ebitda_usd_mm | usd_mm }}</td>
+    <td>{{ c.enterprise_value_usd_mm | usd_mm }}</td>
+    <td>{{ "%.1f"|format(c.ev_ebitda_actual) ~ "x" if c.ev_ebitda_actual is not none else "N/A" }}</td>
+    <td>{{ "%.1f"|format(c.ev_revenue) ~ "x" if c.ev_revenue is not none else "N/A" }}</td>
+    <td>{{ DESCRIPTION_SOURCE_LABELS.get(c.description_source, c.description_source or "N/A") }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}
+<p class="note">All business descriptions were sourced from {{ DESCRIPTION_SOURCE_LABELS.get(description_source_common, description_source_common or "the same source") }}.</p>
+<table>
+  <tr><th>Ticker</th><th>Revenue ($M)</th><th>Market Cap ($M)</th><th>Net Debt ($M)</th><th>EBITDA ($M)</th><th>Enterprise Value ($M)</th><th>EV/EBITDA</th><th>EV/Revenue</th></tr>
+  {% for c in top15 %}
+  <tr class="{{ 'row-odd' if loop.index is odd else 'row-even' }}">
+    <td>{{ c.ticker }}</td>
+    <td>{{ c.revenue_ttm_usd_mm | usd_mm }}</td>
+    <td>{{ c.market_cap_usd_mm | usd_mm }}</td>
+    <td>{{ c.net_debt_usd_mm | usd_mm }}</td>
+    <td>{{ c.ebitda_usd_mm | usd_mm }}</td>
+    <td>{{ c.enterprise_value_usd_mm | usd_mm }}</td>
+    <td>{{ "%.1f"|format(c.ev_ebitda_actual) ~ "x" if c.ev_ebitda_actual is not none else "N/A" }}</td>
+    <td>{{ "%.1f"|format(c.ev_revenue) ~ "x" if c.ev_revenue is not none else "N/A" }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% endif %}
+
+<!-- Section 8: Methodology Notes -->
+<h2 id="sec8">8. Methodology Notes</h2>
+<div class="summary-box">
+  <p>Rank (Section 2) reflects overall comparability to the target, combining financial profile with business model, customer type, revenue scale, and end-market alignment — the table is ranked by fit, not by EV/EBITDA multiple.</p>
+  <p>The Comparable Fit Review (Section 3) is a directional qualitative review; it is not a substitute for transaction-team judgment, banker input, or confirmatory diligence.</p>
+  <p>Target Percentile (Section 4) shows where the target falls within the selected comp set. It is calculated directly from company-level data, so it may not match a simple interpolation from the rounded quartiles shown in the same table.</p>
+  <p>"Relative influence" (Section 6) values are standardized, weighted squared distances — comparable only to each other within that table (to show which financial attribute drove the ranking most), not an absolute or standalone valuation metric.</p>
+  <p><strong>Geography is not a hard filter.</strong> The comp universe is built from SIC codes and financials; a comp's primary region is not screened, so the set can include companies outside the target's stated geography. Confirm regional comparability separately before relying on any comp.</p>
+  <p><strong>End-market scarcity.</strong> For a niche target, comps that match on <em>both</em> size and exact end-market are often scarce, so the set leans on broader same-industry names. Where the closest end-market match falls just outside the Top {{ n_comps }}, it is surfaced in the near-miss list (Section 5) and the fit review's substitution suggestions (Section 3) rather than silently dropped.</p>
+</div>
+
+<div class="footer">
+  Generated by PE Comps Pipeline — {{ generated_at }}{% if prepared_by %} · Prepared by {{ prepared_by }}{% endif %}<br>
+  Valuation / market-data as-of date: {{ generated_at }} (same as the report date — data is fetched live at run time, not a historical snapshot from an earlier date).
+</div>
 
 </body>
 </html>

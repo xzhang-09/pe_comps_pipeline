@@ -1,0 +1,248 @@
+import hashlib
+import json
+from datetime import datetime, timezone
+from pathlib import Path
+
+import openai
+
+from src import get_logger
+from src.llm_analyzer import _call_openai, _strip_markdown_fences
+
+logger = get_logger(__name__)
+
+REVIEW_PATH = Path("outputs/comp_fit_review.json")
+REVIEW_MAX_OUTPUT_TOKENS = 2500
+
+REVIEW_PROMPT_VERSION = "analyst_memo_v6"
+
+SYSTEM_PROMPT = """You are a private equity analyst reviewing whether a selected
+public-company comparable set is a good fit for valuing a private target.
+
+Rules:
+- Output ONLY valid JSON. No markdown fences, no prose outside JSON.
+- Use only the data provided in the prompt. Do not use outside knowledge.
+- Write in concise, investment-professional language for a PE analyst.
+- Treat this as a directional qualitative review, not a final diligence view.
+- Penalize end-market mismatch, customer-type mismatch, extreme scale mismatch,
+  weak financial comparability, and low data confidence.
+- If discussing confidence flags, specify whether the issue applies to selected
+  comps or to excluded candidates.
+- Keep reasons concise and specific.
+- Before writing a blanket claim like "all selected comps share X" in
+  strengths/summary, check whether any comp is named as an exception to X
+  anywhere else in your own response (e.g. in weaknesses or questionable_fits).
+  If so, say "most" instead of "all" and name the exception, or say "all
+  except <ticker>" — do not let the strengths/summary contradict a specific
+  exception you yourself raise elsewhere in the same response.
+- Only credit a comp with "good"/"strong" end-market fit if its actual end
+  markets or sub-sector description substantively overlap with the
+  target's described end markets. A shared high-level business_model label
+  (e.g. both tagged "manufacturing") is not by itself evidence of end-market
+  fit — a comp serving a clearly different end market (e.g. oil & gas
+  piping vs. automotive OEM parts) should not be praised for end-market fit
+  even if other dimensions (scale, financials) are strong; credit those
+  other dimensions by name instead.
+- If any selected comp's revenue exceeds 5x the target's (or the target's
+  exceeds 5x a comp's), the summary must explicitly state the largest such
+  ratio (e.g. "up to 9x larger") rather than a vague qualifier like
+  "reasonable range" or "generally comparable" — a vague characterization
+  next to a double-digit size gap reads as inconsistent to the reader.
+- The target JSON includes a pre-computed "max_revenue_ratio_among_selected_comps"
+  field (ticker and ratio). When stating the largest revenue-scale ratio,
+  use that exact number — do not compute your own ratio from the individual
+  comp revenue figures, which is error-prone across a list of this size."""
+
+PROMPT_TEMPLATE = """Review this comparable-company selection.
+
+Target:
+{target_json}
+
+Selected Top Comps:
+{top_comps_json}
+
+Near-Miss Candidates:
+{near_misses_json}
+
+Score the Top Comps as a set and call out strongest/weakest fits. Consider:
+- business_model_fit (0-25)
+- end_market_fit (0-25)
+- customer_type_fit (0-15)
+- revenue_scale_fit (0-15)
+- financial_profile_fit (0-15)
+- data_confidence (0-5)
+
+Return ONLY this JSON object:
+{{
+  "overall_score": <integer 0-100>,
+  "review_confidence": "low"|"medium"|"high",
+  "summary": "<one concise paragraph>",
+  "strengths": ["<bullet>", "..."],
+  "weaknesses": ["<bullet>", "..."],
+  "top_fits": [
+    {{"ticker": "<ticker>", "score": <integer 0-100>, "reason": "<one sentence>"}}
+  ],
+  "questionable_fits": [
+    {{"ticker": "<ticker>", "score": <integer 0-100>, "reason": "<one sentence>"}}
+  ],
+  "near_miss_upgrades": [
+    {{"ticker": "<ticker>", "score": <integer 0-100>, "reason": "<one sentence>"}}
+  ]
+}}"""
+
+
+def _canonical_json(data) -> str:
+    return json.dumps(data, sort_keys=True, separators=(",", ":"), default=str)
+
+
+def _signature(target_config: dict, top_comps: list[dict], near_misses: list[dict]) -> str:
+    payload = {
+        "target": {
+            "name": target_config.get("name"),
+            "description": target_config.get("description"),
+            "revenue_usd_mm": target_config.get("revenue_usd_mm"),
+            "ebitda_margin_estimate": target_config.get("ebitda_margin_estimate"),
+        },
+        "review_prompt_version": REVIEW_PROMPT_VERSION,
+        "top_comps": top_comps,
+        "near_misses": near_misses,
+    }
+    return hashlib.sha256(_canonical_json(payload).encode("utf-8")).hexdigest()
+
+
+def _load_cached(signature: str) -> dict | None:
+    if not REVIEW_PATH.exists():
+        return None
+    try:
+        with open(REVIEW_PATH, encoding="utf-8") as f:
+            cached = json.load(f)
+    except Exception:
+        return None
+    if cached.get("input_signature") != signature:
+        return None
+    review = cached.get("review")
+    return _normalize_review(review) if isinstance(review, dict) else None
+
+
+def _save_cached(signature: str, review: dict) -> None:
+    REVIEW_PATH.parent.mkdir(parents=True, exist_ok=True)
+    record = {
+        "input_signature": signature,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "review": review,
+    }
+    with open(REVIEW_PATH, "w", encoding="utf-8") as f:
+        json.dump(record, f, indent=2)
+
+
+def _parse_review(text: str | None) -> dict | None:
+    if not text:
+        return None
+    cleaned = _strip_markdown_fences(text)
+    try:
+        parsed = json.loads(cleaned)
+    except (json.JSONDecodeError, TypeError):
+        return None
+    return parsed if isinstance(parsed, dict) else None
+
+
+def _clean_analyst_text(value):
+    replacements = {
+        "No low-confidence flags on selected comps": "No source-support issues among selected comps",
+        "no low-confidence flags on selected comps": "no source-support issues among selected comps",
+        "no low-confidence flags noted": "no source-support issues noted among selected comps",
+        "low-confidence flags": "source-support issues",
+        "low confidence flags": "source-support issues",
+        "low data confidence": "weak source support",
+    }
+    if isinstance(value, str):
+        for old, new in replacements.items():
+            value = value.replace(old, new)
+        return value
+    if isinstance(value, list):
+        return [_clean_analyst_text(item) for item in value]
+    if isinstance(value, dict):
+        return {key: _clean_analyst_text(item) for key, item in value.items()}
+    return value
+
+
+def _normalize_review(review: dict) -> dict:
+    return {
+        "status": "available",
+        "overall_score": review.get("overall_score"),
+        "review_confidence": review.get("review_confidence"),
+        "summary": _clean_analyst_text(review.get("summary")),
+        "strengths": _clean_analyst_text(review.get("strengths")) if isinstance(review.get("strengths"), list) else [],
+        "weaknesses": _clean_analyst_text(review.get("weaknesses")) if isinstance(review.get("weaknesses"), list) else [],
+        "top_fits": _clean_analyst_text(review.get("top_fits")) if isinstance(review.get("top_fits"), list) else [],
+        "questionable_fits": (
+            _clean_analyst_text(review.get("questionable_fits"))
+            if isinstance(review.get("questionable_fits"), list)
+            else []
+        ),
+        "near_miss_upgrades": (
+            _clean_analyst_text(review.get("near_miss_upgrades"))
+            if isinstance(review.get("near_miss_upgrades"), list)
+            else []
+        ),
+    }
+
+
+def _max_revenue_ratio(target_config: dict, top_comps: list[dict]) -> dict | None:
+    """
+    Precomputes the largest comp/target revenue ratio deterministically and
+    hands it to the LLM as a given fact (see SYSTEM_PROMPT's instruction to
+    use this value verbatim) instead of asking the LLM to compute it from
+    the raw revenue figures itself — LLMs are unreliable at this kind of
+    multi-step arithmetic across a list (observed: it has stated "12x" when
+    the actual max was 19x, apparently anchoring on a different comp than
+    the true max), and a wrong ratio in the summary directly contradicts
+    the report's own deterministic scale-reconciliation note elsewhere.
+    """
+    target_revenue = target_config.get("revenue_usd_mm")
+    if not target_revenue or target_revenue <= 0:
+        return None
+    candidates = [
+        (c.get("revenue_ttm_usd_mm"), c.get("ticker")) for c in top_comps
+        if c.get("revenue_ttm_usd_mm")
+    ]
+    if not candidates:
+        return None
+    max_revenue, max_ticker = max(candidates, key=lambda c: c[0])
+    return {"ticker": max_ticker, "ratio": round(max_revenue / target_revenue, 1)}
+
+
+def review_comp_fit(target_config: dict, top_comps: list[dict], near_misses: list[dict], config: dict) -> dict:
+    signature = _signature(target_config, top_comps, near_misses)
+    cached = _load_cached(signature)
+    if cached is not None:
+        return cached
+
+    llm_config = config["llm"]
+    prompt = PROMPT_TEMPLATE.format(
+        target_json=json.dumps({
+            "name": target_config.get("name"),
+            "description": target_config.get("description"),
+            "revenue_usd_mm": target_config.get("revenue_usd_mm"),
+            "ebitda_margin_estimate": target_config.get("ebitda_margin_estimate"),
+            "max_revenue_ratio_among_selected_comps": _max_revenue_ratio(target_config, top_comps),
+        }, indent=2),
+        top_comps_json=json.dumps(top_comps, indent=2),
+        near_misses_json=json.dumps(near_misses, indent=2),
+    )
+
+    try:
+        text = _call_openai(
+            openai.OpenAI(), llm_config["judge_model"], SYSTEM_PROMPT, prompt,
+            llm_config["temperature"], max(REVIEW_MAX_OUTPUT_TOKENS, llm_config["max_tokens"]),
+        )
+    except Exception as e:
+        logger.warning(f"Comp-fit review API call failed: {e}")
+        return {"status": "unavailable", "reason": "LLM comp-fit review API call failed"}
+
+    parsed = _parse_review(text)
+    if parsed is None:
+        return {"status": "unavailable", "reason": "LLM comp-fit review returned invalid JSON"}
+
+    review = _normalize_review(parsed)
+    _save_cached(signature, review)
+    return review

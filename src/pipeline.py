@@ -3,12 +3,14 @@ import time
 from pathlib import Path
 
 import yaml
+from pydantic import ValidationError
 
 from src import feature_builder, fetcher, get_logger, llm_analyzer, reporter, scorer, universe_builder
+from src.config_schema import PipelineConfig
 
 logger = get_logger(__name__)
 
-REQUIRED_DIRECTORIES = ("data/cache", "data/checkpoints", "data/models", "outputs", "logs", "eval")
+REQUIRED_DIRECTORIES = ("data/cache", "data/checkpoints", "outputs", "logs", "eval")
 
 
 def _ensure_directories() -> None:
@@ -17,13 +19,19 @@ def _ensure_directories() -> None:
 
 
 def _load_config(config_path: str) -> dict:
-    with open(config_path, "r", encoding="utf-8") as f:
-        return yaml.safe_load(f)
+    with open(config_path, encoding="utf-8") as f:
+        raw_config = yaml.safe_load(f)
+
+    try:
+        validated = PipelineConfig.model_validate(raw_config)
+    except ValidationError as e:
+        raise ValueError(f"Invalid {config_path}:\n{e}") from e
+
+    return validated.model_dump()
 
 
 def run_pipeline(
     config_path: str = "config.yaml",
-    force_retrain: bool = False,
 ) -> dict:
     """
     Run the full pipeline end-to-end.
@@ -38,12 +46,16 @@ def run_pipeline(
     try:
         current_step = "STEP 1/6: Building universe"
         logger.info(current_step)
-        tickers = universe_builder.build(config)
-        logger.info(f"Universe: {len(tickers)} candidates")
+        candidates = universe_builder.build(config)
+        logger.info(f"Universe: {len(candidates)} candidates")
 
         current_step = "STEP 2/6: Fetching financial data"
         logger.info(current_step)
-        companies = fetcher.fetch_batch(tickers, config)
+        companies = fetcher.fetch_batch(candidates, config)
+        before_market_cap_filter = len(companies)
+        companies = universe_builder.filter_by_market_cap(companies)
+        if len(companies) != before_market_cap_filter:
+            logger.info(f"Market cap filter: kept {len(companies)}/{before_market_cap_filter} companies")
         n_valid = sum(1 for c in companies if c.get("ev_ebitda") is not None)
         logger.info(f"Fetched: {n_valid}/{len(companies)} companies with valid data")
 
@@ -61,33 +73,34 @@ def run_pipeline(
         feature_matrix, ev_ebitda_raw, imputation_medians = feature_builder.build(companies, llm_features)
         logger.info(f"Feature matrix: {feature_matrix.shape[0]} rows x {feature_matrix.shape[1]} columns")
 
-        current_step = "STEP 5/6: Training model and scoring"
+        current_step = "STEP 5/6: Scoring comps by distance to target"
         logger.info(current_step)
         scorer_results = scorer.run(
             feature_matrix, config["target_company"], target_llm_features, imputation_medians,
-            force_retrain=force_retrain,
+            config["scorer"]["feature_weights"],
         )
-        target_prediction = scorer_results["target_prediction"]
-        cv_mae = scorer_results.get("cv_mae_median", scorer_results.get("cv_rmse_multiple_space"))
-        logger.info(
-            f"CV RMSE: ±{cv_mae:.1f}x | "
-            f"Target prediction: {target_prediction['range_low']:.1f}x — {target_prediction['range_high']:.1f}x"
-        )
+        logger.info(f"Scored {len(scorer_results['company_scores'])} companies by financial-feature distance to target")
 
         current_step = "STEP 6/6: Generating report"
         logger.info(current_step)
         output_paths = reporter.generate(
             scorer_results, companies, llm_features, target_llm_features, imputation_medians, config,
         )
-        logger.info(f"Report saved: {output_paths['csv']}, {output_paths['html']}")
+        saved_reports = [path for key, path in output_paths.items() if key != "n_comps"]
+        logger.info(f"Report saved: {', '.join(saved_reports)}")
 
     except Exception:
         logger.error(f"Pipeline failed during: {current_step}", exc_info=True)
         print(f"Pipeline failed during: {current_step} — see logs/pipeline.log for details.")
         raise
 
-    with open(output_paths["csv"], "r", encoding="utf-8") as f:
-        n_comps = max(sum(1 for _ in f) - 1, 0)  # minus header row
+    if "n_comps" in output_paths:
+        n_comps = int(output_paths["n_comps"])
+    elif "csv" in output_paths:
+        with open(output_paths["csv"], encoding="utf-8") as f:
+            n_comps = max(sum(1 for _ in f) - 1, 0)  # minus header row
+    else:
+        n_comps = 0
 
     elapsed = time.time() - start_time
     target_name = config["target_company"]["name"]
@@ -97,8 +110,7 @@ def run_pipeline(
         "PIPELINE COMPLETE\n"
         f"Target: {target_name}\n"
         f"Comparable companies found: {n_comps}\n"
-        f"Predicted EV/EBITDA range: {target_prediction['range_low']:.1f}x — {target_prediction['range_high']:.1f}x\n"
-        f"Report: {output_paths['html']}\n"
+        f"Report: {output_paths.get('html', output_paths.get('csv', 'not generated'))}\n"
         f"Run time: {elapsed:.0f}s\n"
         + "=" * 60
     )
@@ -108,7 +120,26 @@ def run_pipeline(
     return output_paths
 
 
-if __name__ == "__main__":
+def _print_sic_code_suggestions(config_path: str) -> None:
+    config = _load_config(config_path)
+    suggestions = llm_analyzer.suggest_sic_codes(config)
+
+    if not suggestions:
+        print("No SIC code suggestions returned (LLM call failed or returned no usable suggestions).")
+        return
+
+    print(
+        "Advisory only — SIC codes are a fixed SEC list and the model may misremember\n"
+        "specific 4-digit codes. Verify each one at https://www.sec.gov/info/edgar/siccodes.htm\n"
+        "before adding it to config.yaml's primary_sic_codes / adjacent_sic_codes.\n"
+    )
+    for s in suggestions:
+        bucket = s.get("bucket") or "unknown"
+        print(f"[{bucket}] SIC {s.get('sic_code')} — {s.get('title')} (confidence: {s.get('confidence')})")
+        print(f"    {s.get('reason')}")
+
+
+def main() -> None:
     parser = argparse.ArgumentParser(description="PE Comparable Company Analysis Pipeline")
     parser.add_argument(
         "--config",
@@ -116,9 +147,19 @@ if __name__ == "__main__":
         help="Path to config file (default: config.yaml)",
     )
     parser.add_argument(
-        "--force-retrain",
+        "--suggest-sic-codes",
         action="store_true",
-        help="Force XGBoost model retraining even if saved model exists",
+        help=(
+            "Print advisory SIC code suggestions for the target's description "
+            "and exit, without running the pipeline or modifying config.yaml"
+        ),
     )
     args = parser.parse_args()
-    run_pipeline(args.config, args.force_retrain)
+    if args.suggest_sic_codes:
+        _print_sic_code_suggestions(args.config)
+        return
+    run_pipeline(args.config)
+
+
+if __name__ == "__main__":
+    main()
