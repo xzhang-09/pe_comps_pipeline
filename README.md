@@ -57,7 +57,7 @@ A full sample run (synthetic target, non-confidential) is committed under
 ## Quick Start
 
 Python 3.11 is the recommended local runtime (the package supports
->=3.10,<3.14):
+`>=3.10,<3.14`):
 
 ```bash
 git clone <repo-url>
