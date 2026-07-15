@@ -1,5 +1,6 @@
-yfinance==0.2.54
+edgartools>=4.0.0
 openai>=1.30.0
+python-dotenv>=1.0.0
 xgboost>=2.0.0
 shap>=0.45.0
 scikit-learn>=1.4.0

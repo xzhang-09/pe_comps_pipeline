@@ -58,10 +58,15 @@ def sample_config():
 def isolated_data_dirs(tmp_path, monkeypatch):
     """Redirect fetcher's cache/output paths into tmp_path so tests never
     touch the real data/cache or outputs directories."""
+    import src.data_quality as data_quality
     import src.fetcher as fetcher
+    import src.llm_analyzer as llm_analyzer
 
     cache_dir = tmp_path / "cache"
     outputs_dir = tmp_path / "outputs"
+    checkpoints_dir = tmp_path / "checkpoints"
     monkeypatch.setattr(fetcher, "CACHE_DIR", cache_dir)
     monkeypatch.setattr(fetcher, "OUTPUTS_DIR", outputs_dir)
     monkeypatch.setattr(fetcher, "FAILED_TICKERS_CSV", outputs_dir / "failed_tickers.csv")
+    monkeypatch.setattr(data_quality, "OUTPUT_PATH", outputs_dir / "data_quality_report.txt")
+    monkeypatch.setattr(llm_analyzer, "CHECKPOINT_PATH", checkpoints_dir / "llm_checkpoint.json")

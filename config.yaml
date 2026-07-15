@@ -12,10 +12,17 @@ target_company:
   geography: "north_america"
 
 universe:
-  max_candidates: 50        # Phase 1: small number for testing
+  max_candidates: 300
   min_revenue_usd_mm: 30
   max_revenue_usd_mm: 800
   min_ebitda_margin: 0.05
+  industries:
+    - gics_sector: "20"
+      label: "Industrials"
+    - gics_sector: "35"
+      label: "Healthcare Equipment"
+    - gics_sector: "45"
+      label: "Technology Hardware"
 
 llm:
   extraction_model: "gpt-4.1"

@@ -2,6 +2,13 @@ import logging
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
+from dotenv import load_dotenv
+
+# Loads OPENAI_API_KEY / FMP_API_KEY etc. from a local .env file (gitignored)
+# into the environment, if one exists. Real env vars already set take
+# precedence over .env (load_dotenv default).
+load_dotenv()
+
 
 def get_logger(name: str) -> logging.Logger:
     Path("logs").mkdir(exist_ok=True)
