@@ -48,26 +48,28 @@ Top 15 comparable companies, and generate a CSV and HTML report.
 
 ### How to select Top 15 comps
 
-Apply two filters in sequence:
+**Filter — low confidence removal (hard filter):**
+Remove companies flagged as `low_confidence_flag=True` in LLM extraction.
+(This is the only hard exclusion — extraction reliability, not business-model
+opinion, is what disqualifies a company.)
 
-**Filter 1 — LLM business model alignment (hard filter):**
-Remove companies whose `business_model` extracted by LLM does not match
-the target company's business model (from `analyze_target` output).
-If the target's business_model is None or "other", skip this filter.
+**Ranking — residual ranking with a business-model soft penalty:**
+From the remaining companies:
+1. Sort by `residual_abs` ascending (smallest residual first — these are the
+   companies whose multiples are best explained by fundamentals). This gives
+   each company a base rank (1 = best).
+2. If the target's `business_model` (from `analyze_target`) is not None and
+   not `"other"`: for any company whose LLM-extracted `business_model` does
+   not match the target's, add 10 to its base rank — a soft penalty, not an
+   exclusion. This keeps business-model similarity influential in the
+   ordering without letting a single LLM field-level misjudgment filter out
+   an otherwise genuinely relevant comp (the residual fit is still real
+   signal even when the business_model label is off).
+3. Re-sort by the adjusted rank (ties broken by the original `residual_abs`
+   order) and take the top 15.
 
-Also remove companies flagged as `low_confidence_flag=True` in LLM extraction.
-
-**Filter 2 — residual ranking (soft sort):**
-From the remaining companies, sort by `residual_abs` ascending (smallest
-residual first — these are the companies whose multiples are best explained
-by fundamentals).
-
-Take the top 15 from this sorted list.
-
-**Edge case:** If fewer than 15 companies remain after Filter 1, relax the
-filter: allow companies with different business_model but same customer_type
-(B2B vs B2C distinction is more important than exact model type).
-If still fewer than 10, log a warning and return however many are available.
+**Edge case:** If fewer than 15 companies remain after the low-confidence
+filter, log a warning and return however many are available.
 
 ### Report sections
 
