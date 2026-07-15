@@ -1,56 +1,88 @@
-import math
 import random
 import statistics
 from pathlib import Path
 
+import numpy as np
 import openai
 
 from src import get_logger
-from src.llm_analyzer import SYSTEM_PROMPT, USER_PROMPT_TEMPLATE, _call_openai, _parse_json_response
+from src.llm_analyzer import SYSTEM_PROMPT, USER_PROMPT_TEMPLATE, _call_openai, _parse_json_response, embed_texts
+from src.reporter import EXEMPT_BUSINESS_MODELS, EXEMPT_CUSTOMER_TYPES, _size_mismatch_penalty
 
 logger = get_logger(__name__)
 
 RESULTS_PATH = Path("eval/results.md")
-MANUAL_REVIEW_PATH = Path("eval/manual_review_sample.txt")
 
 TOP_K = 15
-BUSINESS_MODEL_PENALTY = 10
-EXEMPT_BUSINESS_MODELS = (None, "other")
-CUSTOMER_TYPE_PENALTY = 10
-EXEMPT_CUSTOMER_TYPES = (None, "mixed")
 
-# Mirrors src/reporter.py's _size_mismatch_penalty — kept in sync since this
-# function exists specifically to evaluate that selection logic.
-SIZE_PENALTY_FREE_LOG10_RANGE = 1.0
-SIZE_PENALTY_PER_EXTRA_LOG10 = 5.0
+# Penalty magnitudes (business_model/customer_type/size/sub-sector) and the
+# embedding model come from config.yaml's scorer.ranking_penalties /
+# llm.embedding_model — passed through run_evaluation()'s `config` argument
+# rather than hardcoded here, so this evaluation can't drift out of sync
+# with reporter.py's actual production selection logic the way two
+# independently-maintained copies of the same constants could.
+# EXEMPT_BUSINESS_MODELS/EXEMPT_CUSTOMER_TYPES and _size_mismatch_penalty
+# are imported directly from reporter.py for the same reason.
 
 
-def _size_mismatch_penalty(candidate_revenue: float | None, target_revenue: float | None) -> float:
-    if not candidate_revenue or not target_revenue or candidate_revenue <= 0 or target_revenue <= 0:
-        return 0.0
-    log_ratio = abs(math.log10(candidate_revenue / target_revenue))
-    excess = max(0.0, log_ratio - SIZE_PENALTY_FREE_LOG10_RANGE)
-    return excess * SIZE_PENALTY_PER_EXTRA_LOG10
+def _subsector_similarities(
+    target_description: str | None, llm_features: dict, candidates: list[str], embedding_model: str,
+) -> dict[str, float]:
+    """Mirrors src/reporter.py's _subsector_similarities — see there for the
+    full rationale. Returns {} (no penalty applied to anyone) if the target
+    has no sub_sector_description, no candidate has one either, or the
+    embedding call fails."""
+    if not target_description:
+        return {}
+
+    tickers_with_text = [t for t in candidates if llm_features.get(t, {}).get("sub_sector_description")]
+    if not tickers_with_text:
+        return {}
+
+    texts = [target_description] + [llm_features[t]["sub_sector_description"] for t in tickers_with_text]
+    vectors = embed_texts(texts, model=embedding_model)
+    if vectors is None:
+        logger.warning("Sub-sector embedding lookup failed; skipping sub-sector mismatch penalty for this evaluation")
+        return {}
+
+    target_vec = np.array(vectors[0])
+    target_norm = np.linalg.norm(target_vec)
+    if target_norm == 0:
+        return {}
+
+    similarities = {}
+    for ticker, vec in zip(tickers_with_text, vectors[1:]):
+        candidate_vec = np.array(vec)
+        candidate_norm = np.linalg.norm(candidate_vec)
+        if candidate_norm == 0:
+            continue
+        similarities[ticker] = float(np.dot(target_vec, candidate_vec) / (target_norm * candidate_norm))
+    return similarities
 
 CONSISTENCY_FIELDS = (
     "business_model", "revenue_recurrence", "customer_type",
     "capital_intensity", "primary_value_driver",
 )
 CONSISTENCY_SAMPLE_SIZE = 30
-MANUAL_REVIEW_SAMPLE_SIZE = 15
 MIN_DESCRIPTION_LENGTH = 100
 
 
 def _select_top_k(
-    target_ticker: str, company_scores, llm_features: dict, companies_by_ticker: dict, k: int = TOP_K,
+    target_ticker: str, company_scores, llm_features: dict, companies_by_ticker: dict,
+    penalties: dict, embedding_model: str, k: int = TOP_K,
 ) -> list[str]:
     """
     Mirrors src/reporter.py's _select_top_15: a hard filter on
     low_confidence_flag, then a residual_abs ranking with soft penalties
-    (not exclusions) for business_model mismatch, customer_type mismatch,
-    and revenue-scale mismatch (continuous, see _size_mismatch_penalty).
-    Kept as a separate copy (not a shared import) since this evaluates
-    that selection design rather than depending on it directly.
+    (not exclusions, magnitudes from `penalties` — see config.yaml's
+    scorer.ranking_penalties) for business_model mismatch, customer_type
+    mismatch, revenue-scale mismatch (continuous, see
+    reporter._size_mismatch_penalty), and sub-sector mismatch (continuous,
+    via embeddings — see _subsector_similarities). Kept as a separate
+    ranking-loop copy (not a shared import of _select_top_15 itself) since
+    this evaluates that selection design rather than depending on it
+    directly — but the penalty magnitudes and exemption lists are imported/
+    threaded from the same source as reporter.py, not re-hardcoded.
     """
     target_llm = llm_features.get(target_ticker, {})
     target_business_model = target_llm.get("business_model")
@@ -74,17 +106,26 @@ def _select_top_k(
         )
     }
 
+    subsector_similarities = _subsector_similarities(
+        target_llm.get("sub_sector_description"), llm_features, candidates, embedding_model,
+    )
+    subsector_threshold = penalties["subsector_similarity_threshold"]
+
     def adjusted_rank(ticker: str) -> float:
         rank = float(base_rank[ticker])
         llm = llm_features[ticker]
 
         if apply_business_model_penalty and llm.get("business_model") != target_business_model:
-            rank += BUSINESS_MODEL_PENALTY
+            rank += penalties["business_model_penalty"]
         if apply_customer_type_penalty and llm.get("customer_type") != target_customer_type:
-            rank += CUSTOMER_TYPE_PENALTY
+            rank += penalties["customer_type_penalty"]
 
         candidate_revenue = companies_by_ticker.get(ticker, {}).get("revenue_ttm_usd_mm")
-        rank += _size_mismatch_penalty(candidate_revenue, target_revenue)
+        rank += _size_mismatch_penalty(candidate_revenue, target_revenue, penalties)
+
+        subsector_similarity = subsector_similarities.get(ticker)
+        if subsector_similarity is not None and subsector_similarity < subsector_threshold:
+            rank += penalties["subsector_mismatch_penalty"]
 
         return rank
 
@@ -94,13 +135,13 @@ def _select_top_k(
 
 def _precision_at_k(
     target_ticker: str, ground_truth_peers: list[str], company_scores, llm_features: dict,
-    companies_by_ticker: dict, k: int = TOP_K,
+    companies_by_ticker: dict, penalties: dict, embedding_model: str, k: int = TOP_K,
 ):
     peers = {p for p in ground_truth_peers if p != target_ticker}
     if not peers:
         return None
 
-    top_k = set(_select_top_k(target_ticker, company_scores, llm_features, companies_by_ticker, k=k))
+    top_k = set(_select_top_k(target_ticker, company_scores, llm_features, companies_by_ticker, penalties, embedding_model, k=k))
     hits = len(top_k & peers)
     precision = hits / len(peers)
 
@@ -113,13 +154,14 @@ def _precision_at_k(
 
 def _evaluate_precision_at_k(
     ground_truth: dict[str, list[str]], company_scores, llm_features: dict, companies_by_ticker: dict,
+    penalties: dict, embedding_model: str,
 ) -> dict:
     per_company = {}
     for ticker, peers in ground_truth.items():
         if ticker not in company_scores.index and ticker not in llm_features:
             logger.warning(f"{ticker} — not present in dataset, skipping precision evaluation")
             continue
-        precision = _precision_at_k(ticker, peers, company_scores, llm_features, companies_by_ticker)
+        precision = _precision_at_k(ticker, peers, company_scores, llm_features, companies_by_ticker, penalties, embedding_model)
         if precision is not None:
             per_company[ticker] = precision
 
@@ -177,42 +219,6 @@ def _evaluate_llm_consistency(companies: list[dict], config: dict, sample_size: 
     return agreement_rates, n
 
 
-def _write_manual_review_sample(companies: list[dict], llm_features: dict, sample_size: int = MANUAL_REVIEW_SAMPLE_SIZE, seed: int | None = None) -> str:
-    candidates = [
-        c for c in companies
-        if llm_features.get(c["ticker"]) and not llm_features[c["ticker"]].get("extraction_failed")
-    ]
-    sample = random.Random(seed).sample(candidates, min(sample_size, len(candidates)))
-
-    lines = []
-    for company in sample:
-        ticker = company["ticker"]
-        llm = llm_features[ticker]
-        lines.append(f"=== TICKER: {ticker} — {company.get('company_name', ticker)} ===")
-        lines.append("Business Description (first 300 chars):")
-        lines.append((company.get("business_description") or "")[:300])
-        lines.append("")
-        lines.append("LLM Extraction:")
-        for field in CONSISTENCY_FIELDS:
-            lines.append(f"  {field}: {llm.get(field)}")
-        lines.append(f"  sub_sector_description: {llm.get('sub_sector_description')}")
-        lines.append(f"  confidence: {llm.get('confidence')}")
-        lines.append(f"  judge_score: {llm.get('judge_score')}")
-        lines.append("")
-        lines.append("Your assessment (fill in manually):")
-        lines.append("  business_model correct? [Y/N]: ___")
-        lines.append("  revenue_recurrence correct? [Y/N]: ___")
-        lines.append("  customer_type correct? [Y/N]: ___")
-        lines.append("")
-
-    text = "\n".join(lines) + "\n"
-    MANUAL_REVIEW_PATH.parent.mkdir(parents=True, exist_ok=True)
-    with open(MANUAL_REVIEW_PATH, "w", encoding="utf-8") as f:
-        f.write(text)
-
-    return text
-
-
 def run_evaluation(
     ground_truth: dict[str, list[str]],
     companies: list[dict],
@@ -224,9 +230,12 @@ def run_evaluation(
     Run all three evaluations.
     """
     companies_by_ticker = {c["ticker"]: c for c in companies}
-    precision_at_k = _evaluate_precision_at_k(ground_truth, scorer_results["company_scores"], llm_features, companies_by_ticker)
+    penalties = config["scorer"]["ranking_penalties"]
+    embedding_model = config["llm"]["embedding_model"]
+    precision_at_k = _evaluate_precision_at_k(
+        ground_truth, scorer_results["company_scores"], llm_features, companies_by_ticker, penalties, embedding_model,
+    )
     llm_consistency, n_consistency_samples = _evaluate_llm_consistency(companies, config)
-    _write_manual_review_sample(companies, llm_features)
 
     return {
         "precision_at_k": precision_at_k,
@@ -239,7 +248,7 @@ def run_evaluation(
 def generate_eval_report(eval_results: dict) -> str:
     """
     Format evaluation results as a readable text report.
-    Write to eval/results.md.
+    Write current evaluation output to eval/results.md.
     """
     p = eval_results["precision_at_k"]
     c = eval_results["llm_consistency"]
@@ -247,14 +256,18 @@ def generate_eval_report(eval_results: dict) -> str:
     lines = [
         "# Evaluation Results",
         "",
-        "## Precision@15 vs SEC Proxy Peer Groups",
+        "> These results are generated by the current evaluation harness. Publish them",
+        "> only after the ground-truth source has been validated for the current",
+        "> universe and target set.",
+        "",
+        "## Precision@15",
         f"- Mean: {p['mean'] * 100:.1f}%",
         f"- Median: {p['median'] * 100:.1f}%",
         f"- Min: {p['min'] * 100:.1f}%",
         f"- Max: {p['max'] * 100:.1f}%",
         f"- Test companies: {eval_results['n_test_companies']}",
         "",
-        "Interpretation: [fill in after reviewing the numbers above]",
+        "Interpretation: Add only after validating the ground-truth source and reviewing the numbers above.",
         "",
         f"## LLM Extraction Consistency ({eval_results['n_consistency_samples']}-company sample)",
         f"- business_model agreement: {c['business_model_agreement'] * 100:.1f}%",
@@ -262,11 +275,6 @@ def generate_eval_report(eval_results: dict) -> str:
         f"- customer_type agreement: {c['customer_type_agreement'] * 100:.1f}%",
         f"- capital_intensity agreement: {c['capital_intensity_agreement'] * 100:.1f}%",
         f"- primary_value_driver agreement: {c['primary_value_driver_agreement'] * 100:.1f}%",
-        "",
-        "## Manual Review Results (15 companies)",
-        "- business_model accuracy: TBD — fill in after reviewing eval/manual_review_sample.txt",
-        "- revenue_recurrence accuracy: TBD",
-        "- customer_type accuracy: TBD",
         "",
         "## Key Findings",
         "- [What worked well]",
