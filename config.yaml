@@ -33,11 +33,16 @@ target_company:
     "3559",
     "3612", "3613", "3621", "3640",
     "3531", "3523", "3533", "3541", "3564", "3585", "3442", "5084",
+    # LLM-suggested (suggest-sic rung, via --suggest-sic-codes): 3711/3716/3713
+    # motor-vehicle/motor-home/truck-body OEMs and 3537 industrial
+    # trucks/tractors share the target's precision-motion-component supply
+    # chain.
+    "3711", "3716", "3713", "3537",
   ]
 
 universe:
   max_candidates: 300
-  primary_allocation_pct: 0.5
+  primary_allocation_pct: 0.7
   min_revenue_usd_mm: 30
   max_revenue_usd_mm: 5000
   min_ebitda_margin: 0.05
@@ -72,6 +77,10 @@ universe:
     "3585": "industrial_equipment"
     "3442": "metal_building_products"
     "5084": "industrial_distribution"
+    "3711": "motor_vehicles"
+    "3716": "motor_homes"
+    "3713": "truck_and_bus_bodies"
+    "3537": "industrial_trucks_and_tractors"
 
 llm:
   extraction_model: "gpt-4.1"
