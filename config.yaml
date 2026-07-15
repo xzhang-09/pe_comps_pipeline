@@ -1,12 +1,11 @@
 target_company:
-  name: "Example Manufacturing Co."
+  name: "Precision Motion Components Co."
   description: >
-    Mid-market industrial parts manufacturer serving automotive OEMs
-    in North America. Primarily B2B with long-term supply contracts.
-    Approximately 70% of revenue is recurring. Asset-heavy operations
-    with significant manufacturing facilities.
-  gics_sector: "20"
-  gics_industry: "2010"
+    Mid-market manufacturer of precision motion components for automotive
+    and industrial OEMs. Products include bearings, drivetrain components,
+    machined metal assemblies, and engineered replacement parts sold under
+    long-term supply agreements. Asset-heavy operations with North American
+    manufacturing facilities.
   revenue_usd_mm: 150
   ebitda_margin_estimate: 0.18
   # Optional analyst estimates for the target's other financial features. Any
@@ -21,7 +20,7 @@ target_company:
   geography: "north_america"
   # Most directly relevant to "automotive OEM parts manufacturer": motor
   # vehicle parts plus general industrial machinery/fabricated metal.
-  primary_sic_codes: ["3714", "3569", "3490", "3562", "3592"]
+  primary_sic_codes: ["3714", "3569", "3490", "3562"]
   # Broader industrial machinery/equipment SIC codes. 3559 (Special Industry
   # Machinery) moved here from primary — it is too broad to reliably deliver
   # auto-OEM-adjacent comps at the primary allocation; it consistently pulls in
@@ -33,19 +32,31 @@ target_company:
   adjacent_sic_codes: [
     "3559",
     "3612", "3613", "3621", "3640",
-    "3531", "3523", "3533", "3541", "3564", "3585", "3442", "3448", "5084",
+    "3531", "3523", "3533", "3541", "3564", "3585", "3442", "5084",
   ]
 
 universe:
   max_candidates: 300
   primary_allocation_pct: 0.5
   min_revenue_usd_mm: 30
-  max_revenue_usd_mm: 800
+  max_revenue_usd_mm: 5000
   min_ebitda_margin: 0.05
+  # Optional seed tickers. The pipeline resolves each seed's SEC SIC code,
+  # adds those SICs to adjacent discovery, and injects the seed itself as an
+  # analyst-specified candidate.
+  seed_tickers: []
+  # Optional analyst overrides. must_include_tickers are injected into the
+  # fetched universe even if SIC discovery misses them; exclude_tickers are
+  # removed from both SIC-discovered and analyst-specified candidates.
+  must_include_tickers: []
+  # Optional approval audit only. Approved tickers do not bypass data quality,
+  # ranking, tier, or caveat logic; if selected, the report notes that analyst
+  # approval is a separate judgment layered on top of the model output.
+  analyst_approved_tickers: []
+  exclude_tickers: []
   sic_clusters:
     "3714": "auto_parts"
     "3562": "bearings_and_drivetrain_components"
-    "3592": "auto_parts"
     "3559": "industrial_machinery"
     "3569": "general_industrial_equipment"
     "3490": "fabricated_metal_products"
@@ -60,7 +71,6 @@ universe:
     "3564": "industrial_equipment"
     "3585": "industrial_equipment"
     "3442": "metal_building_products"
-    "3448": "prefabricated_metal_products"
     "5084": "industrial_distribution"
 
 llm:
@@ -77,9 +87,8 @@ output:
   report_formats:
     - csv
     - html
-  # Shown in the footer for attribution. Placeholder — replace with the
-  # preparing analyst/team for a real work product.
-  prepared_by: "PE Comps Pipeline (demo) — replace with analyst/team name"
+  # Shown in the footer for attribution.
+  prepared_by: "PE Comps Pipeline Demo"
   confidential: false
 
 valuation:
@@ -91,9 +100,9 @@ valuation:
   # show only the raw comp range.
   size_marketability_discount: 0.25
   discount_note: >
-    25% net private-company adjustment: size/illiquidity (marketability)
-    discount partially offset by a control premium. Directional placeholder —
-    replace with deal-team assumptions.
+    25% illustrative private-company adjustment for size and marketability,
+    partially offset by an assumed control premium. This is a demo assumption,
+    not investment advice.
   # Capitalize operating-lease liabilities (ASC 842) into enterprise value.
   # Default false keeps EV/EBITDA pre-lease-capitalization, consistent with
   # EBITDA being net of operating-lease cost. Set true for a lease-heavy
@@ -135,18 +144,23 @@ scorer:
   #
   # Penalties are in residual-distance units (added to the financial-distance
   # score, not an ordinal rank). Ordering reflects comp-selection priorities
-  # for an auto-OEM target: a different business model (0.6) is the most
-  # fundamental mismatch; a different customer base (0.5, e.g. B2C aftermarket
-  # vs B2B OEM) is penalized more than end-market drift (0.4, e.g. an industrial
-  # supplier in an adjacent vertical) — a B2C company in the right end-market is
-  # a worse valuation comp than a B2B company one vertical over.
+  # for an auto-OEM target: a different business model (0.6) and customer base
+  # (0.5, e.g. B2C aftermarket vs B2B OEM) remain meaningful mismatches, while
+  # a wrong end-market gets a larger penalty because a financially close company
+  # in the wrong industry should not lead the comp set.
   ranking_penalties:
     business_model_penalty: 0.6
     customer_type_penalty: 0.5
-    # Tightened end-market filter: similarity threshold 0.6 penalizes comps
-    # whose sub-sector drifts from the target's auto-OEM end market.
-    subsector_similarity_threshold: 0.6
-    subsector_mismatch_penalty: 0.4
+    # End-market penalty ramps in below the similarity threshold:
+    #   penalty = subsector_mismatch_penalty * (threshold - sim) / threshold
+    # so 2.0 is the maximum (an entirely unrelated end market at similarity
+    # 0); typical drift observed with text-embedding-3-small (sim 0.35-0.45
+    # vs threshold 0.48) costs ~0.1-0.55, comparable to a business-model
+    # mismatch. No cliff: a 0.02 similarity difference (embedding noise)
+    # changes the penalty by ~0.08, not by the full amount. Any nonzero
+    # shortfall also blocks the Core tier (see reporter._annotate_top_rows).
+    subsector_similarity_threshold: 0.48
+    subsector_mismatch_penalty: 2.0
     # Tighter size band: 0.7 log10 (~±5x) free; each further decade of revenue
     # gap adds 1.0 of financial distance, so a ~50x comp is demoted by ~1.0 (a
     # large gap relative to the ~0.3-2.0 residual spread).

@@ -15,6 +15,11 @@ outputs/
 logs/
 run_backups/
 
+# Machine-prefilled ground-truth draft, rewritten by scripts/prefill_manual_deal.py /
+# eval/ground_truth_builder.py. Only the human-audited manual_deals.json (plus the
+# .example template) is repository data.
+eval/ground_truth/manual_deals.review.json
+
 # Local Claude Code configuration (machine/session-specific, not project config).
 .claude/
 
