@@ -1,0 +1,17 @@
+{
+  "ticker": "GWW",
+  "company_name": "W.W. GRAINGER, INC.",
+  "market_cap_usd_mm": null,
+  "revenue_ttm_usd_mm": 17942.0,
+  "ebitda_margin": 0.15321591795786424,
+  "gross_margin": 0.3906476424032995,
+  "revenue_cagr_3yr": 0.043477711168545596,
+  "net_debt_ebitda": 0.6922517279010549,
+  "capex_revenue": 0.03812284026306989,
+  "ev_ebitda": null,
+  "ev_revenue": null,
+  "gics_sector": null,
+  "business_description": "Item 1: Business \nW.W. Grainger, Inc., incorporated in the State of Illinois in 1928, is a broad line, distributor of maintenance, repair and operating (MRO) products and services with operations primarily in North America, Japan and the United Kingdom (U.K.). In the fourth quarter of 2025, Grainger exited the U.K. market by completing the sale of the Cromwell business and closing the Zoro U.K. business. In this report, the words \u201cGrainger\u201d or \u201cCompany\u201d mean W.W. Grainger, Inc. and its subsidiaries, except where the context makes it clear that the reference is only to W.W. Grainger, Inc. itself and not its subsidiaries.\nFor financial information regarding the Company, see the Consolidated Financial Statements and Notes included in Part II, Item 8: Financial Statements and Supplementary Data of this Form 10-K.\nThe Grainger Edge\nGrainger's strategic framework, the Grainger Edge\u00ae, uniquely defines the Company by asserting why it exists, how it serves customers and how team members work together to achieve its objectives. Grainger\u2019s purpose is We Keep The World Working\u00ae, which in turn allows customers to focus on the core of their businesses and do what they do best. \nThis framework also outlines a set of principles that define the behaviors expected from Grainger\u2019s team members in working with each other and the Company's customers, suppliers and communities as Grainger executes its strategy and creates value for shareholders. For further information on the Company's principles,",
+  "description_source": "edgar",
+  "fetch_timestamp": "2026-06-16T22:26:23.833317+00:00"
+}

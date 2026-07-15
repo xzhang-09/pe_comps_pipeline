@@ -1,0 +1,17 @@
+{
+  "ticker": "ANET",
+  "company_name": "Arista Networks, Inc.",
+  "market_cap_usd_mm": null,
+  "revenue_ttm_usd_mm": 9005.7,
+  "ebitda_margin": 0.4362459331312391,
+  "gross_margin": 0.6405609780472368,
+  "revenue_cagr_3yr": 0.2396598020002918,
+  "net_debt_ebitda": -0.4998854582940922,
+  "capex_revenue": 0.013269373841011803,
+  "ev_ebitda": null,
+  "ev_revenue": null,
+  "gics_sector": null,
+  "business_description": "Table of Contents\n\nPART I\n\nItem 1. Business\n\n In a world where data is increasingly a precious commodity and competitive differentiator, Arista was founded to enable our customers to access all their centers of data in the quickest, most reliable, and secure manner. Over the last two decades, we have emerged as an industry leader, delivering data-driven, client-to-cloud networking-as-a-service. Our \u201cCenters of Data\u201d strategy is a fundamental pivot from legacy networking approaches that create incongruent silos to a unified, data-driven approach in which the network is a service that interconnects four primary domains: AI Centers, Data Centers, Campus Centers, and WAN Centers. Anchored by Arista\u2019s state-oriented Extensible Operating System (EOS) and Network Data Lake (NetDL), our network-as-a-service platform delivers a seamless, consolidated networking experience regardless of data location. \n\nOur solutions are differentiated because they:  \n\n\u2022offer uncompromising reliability derived from the foundation of robust quality assurance capabilities, and a suite of automated diagnostics,\n\n\u2022are based on advanced open and standards-based technology that avoids what is often expensive vendor lock-in, and  \n\n\u2022provide consistent real-time telemetry and intelligent automation to decrease the manual workload on the operator.  \n\nThis strategy and differentiation have also allowed us to deliver our comprehensive suite of products, services, and technologies to a global customer base segment",
+  "description_source": "edgar",
+  "fetch_timestamp": "2026-06-16T22:34:03.523465+00:00"
+}

@@ -1,0 +1,17 @@
+{
+  "ticker": "AAPL",
+  "company_name": "Apple Inc.",
+  "market_cap_usd_mm": null,
+  "revenue_ttm_usd_mm": 416161.0,
+  "ebitda_margin": 0.3478173110887373,
+  "gross_margin": 0.4690516410716045,
+  "revenue_cagr_3yr": 0.04200493918237114,
+  "net_debt_ebitda": 0.43332550363390165,
+  "capex_revenue": 0.030553079216937677,
+  "ev_ebitda": null,
+  "ev_revenue": null,
+  "gics_sector": null,
+  "business_description": "Item 1.\u00a0\u00a0\u00a0\u00a0Business\n\nCompany Background\n\nThe Company designs, manufactures and markets smartphones, personal computers, tablets, wearables and accessories, and sells a variety of related services. The Company\u2019s fiscal year is the 52- or 53-week period that ends on the last Saturday of September.\n\nProducts\n\niPhone\n\niPhone\u00ae is the Company\u2019s line of smartphones based on its iOS operating system. The iPhone line includes iPhone 17 Pro, iPhone Air\u2122, iPhone 17, iPhone 16 and iPhone 16e.\n\nMac\n\nMac\u00ae is the Company\u2019s line of personal computers based on its macOS\u00ae operating system. The Mac line includes laptops MacBook Air\u00ae and MacBook Pro\u00ae, as well as desktops iMac\u00ae, Mac mini\u00ae, Mac Studio\u00ae and Mac Pro\u00ae.\n\niPad\n\niPad\u00ae is the Company\u2019s line of multipurpose tablets based on its iPadOS\u00ae operating system. The iPad line includes iPad Pro\u00ae, iPad Air\u00ae, iPad and iPad mini\u00ae.\n\nWearables, Home and Accessories\n\nWearables includes smartwatches, wireless headphones and spatial computers. The Company\u2019s line of smartwatches, based on its watchOS\u00ae operating system, includes Apple Watch\u00ae Series 11, Apple Watch SE\u00ae 3 and Apple Watch Ultra\u00ae 3. The Company\u2019s line of wireless headphones includes AirPods\u00ae, AirPods Pro\u00ae, AirPods Max\u00ae and Beats\u00ae products. Apple Vision Pro\u2122 is the Company\u2019s spatial computer based on its visionOS\u00ae operating system.\n\nHome includes Apple TV 4K\u00ae, the Company\u2019s media streaming and gaming device based on its tvOS\u00ae operating system, and HomePod\u00ae and HomePod mini\u00ae, high-fidelity wireles",
+  "description_source": "edgar",
+  "fetch_timestamp": "2026-06-16T22:33:05.510993+00:00"
+}

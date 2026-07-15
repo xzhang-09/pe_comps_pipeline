@@ -1,0 +1,17 @@
+{
+  "ticker": "DELL",
+  "company_name": "Dell Technologies Inc.",
+  "market_cap_usd_mm": null,
+  "revenue_ttm_usd_mm": 113538.0,
+  "ebitda_margin": 0.0984516197220314,
+  "gross_margin": 0.19999471542567246,
+  "revenue_cagr_3yr": 0.13313873497717954,
+  "net_debt_ebitda": 1.7869923063159778,
+  "capex_revenue": 0.023190473674012224,
+  "ev_ebitda": null,
+  "ev_revenue": null,
+  "gics_sector": null,
+  "business_description": "ITEM\u00a01\u00a0\u2014 BUSINESS\n\nCompany Overview\n\nDell Technologies is a leader in the global technology industry focused on providing broad and innovative technology solutions for the data and artificial intelligence (\u201cAI\u201d) era. These solutions range from client devices and peripherals to infrastructure solutions across servers, networking, and storage to meet the evolving needs of our customers and drive better business outcomes. With our extensive portfolio and commitment to innovation, we design, deploy, and support secure, integrated solutions that extend from the edge to the core to the cloud. We deliver AI-optimized, software-defined, and cloud native infrastructure solutions across a broad partner ecosystem to help customers address evolving information technology (\u201cIT\u201d) needs, drive outcomes, and capture growth as customer spending priorities evolve.\n\nDell Technologies operates globally in over 170 countries, supported by a world-class organization across key functional areas, including technology and product development, marketing, sales, services, and financing. We have a number of operational advantages that provide a critical foundation for our success. We provide leading end-to-end solutions across our portfolio of products and services. Our go-to-market operations include an extensive direct sales force, with the ability to build deep customer relationships, and a global network of channel partners. Our global services footprint consists of service and support professionals",
+  "description_source": "edgar",
+  "fetch_timestamp": "2026-06-16T22:33:11.307350+00:00"
+}

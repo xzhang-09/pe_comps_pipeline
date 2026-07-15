@@ -1,0 +1,17 @@
+{
+  "ticker": "MDT",
+  "company_name": "Medtronic plc",
+  "market_cap_usd_mm": null,
+  "revenue_ttm_usd_mm": 33537.0,
+  "ebitda_margin": 0.26287384083251336,
+  "gross_margin": 0.6531591973044697,
+  "revenue_cagr_3yr": 0.036327383210373876,
+  "net_debt_ebitda": 2.982985480943739,
+  "capex_revenue": 0.0554313146673823,
+  "ev_ebitda": null,
+  "ev_revenue": null,
+  "gics_sector": null,
+  "business_description": "Item 1. Business\n\nMedtronic plc, headquartered in Galway, Ireland, is the leading global healthcare technology company. Medtronic was founded in 1949 and today serves healthcare systems, physicians, clinicians, and patients in more than 150 countries worldwide. We remain committed to a mission written by our founder in 1960 that directs us \u201cto contribute to human welfare by the application of biomedical engineering in the research, design, manufacture, and sale of products to alleviate pain, restore health, and extend life.\u201d\n\nOur Mission \u2014 to alleviate pain, restore health, and extend life \u2014 empowers us to engineer the extraordinary and deliver better outcomes for our world. We are a company of dedication, honesty, integrity, and service. Building on this strong foundation, we are embracing our role as a healthcare technology leader and evolving our business strategy in three key areas:\n\n\u2022Accelerate innovation-driven growth: The combination of our attractive end markets, recent product launches and robust pipeline is expected to enable continued strong revenue growth. We aim to bring inventive and disruptive technology to large healthcare opportunities which enables us to better meet patient needs. Patients around the world deserve access to our life-saving products, and we are driven to use our local presence and scale to increase the adoption of our products and services in markets around the globe.\n\n\u2022Deliver superior outcomes and better experiences for patients and provide",
+  "description_source": "edgar",
+  "fetch_timestamp": "2026-06-16T22:30:22.213510+00:00"
+}

@@ -1,0 +1,17 @@
+{
+  "ticker": "KEYS",
+  "company_name": "Keysight Technologies, Inc.",
+  "market_cap_usd_mm": null,
+  "revenue_ttm_usd_mm": 5375.0,
+  "ebitda_margin": 0.18734883720930232,
+  "gross_margin": 0.6208372093023256,
+  "revenue_cagr_3yr": -0.008177653701096355,
+  "net_debt_ebitda": 0.6564051638530288,
+  "capex_revenue": 0.02381395348837209,
+  "ev_ebitda": null,
+  "ev_revenue": null,
+  "gics_sector": null,
+  "business_description": "PART I\n\nItem\u00a01.\u00a0\u00a0Business\n\nOverview\n\nKeysight Technologies, Inc. (\u201cwe,\u201d \u201cus,\u201d \u201cour,\u201d \u201cKeysight\u201d or \u201cthe company\u201d), incorporated in Delaware on December 6, 2013, is a global innovator in the computing, communications and electronics markets, committed to advancing our customers\u2019 business success by helping them solve critical challenges in the development and commercialization of their products and services. Our mission, \u201caccelerating innovation to connect and secure the world,\u201d speaks to the value we provide our customers in a world of ever-increasing technological complexity. We deliver this value through a broad range of design and test solutions that enable our customers to bring their innovations to market on ever-shorter schedules. \n\nKeysight\u2019s portfolio of hardware, software, and services enables our customers\u2019 workflows as they design, validate, manufacture, deploy, and optimize their products and solutions. Our revenue is derived primarily from solutions addressing research and development (\u201cR&D\u201d) applications, and to a lesser degree, applications in manufacturing and operations. The accelerating pace of technological innovation and engineering intensity are long-term secular drivers of demand for Keysight\u2019s solutions and services. We serve a global set of customers in over 100 countries across a wide range of industry segments, including communications, aerospace, defense, and government, automotive, energy, industrial, general electronics, and semiconductor.\n\nWe gen",
+  "description_source": "edgar",
+  "fetch_timestamp": "2026-06-16T22:35:05.677553+00:00"
+}

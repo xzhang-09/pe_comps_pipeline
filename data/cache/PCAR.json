@@ -1,0 +1,17 @@
+{
+  "ticker": "PCAR",
+  "company_name": "PACCAR INC",
+  "market_cap_usd_mm": 63701.685158,
+  "revenue_ttm_usd_mm": 28444.8,
+  "ebitda_margin": null,
+  "gross_margin": 0.20067288221397234,
+  "revenue_cagr_3yr": -0.10013276465999532,
+  "net_debt_ebitda": null,
+  "capex_revenue": 0.026120767240409494,
+  "ev_ebitda": null,
+  "ev_revenue": null,
+  "gics_sector": "Industrials",
+  "business_description": "ITEM 1. BUSINESS.\n\nPACCAR Inc (the Company or PACCAR), incorporated under the laws of Delaware in 1971, is the successor to Pacific Car and Foundry Company which was incorporated in Washington in 1924. The Company traces its predecessors to Seattle Car Manufacturing Company formed in 1905. \n\nDescription of Business \n\nPACCAR is a multinational company operating in three principal industry segments: \n\n(1)The Truck segment includes the design, manufacture and distribution of high-quality, light-, medium- and heavy-duty commercial trucks. Heavy-duty trucks have a gross vehicle weight (GVW) of over 33,000 lbs (Class 8) in North America and over 16 metric tonnes in Europe and South America. Medium-duty trucks have a GVW ranging from 19,500 to 33,000 lbs (Class 6 to 7) in North America, and in Europe, light- and medium-duty trucks range between 6 and 16 metric tonnes. Trucks are configured with the engine in front of cab (conventional) or cab-over-engine (COE).\n\n(2)The Parts segment includes the distribution of aftermarket parts for trucks and related commercial vehicles. \n\n(3)The Financial Services segment includes finance and leasing products and services provided to customers and dealers. PACCAR\u2019s finance and leasing activities are principally related to PACCAR products and associated equipment. \n\nTRUCKS\n\nPACCAR\u2019s trucks are marketed under the Kenworth, Peterbilt and DAF nameplates. These trucks, which are built in three plants in the United States, three in Europe and one each i",
+  "description_source": "edgar",
+  "fetch_timestamp": "2026-06-16T22:25:34.715523+00:00"
+}

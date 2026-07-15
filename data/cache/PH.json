@@ -1,0 +1,17 @@
+{
+  "ticker": "PH",
+  "company_name": "Parker-Hannifin Corp",
+  "market_cap_usd_mm": 118333.33694,
+  "revenue_ttm_usd_mm": 19850.0,
+  "ebitda_margin": null,
+  "gross_margin": 0.3685138539042821,
+  "revenue_cagr_3yr": 0.020379795898718855,
+  "net_debt_ebitda": null,
+  "capex_revenue": 0.021914357682619647,
+  "ev_ebitda": null,
+  "ev_revenue": null,
+  "gics_sector": "Industrials",
+  "business_description": "ITEM\u00a01.  Business\n\nParker-Hannifin Corporation was incorporated in Ohio in 1938.  As used in this Annual Report on Form 10-K, unless the context otherwise requires, the terms \"Company\", \"Parker\", \"we\" or \"us\" refer to Parker-Hannifin Corporation and its subsidiaries, and the term \"year\" and references to specific years refer to the applicable fiscal year.\n\nParker is a global leader in motion and control technologies. Leveraging a unique combination of interconnected technologies, we design, manufacture, and provide aftermarket support for highly engineered solutions that create value for customers primarily in aerospace & defense, in-plant & industrial equipment, transportation, off-highway, energy, and HVAC & refrigeration markets around the world. \n\nParker values having a decentralized operating structure that fosters deeper connections with our customers and greater engagement among our team members. To align our operations and achieve our goal of top quartile performance, we deploy our business system, The Win StrategyTM, which establishes goals and strategies for engaged people, customer experience, profitable growth and financial performance. Underpinning this business system is our culture of safety, collaboration, continuous improvement, and team-based problem solving. Together our goals, strategies, and culture help us to fulfill our purpose: Enabling Engineering Breakthroughs that Lead to a Better Tomorrow. We credit the Win Strategy with leading Parker through a pe",
+  "description_source": "edgar",
+  "fetch_timestamp": "2026-06-16T22:21:58.653919+00:00"
+}

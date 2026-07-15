@@ -1,0 +1,31 @@
+=== DATA QUALITY REPORT ===
+Generated: 2026-06-16 17:35:10
+Total companies fetched: 165
+
+--- FIELD COMPLETENESS ---
+Field                 Non-null    Missing%    Median    
+revenue_ttm_usd_mm    145         12.1%       5146.33   
+ebitda_margin         124         24.8%       0.17      
+gross_margin          140         15.2%       0.38      
+revenue_cagr_3yr      145         12.1%       0.05      
+net_debt_ebitda       125         24.2%       1.21      
+capex_revenue         144         12.7%       0.03      
+ev_ebitda             36          78.2%       18.83     
+ev_revenue            36          78.2%       3.20      
+
+--- EV/EBITDA DISTRIBUTION ---
+Min: 10.1x   P25: 15.2x   Median: 18.8x   P75: 23.0x   Max: 43.5x
+Status: OK (median within expected range 6x-20x)
+
+--- BUSINESS DESCRIPTIONS ---
+Non-null: 145 / 165 (88%)
+Avg length: 1500 chars
+Short (<200 chars): 0 companies
+
+--- INDUSTRY BREAKDOWN ---
+Consumer Cyclical1 companies
+Financial Services1 companies
+Healthcare  1 companies
+Industrials 44 companies
+Technology  1 companies
+Unknown     117 companies

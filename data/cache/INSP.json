@@ -1,0 +1,17 @@
+{
+  "ticker": "INSP",
+  "company_name": "Inspire Medical Systems, Inc.",
+  "market_cap_usd_mm": null,
+  "revenue_ttm_usd_mm": 911.981,
+  "ebitda_margin": 0.0711758249349493,
+  "gross_margin": 0.8539169127426997,
+  "revenue_cagr_3yr": 0.20815521350065058,
+  "net_debt_ebitda": -1.6147186147186148,
+  "capex_revenue": 0.04221469526229165,
+  "ev_ebitda": null,
+  "ev_revenue": null,
+  "gics_sector": null,
+  "business_description": "Summary Risk Factors\n\nOur business is subject to numerous risks and uncertainties, including those described in Part I, Item 1A. \u201cRisk Factors\u201d in this Annual Report on Form 10-K. You should carefully consider these risks and uncertainties when investing in our common stock. The principal risks and uncertainties affecting our business include the following:\n\n\u2022our dependency on our Inspire system for revenues;\n\n\u2022our financial results and the market price of our common stock may fluctuate significantly and may not fully reflect the underlying performance of our business;\n\n\u2022our ability to sustain or increase our profitability and our history of operating losses;\n\n\u2022commercial success and market acceptance of our Inspire therapy;\n\n\u2022our ability to achieve and maintain adequate and clear levels of coverage or reimbursement for our Inspire system or any future products we may seek to commercialize;\n\n\u2022competitive companies, technologies, and pharmaceuticals in our industry;\n\n\u2022our ability to expand our indications and develop and commercialize additional products and enhancements to our Inspire system;\n\n\u2022future results of operations, financial position, research and development costs, capital requirements, and our needs for additional financing;\n\n\u2022our ability to forecast customer demand for our Inspire system and manage our inventory;\n\n\u2022our dependence on third-party suppliers, vendors, and contract manufacturers;\n\n\u2022risks related to consolidation in the healthcare industry;\n\n\u2022our abilit",
+  "description_source": "edgar",
+  "fetch_timestamp": "2026-06-16T22:32:12.665613+00:00"
+}

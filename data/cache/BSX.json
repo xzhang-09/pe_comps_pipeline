@@ -1,0 +1,17 @@
+{
+  "ticker": "BSX",
+  "company_name": "BOSTON SCIENTIFIC CORP",
+  "market_cap_usd_mm": null,
+  "revenue_ttm_usd_mm": 20074.0,
+  "ebitda_margin": 0.24813191192587428,
+  "gross_margin": 0.6901464581050114,
+  "revenue_cagr_3yr": 0.18730409383441238,
+  "net_debt_ebitda": 1.9014254165830156,
+  "capex_revenue": 0.043638537411577166,
+  "ev_ebitda": null,
+  "ev_revenue": null,
+  "gics_sector": null,
+  "business_description": "Cautionary Note Regarding Forward-Looking Statements\n\nThis Annual Report on Form 10-K (this Annual Report) contains statements that constitute \u201cforward-looking statements\u201d within the meaning of Section 27A of the Securities Act of 1933 and Section 21E of the Securities Exchange Act of 1934. Forward-looking statements may be identified by words like \u201canticipate,\u201d \u201cexpect,\u201d \u201cproject,\u201d \u201cbelieve,\u201d \u201cplan,\u201d \u201cestimate,\u201d \u201cintend,\u201d \u201caim,\u201d \"goal,\" \"target,\" \"continue,\" \"hope,\" \"may\" and similar words. These forward-looking statements include, among other things, statements regarding our financial and operating performance; acquisitions; clinical trials; business plans and product performance; new and anticipated product approvals and launches; intellectual property; regulations and accounting pronouncements; legal proceedings; tax matters and regulations; and macroeconomic and geopolitical conditions. These forward-looking statements are based on our beliefs, assumptions and estimates using information available to us at the time and are not intended to be guarantees of future events or performance. If our underlying assumptions turn out to be incorrect, or if certain risks or uncertainties materialize, actual results could vary materially from the expectations and projections expressed or implied by our forward-looking statements.\n\nThe forward-looking statements in this Annual Report are based on certain risks and uncertainties, including the risk factors described in Item 1A under th",
+  "description_source": "edgar",
+  "fetch_timestamp": "2026-06-16T22:30:35.767416+00:00"
+}

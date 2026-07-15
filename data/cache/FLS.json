@@ -1,0 +1,17 @@
+{
+  "ticker": "FLS",
+  "company_name": "FLOWSERVE CORP",
+  "market_cap_usd_mm": null,
+  "revenue_ttm_usd_mm": 4729.26,
+  "ebitda_margin": 0.10131817662805598,
+  "gross_margin": 0.33439417583300557,
+  "revenue_cagr_3yr": 0.046226511044411334,
+  "net_debt_ebitda": 1.7006740963352533,
+  "capex_revenue": 0.014997483750100439,
+  "ev_ebitda": null,
+  "ev_revenue": null,
+  "gics_sector": null,
+  "business_description": "ITEM 1.           BUSINESS\n\nUnless the context otherwise indicates, references to \"Flowserve,\" \"the Company\" and such words as \"we,\" \"our\" and \"us\" include Flowserve Corporation and its subsidiaries.\n\nOVERVIEW\n\nFlowserve's goal is to create extraordinary flow control solutions to make the world better for everyone.  We are a world-leading manufacturer and aftermarket service provider of comprehensive flow control systems. We develop and manufacture precision-engineered flow control equipment integral to the movement, control and protection of the flow of materials in our customers\u2019 critical processes. Our product portfolio of pumps, valves, seals, automation and aftermarket services supports global infrastructure industries, including energy, chemical, power generation and general, which includes water management and pharmaceuticals, where our products and services enable customers to achieve their goals. Through our manufacturing platform and global network of Quick Response Centers (\"QRCs\"), we offer a broad array of aftermarket equipment services, such as installation, advanced diagnostics and turnkey maintenance programs.\n\n Strategies \n\nFlowserve has a clear growth strategy as we transform our operations to better meet our customers' needs.  Our overarching strategic objectives are to remain a global leader in the flow control industry and capitalize on growth through our traditional end markets as well as through specifically identified growth areas, such as the nuclear,",
+  "description_source": "edgar",
+  "fetch_timestamp": "2026-06-16T22:27:54.634449+00:00"
+}

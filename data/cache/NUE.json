@@ -1,0 +1,17 @@
+{
+  "ticker": "NUE",
+  "company_name": "NUCOR CORP",
+  "market_cap_usd_mm": null,
+  "revenue_ttm_usd_mm": 32494.0,
+  "ebitda_margin": null,
+  "gross_margin": 0.11934510986643689,
+  "revenue_cagr_3yr": -0.03250382100538085,
+  "net_debt_ebitda": null,
+  "capex_revenue": 0.1053117498615129,
+  "ev_ebitda": null,
+  "ev_revenue": null,
+  "gics_sector": null,
+  "business_description": "Item 1.\tBusiness.\n\nOverview\n\nNucor Corporation, a Delaware corporation incorporated in 1958, and its affiliates (\u201cNucor,\u201d the \u201cCompany,\u201d \u201cwe,\u201d \u201cus\u201d or \u201cour\u201d) manufacture steel and steel products. The Company also produces and procures ferrous and non-ferrous materials primarily for use in its steel manufacturing business. Most of the Company\u2019s operating facilities and customers are located in North America. The Company\u2019s operations include international trading and sales companies that buy and sell steel and steel products manufactured by the Company and others.\n\nNucor is North America\u2019s largest recycler, using scrap steel as the primary raw material in producing steel and steel products. In 2025, we recycled approximately 20 million gross tons of scrap steel.\n\nSegments, Principal Products Produced, and Markets and Marketing\n\nNucor reports its results in three segments: steel mills, steel products and raw materials. The steel mills segment is Nucor\u2019s largest segment, representing 62% of the Company\u2019s sales to external customers in the year ended December 31, 2025. \n\nWe market products from the steel mills and steel products segments mainly through in-house sales forces. We also utilize our internal distribution and trading companies to market our products abroad. The markets for these products are largely tied to end-use markets such as nonresidential construction, durable goods and capital spending that are affected by changes in general economic conditions.\n\nWe are a leadin",
+  "description_source": "edgar",
+  "fetch_timestamp": "2026-06-16T22:27:14.141912+00:00"
+}

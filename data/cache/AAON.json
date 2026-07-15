@@ -1,0 +1,17 @@
+{
+  "ticker": "AAON",
+  "company_name": "AAON, INC.",
+  "market_cap_usd_mm": null,
+  "revenue_ttm_usd_mm": 1442.076,
+  "ebitda_margin": 0.15632948610198075,
+  "gross_margin": 0.26747827437666255,
+  "revenue_cagr_3yr": 0.1109035924326276,
+  "net_debt_ebitda": -5.7665266435709884e-05,
+  "capex_revenue": 0.13214490775798224,
+  "ev_ebitda": null,
+  "ev_revenue": null,
+  "gics_sector": null,
+  "business_description": "Item 1.\u00a0 Business.\n\nOverview\n\nAAON, Inc., a Nevada corporation (\"AAON Nevada\"), was incorporated on August 18, 1987. Our operating subsidiaries include AAON, Inc., an Oklahoma corporation (\"AAON Oklahoma\"), AAON Coil Products, Inc., a Texas corporation (\"AAON Coil Products\"), and BASX, Inc., an Oregon corporation (\"BASX\"). Unless the context otherwise requires, references in this Annual Report to \"AAON\", the \"Company\", \"we\", \"us\", \"our\", or \"ours\" refer to AAON Nevada and our subsidiaries. \n\nAAON is a leader in heating, ventilation, air conditioning, and liquid cooling solutions for commercial and industrial indoor environments. The Company designs and manufactures highly configurable equipment to meet specific customer requirements, delivering reliable performance, efficiency, and long-term value. Through a strong commitment to research and development, advanced engineering capabilities, and decades of industry experience, the Company continues to elevate standards for climate management solutions. \n\nBusiness Segments\n\nThe Company operates through three reportable business segments: AAON Oklahoma, AAON Coil Products, and BASX. These segments are based on differences in products, manufacturing processes, and end markets, and reflect how management evaluates operating performance and allocates resources. \n\nAAON Oklahoma: AAON Oklahoma engineers, manufactures, and sells highly configurable HVAC systems, designs and manufactures controls solutions, and sells aftermarket parts to",
+  "description_source": "edgar",
+  "fetch_timestamp": "2026-06-16T22:29:45.531982+00:00"
+}

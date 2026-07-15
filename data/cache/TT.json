@@ -1,0 +1,17 @@
+{
+  "ticker": "TT",
+  "company_name": "Trane Technologies plc",
+  "market_cap_usd_mm": 105076.510437,
+  "revenue_ttm_usd_mm": 21321.9,
+  "ebitda_margin": 0.20372011875114318,
+  "gross_margin": null,
+  "revenue_cagr_3yr": 0.09825022206038758,
+  "net_debt_ebitda": 0.6565370536639271,
+  "capex_revenue": 0.017962751912353025,
+  "ev_ebitda": 24.84709129014435,
+  "ev_revenue": 5.061852388248702,
+  "gics_sector": "Industrials",
+  "business_description": "Item\u00a01.\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0BUSINESS\n\nOverview\n\nTrane Technologies plc, a public limited company, incorporated in Ireland in 2009, and its consolidated subsidiaries (collectively we, us, our, the Company) is a global climate innovator. We bring sustainable and efficient solutions to buildings, homes and transportation through our strategic brands, Trane\u00ae and Thermo King\u00ae, and our environmentally responsible portfolio of products, services and connected intelligent controls. We generate revenue and cash primarily through the design, manufacture, sales and service of solutions for Heating, Ventilation and Air Conditioning (HVAC), transport refrigeration, and custom refrigeration solutions. As an industry leader with an extensive global install base, our growth strategy includes expanding recurring revenue through services and rental options. Our unique business operating system, uplifting culture and highly engaged team around the world are also central to our earnings and cash flow growth.\n\nThrough our sustainability-focused strategy and purpose to boldly challenge what's possible for a sustainable world, we meet critical needs and growing global demand for innovation that reduces greenhouse gas emissions while enabling more efficient buildings and industry, and reliable delivery of essential temperature-controlled cargo. We have announced certain defined sustainability commitments with a goal of achieving these commitments by 2030 (2030 Sustainability Commitments). Trane Technologies' 2030 ",
+  "description_source": "edgar",
+  "fetch_timestamp": "2026-06-16T22:22:48.976076+00:00"
+}

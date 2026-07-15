@@ -1,0 +1,17 @@
+{
+  "ticker": "HUBB",
+  "company_name": "HUBBELL INC",
+  "market_cap_usd_mm": null,
+  "revenue_ttm_usd_mm": 5844.6,
+  "ebitda_margin": 0.2420867125209595,
+  "gross_margin": 0.35316360401053964,
+  "revenue_cagr_3yr": 0.042972885475437206,
+  "net_debt_ebitda": 1.3024948759629655,
+  "capex_revenue": 0.02653731649727954,
+  "ev_ebitda": null,
+  "ev_revenue": null,
+  "gics_sector": null,
+  "business_description": "ITEM 1\u00a0\u00a0\u00a0\u00a0Business\n\nHubbell Incorporated (herein referred to as \u201cHubbell\u201d, the \u201cCompany\u201d, the \u201cregistrant\u201d, \u201cwe\u201d, \u201cour\u201d or \u201cus\u201d, which references shall include its divisions and subsidiaries as the context may require) was founded as a proprietorship in 1888, and was incorporated in Connecticut in 1905. Recognized for our innovation, quality, and deep commitment to serving our customers for over 135 years, Hubbell is a world-class manufacturer of electrical and utility solutions, with more than 75 brands used around the world. We provide utility and electrical solutions that enable our customers to operate critical infrastructure reliably and efficiently, and we empower and energize communities through innovative solutions supporting energy infrastructure In Front of the Meter, on The Edge, and Behind the Meter. In Front of the Meter is where utilities transmit and distribute energy to their customers. The Edge connects utilities with owners and operators and allows energy and data to be distributed back and forth. Behind the Meter is where owners and operators of building and other critical infrastructure consume energy. \n\nProducts are either sourced complete, manufactured or assembled by subsidiaries in the United States, Canada, Puerto Rico, Mexico, China, the United Kingdom (\"UK\"), Brazil, Australia, Spain, Ireland, and the Republic of the Philippines. The Company also participates in joint ventures in Hong Kong and the Republic of the Philippines, and maintains offices i",
+  "description_source": "edgar",
+  "fetch_timestamp": "2026-06-16T22:28:42.750552+00:00"
+}

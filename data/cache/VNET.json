@@ -1,0 +1,17 @@
+{
+  "ticker": "VNET",
+  "company_name": "VNET Group, Inc.",
+  "market_cap_usd_mm": null,
+  "revenue_ttm_usd_mm": null,
+  "ebitda_margin": null,
+  "gross_margin": null,
+  "revenue_cagr_3yr": null,
+  "net_debt_ebitda": 0.27101373727989814,
+  "capex_revenue": null,
+  "ev_ebitda": null,
+  "ev_revenue": null,
+  "gics_sector": null,
+  "business_description": null,
+  "description_source": null,
+  "fetch_timestamp": "2026-06-16T22:34:41.354261+00:00"
+}

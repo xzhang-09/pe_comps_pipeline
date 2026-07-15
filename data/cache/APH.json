@@ -1,0 +1,17 @@
+{
+  "ticker": "APH",
+  "company_name": "AMPHENOL CORP /DE/",
+  "market_cap_usd_mm": null,
+  "revenue_ttm_usd_mm": 23094.7,
+  "ebitda_margin": 0.2940501500344235,
+  "gross_margin": 0.3688162219037268,
+  "revenue_cagr_3yr": 0.35629135262431766,
+  "net_debt_ebitda": 0.6437049035488146,
+  "capex_revenue": 0.04315275799209342,
+  "ev_ebitda": null,
+  "ev_revenue": null,
+  "gics_sector": null,
+  "business_description": "Item 1. Business\n\n\u200b\n\nGeneral\n\n\u200b\n\nAmphenol Corporation is one of the world\u2019s largest designers, manufacturers and marketers of electrical, electronic and fiber optic connectors and interconnect systems, antennas, sensors and sensor-based products and coaxial, high-speed, fiber optic and specialty cable. The Company estimates, based on recent reports of industry analysts, that worldwide sales of interconnect, value-add cable assembly, antenna, cable and sensor-related products were approximately $500 billion in 2025.  \n\n\u200b\n\nCertain predecessor businesses of the Company were founded in 1932, and the Company was incorporated under the laws of the State of Delaware in 1986.  The Company\u2019s Class A Common Stock (\u201cCommon Stock\u201d) began trading on the New York Stock Exchange in 1991.\n\n\u200b\n\nReportable Business Segments\n\n\u200b\n\nThe Company\u2019s strategy is to provide our customers with comprehensive design capabilities, a broad selection of products and a high level of quality and service on a worldwide basis, while maintaining continuing programs of productivity improvement and cost control.  The Company aligns its businesses into three reportable business segments: (i) Communications Solutions, (ii) Harsh Environment Solutions and (iii) Interconnect and Sensor Systems.  This alignment and segment structure reinforces the Company\u2019s entrepreneurial culture and enables clear accountability of each of our business unit general managers, while enhancing the scalability of Amphenol\u2019s business for the ",
+  "description_source": "edgar",
+  "fetch_timestamp": "2026-06-16T22:35:00.114003+00:00"
+}

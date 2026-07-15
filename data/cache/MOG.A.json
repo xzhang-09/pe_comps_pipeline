@@ -1,0 +1,17 @@
+{
+  "ticker": "MOG.A",
+  "company_name": "MOOG INC.",
+  "market_cap_usd_mm": null,
+  "revenue_ttm_usd_mm": 3860.624,
+  "ebitda_margin": null,
+  "gross_margin": 0.27388007741753667,
+  "revenue_cagr_3yr": 0.07896920702546195,
+  "net_debt_ebitda": null,
+  "capex_revenue": 0.03748901731947996,
+  "ev_ebitda": null,
+  "ev_revenue": null,
+  "gics_sector": null,
+  "business_description": "Item\u00a01A.\u00a0\n\nRisk Factors.\n\nOur business, financial condition and results of operations face many risks, many of which are not exclusively within our control. The known, material risks to our business summarized below should be carefully considered together with all the other information included in this report, including the financial statements and related notes. Any of the risks discussed below, elsewhere in this report or in our other SEC filings could have a material impact on our business, financial condition or results of operations. Although the risks summarized below are organized by heading, and each risk is summarized separately, many of the risks are interrelated. While we believe we have identified and discussed below the material risks affecting our business, there may be additional risks and uncertainties not currently known to us or that we currently consider immaterial that may materially adversely affect our business, financial condition or results of operations in the future and may require significant management time and attention.  \n\nSTRATEGIC RISKS\n\nWe operate in highly competitive markets with competitors who may have greater resources than we possess. Many of our products are sold in highly competitive markets. Some of our competitors, especially in our industrial markets and medical market, are larger, more diversified and have greater financial, marketing, production and research and development resources. Within the aerospace and defense industries, s",
+  "description_source": "edgar",
+  "fetch_timestamp": "2026-06-16T22:23:49.295865+00:00"
+}

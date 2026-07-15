@@ -1,0 +1,17 @@
+{
+  "ticker": "GNRC",
+  "company_name": "GENERAC HOLDINGS INC.",
+  "market_cap_usd_mm": 15639.053794,
+  "revenue_ttm_usd_mm": 4209.147,
+  "ebitda_margin": 0.09087803300763789,
+  "gross_margin": 0.3829129750041992,
+  "revenue_cagr_3yr": 0.022916079032559544,
+  "net_debt_ebitda": 2.5924280885393927,
+  "capex_revenue": 0.040352594005388744,
+  "ev_ebitda": 43.47681237794723,
+  "ev_revenue": 3.9510871903499685,
+  "gics_sector": "Industrials",
+  "business_description": "Item\u00a01. Business \n\n  Overview\n\n  Founded in 1959, Generac is a leading global designer, manufacturer, and provider of a wide range of energy technology solutions. Generac provides power generation equipment, energy storage systems, energy management devices & solutions, and other power products and services serving the residential, commercial, data center, telecom, rental, and industrial markets. The Company\u2019s broad portfolio of energy technology offerings for homes and businesses enables its mission to Power a Smarter World and lead the evolution to more resilient, efficient, and innovative energy solutions.\n\n  We have a long history of providing power generation products across a variety of applications, and we maintain one of the leading positions in the North American market for power equipment with an expanding presence internationally. We believe we have one of the widest ranges of products in the power generation marketplace, including residential, commercial, and industrial standby generators, as well as portable and mobile generators used in a variety of applications. The recent introduction of our large-megawatt diesel generator line-up has substantially increased our served addressable market, allowing us to participate in the supply-constrained data center market which is expected to grow significantly over the coming years due to the mass adoption of artificial intelligence. Over the last few years, we have also been focused on building out ecosystems of energy t",
+  "description_source": "edgar",
+  "fetch_timestamp": "2026-06-16T22:22:18.602354+00:00"
+}

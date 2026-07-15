@@ -1,0 +1,17 @@
+{
+  "ticker": "XYL",
+  "company_name": "Xylem Inc.",
+  "market_cap_usd_mm": 26628.802021,
+  "revenue_ttm_usd_mm": 9035.0,
+  "ebitda_margin": 0.1649142224681793,
+  "gross_margin": 0.38461538461538464,
+  "revenue_cagr_3yr": 0.10766182576665861,
+  "net_debt_ebitda": -0.0476510067114094,
+  "capex_revenue": 0.03663530713890426,
+  "ev_ebitda": 17.824028202013423,
+  "ev_revenue": 2.9394357521859433,
+  "gics_sector": "Industrials",
+  "business_description": "ITEM\u00a01.\u00a0\u00a0\u00a0\u00a0BUSINESS\n\nBusiness Overview\n\nXylem is a leading global water technology company with 2025 revenues of $9.0 billion and approximately 22,000 employees worldwide. We design, manufacture and service engineered products and solutions across a wide variety of critical applications, primarily in the water sector. Our broad portfolio of products, services and solutions addresses customer needs of scarcity, resilience, quality, and affordability across the water cycle, from the delivery, treatment, measurement and use of drinking water, to the collection, testing, analysis and treatment of wastewater, to the return of water to the environment. \n\nWe have differentiated market positions in core applications including transport and dewatering, process water and wastewater treatment, analytics, smart metering, digital software solutions and comprehensive services. Setting us apart is a unique set of global assets that include:\n\n\u2022Market-leading brands, some of which have been in use for more than 100 years\n\n\u2022Global distribution networks consisting of direct sales forces and independent channel partners serving a diverse customer base in approximately 150 countries \n\n\u2022A substantial global installed base of products and solutions across the water cycle that provides for steady parts, replacement and service revenue\n\n\u2022A strong history of providing innovative products, services, solutions and business models to customers \n\n\u2022A dedicated, experienced, qualified and technologically ad",
+  "description_source": "edgar",
+  "fetch_timestamp": "2026-06-16T22:22:39.746511+00:00"
+}

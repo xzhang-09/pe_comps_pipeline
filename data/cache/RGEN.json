@@ -1,0 +1,17 @@
+{
+  "ticker": "RGEN",
+  "company_name": "REPLIGEN CORP",
+  "market_cap_usd_mm": null,
+  "revenue_ttm_usd_mm": 738.256,
+  "ebitda_margin": 0.18138965345354457,
+  "gross_margin": 0.5231857241932338,
+  "revenue_cagr_3yr": 0.08048964832536698,
+  "net_debt_ebitda": -0.17778839835115598,
+  "capex_revenue": 0.0318575128410741,
+  "ev_ebitda": null,
+  "ev_revenue": null,
+  "gics_sector": null,
+  "business_description": "ITEM 1. BUSINESS \n\nThe following discussion of our business contains forward-looking statements that involve risks and uncertainties. When used in this report, the words \u201cintend,\u201d \u201canticipate,\u201d \u201cbelieve,\u201d \u201cestimate,\u201d \u201cplan\u201d and \u201cexpect\u201d and similar expressions as they relate to us are included to identify forward-looking statements. Our actual results could differ materially from those anticipated in these forward-looking statements and are a result of certain factors, including those set forth under \u201cRisk Factors\u201d and elsewhere in this Annual Report on Form 10-K (\u201cForm 10-K\u201d). \n\nReferences throughout this Form 10-K to \u201cRepligen Corporation\u201d, \u201cRepligen\u201d, \u201cwe\u201d, \u201cus\u201d, \u201cour\u201d, or the \u201cCompany\u201d refer to Repligen Corporation and its subsidiaries, taken as a whole, unless the context otherwise indicates. \n\nOverview \n\nRepligen Corporation is a global life sciences company that develops and commercializes highly innovative bioprocessing technologies and systems that increase efficiencies and flexibility in the process of manufacturing biological drugs.\n\nAs the overall market for biologics continues to grow and expand, our primary customers \u2013 global biopharmaceutical companies, contract development and manufacturing organizations and other life science companies (integrators) \u2013 face critical production cost, capacity, quality and time pressures. Built to address these concerns, our products help set new standards for the way biologics are manufactured. We are committed to inspiring adv",
+  "description_source": "edgar",
+  "fetch_timestamp": "2026-06-16T22:31:40.928774+00:00"
+}

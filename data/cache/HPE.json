@@ -1,0 +1,17 @@
+{
+  "ticker": "HPE",
+  "company_name": "Hewlett Packard Enterprise Co",
+  "market_cap_usd_mm": null,
+  "revenue_ttm_usd_mm": 33529.0,
+  "ebitda_margin": 0.06859733365146589,
+  "gross_margin": 0.3015300187897044,
+  "revenue_cagr_3yr": 0.08297495623934537,
+  "net_debt_ebitda": 7.213913043478261,
+  "capex_revenue": 0.0683587342300695,
+  "ev_ebitda": null,
+  "ev_revenue": null,
+  "gics_sector": null,
+  "business_description": "ITEM 1. Business\n\nHewlett Packard Enterprise is a global technology leader focused on developing intelligent solutions that allow customers to capture, analyze and act upon data seamlessly from edge to cloud. We enable our customers to accelerate business outcomes by driving new business models, creating new customer and employee experiences, and increasing operational efficiency today and into the future. Our customers range from small-and-medium-sized businesses to large global enterprises and governmental entities. Our legacy dates back to a partnership founded in 1939 by William R. Hewlett and David Packard, and we strive every day to uphold and enhance that legacy through our dedication to providing innovative technological solutions to our customers.\n\nWe use the terms \u201cHewlett Packard Enterprise,\u201d \u201cHPE,\u201d \u201cthe Company,\u201d \u201cwe,\u201d \u201cus,\u201d and \u201cour\u201d to refer to Hewlett Packard Enterprise Company.\n\nOur Strategy  \n\nOver the last several years, HPE has observed megatrends around networking, cloud, data, and artificial intelligence (\u201cAI\u201d) emerging to shape customer expectations for enterprise technology. The megatrends are ushering in long-lasting changes to how enterprises are consuming technology and setting up their IT infrastructures, including accelerating implementation of AI and hybrid multi-cloud adoption. Data at the edge is increasing exponentially, and in this data disaggregated environment, enterprises need a holistic and integrated cloud experience to manage their distr",
+  "description_source": "edgar",
+  "fetch_timestamp": "2026-06-16T22:33:24.792716+00:00"
+}

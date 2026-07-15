@@ -1,0 +1,17 @@
+{
+  "ticker": "CSCO",
+  "company_name": "CISCO SYSTEMS, INC.",
+  "market_cap_usd_mm": null,
+  "revenue_ttm_usd_mm": 56654.0,
+  "ebitda_margin": null,
+  "gross_margin": 0.6493804497475907,
+  "revenue_cagr_3yr": -0.0030222166388022,
+  "net_debt_ebitda": null,
+  "capex_revenue": 0.015974158929643097,
+  "ev_ebitda": null,
+  "ev_revenue": null,
+  "gics_sector": null,
+  "business_description": "Item\u00a01.Business\n\nGeneral\n\nCisco designs and sells a broad range of technologies that help to power, secure, and draw insights from the Internet. We are incorporating artificial intelligence (AI) into our product portfolios across networking, security, collaboration and observability as well as integrating our products more tightly together. We are simplifying how our technology is delivered, managed and optimized and helping customers maximize the business value of their technology investments. \n\nWe conduct our business globally and manage our business by geography. Our business is organized into the following three geographic segments: Americas; Europe, Middle East, and Africa (EMEA); and Asia Pacific, Japan, and China (APJC). \n\nOur products and technologies are grouped into the following categories: Networking, Security, Collaboration and Observability. In addition to our product offerings, we provide a broad range of services over the lifecycle of our products, including technical support services and advanced services. Our customers include businesses of all sizes, public institutions, governments, and service providers, including large webscale providers. These customers often look to us as a strategic partner to help them use information technology (IT) to differentiate themselves and drive positive business outcomes.\n\nWe were incorporated in California in 1984 and reincorporated in Delaware in 2021. Our headquarters are in San Jose, California. The mailing address of o",
+  "description_source": "edgar",
+  "fetch_timestamp": "2026-06-16T22:33:59.485057+00:00"
+}

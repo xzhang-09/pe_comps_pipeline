@@ -1,0 +1,17 @@
+{
+  "ticker": "BDX",
+  "company_name": "BECTON DICKINSON & CO",
+  "market_cap_usd_mm": null,
+  "revenue_ttm_usd_mm": 21840.0,
+  "ebitda_margin": 0.23081501831501833,
+  "gross_margin": 0.45444139194139194,
+  "revenue_cagr_3yr": 0.06179111489522837,
+  "net_debt_ebitda": 3.6778416980757784,
+  "capex_revenue": 0.0347985347985348,
+  "ev_ebitda": null,
+  "ev_revenue": null,
+  "gics_sector": null,
+  "business_description": "Item\u00a0\u00a01.\u00a0\u00a0\u00a0\u00a0Business.\n\nGeneral\n\nBecton, Dickinson and Company (also referred to herein as \"BD\") was incorporated under the laws of the State of New Jersey in November 1906, as successor to a New York business started in 1897. BD\u2019s executive offices are located at 1 Becton Drive, Franklin Lakes, New Jersey 07417-1880, and its telephone number is (201)\u00a0847-6800. All references in this Form\u00a010-K to \"BD\", \"the Company\", \"we\", \"our\" or \"us\" refer to Becton, Dickinson and Company and its domestic and foreign subsidiaries, unless otherwise indicated by the context. \n\nBD is a global medical technology company engaged in the development, manufacture and sale of a broad range of medical supplies, devices, laboratory equipment and diagnostic products used by healthcare institutions, physicians, life science researchers, clinical laboratories, the pharmaceutical industry and the general public. We provide customer solutions that are focused on improving medication management and patient safety; supporting infection prevention practices; equipping surgical and interventional procedures; improving drug delivery; aiding anesthesiology care; enhancing the diagnosis of infectious diseases and cancers; and advancing cellular research and applications.\n\nBusiness Segments\n\nAs of September 30, 2025, BD\u2019s operations consisted of three worldwide business segments: BD Medical, BD Life Sciences and BD Interventional. As further discussed in Note 8 to the consolidated financial statements contained in",
+  "description_source": "edgar",
+  "fetch_timestamp": "2026-06-16T22:31:17.628062+00:00"
+}

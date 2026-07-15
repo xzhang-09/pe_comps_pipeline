@@ -1,0 +1,17 @@
+{
+  "ticker": "NVCR",
+  "company_name": "NovoCure Ltd",
+  "market_cap_usd_mm": null,
+  "revenue_ttm_usd_mm": 655.353,
+  "ebitda_margin": -0.2123283177157959,
+  "gross_margin": 0.7453601341567064,
+  "revenue_cagr_3yr": 0.13431743277997343,
+  "net_debt_ebitda": -0.7294214876033058,
+  "capex_revenue": 0.04066205541135846,
+  "ev_ebitda": null,
+  "ev_revenue": null,
+  "gics_sector": null,
+  "business_description": "ITEM 1.\u00a0\u00a0BUSINESSOverviewWe are a global oncology company with a proprietary platform technology called Tumor Treating Fields (\"TTFields\"), which are electric fields that exert physical forces to kill cancer cells. Our therapy is delivered through a medical device. Our key priorities are to drive commercial adoption of Optune Gio\u00ae, Optune Lua\u00ae, and Optune Pax\u00ae, our commercial TTFields therapy devices, obtain regulatory approval to market TTFields therapy devices in new indications, such as brain metastases from non-small cell lung cancer (\"NSCLC\"), and to advance clinical and product development programs intended to extend overall survival in some of the most aggressive forms of cancer.Optune Gio is approved by the U.S. Food and Drug Administration (\"FDA\") under the Premarket Approval (\"PMA\") pathway for the treatment of adult patients with newly diagnosed glioblastoma (\"GBM\") together with temozolomide, a chemotherapy drug, and for adult patients with GBM following confirmed recurrence after chemotherapy as monotherapy treatment. We also have a CE certificate to market Optune Gio for the treatment of GBM in the European Union (\"EU\"), as well as approval or local registration in the United Kingdom (\"UK\"), Japan, Canada and certain other countries. Optune Lua is approved by the FDA under the PMA pathway for the treatment of adult patients with metastatic NSCLC concurrent with PD-1/PD-L1 inhibitors or docetaxel following progression on or after a platinum-based regimen. We also",
+  "description_source": "edgar",
+  "fetch_timestamp": "2026-06-16T22:31:35.258847+00:00"
+}

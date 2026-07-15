@@ -1,0 +1,17 @@
+{
+  "ticker": "GD",
+  "company_name": "GENERAL DYNAMICS CORP",
+  "market_cap_usd_mm": 98466.335389,
+  "revenue_ttm_usd_mm": 52550.0,
+  "ebitda_margin": 0.11486203615604186,
+  "gross_margin": null,
+  "revenue_cagr_3yr": 0.11496173338774307,
+  "net_debt_ebitda": 0.9410205434062293,
+  "capex_revenue": 0.022093244529019982,
+  "ev_ebitda": 17.254197380550032,
+  "ev_revenue": 1.9818522433682206,
+  "gics_sector": "Industrials",
+  "business_description": "ITEM\u00a01. BUSINESS\n\n(Dollars in millions, unless otherwise noted)\n\nBUSINESS OVERVIEW\n\nGeneral Dynamics is a global aerospace and defense company that specializes in high-end design, engineering and manufacturing to deliver state-of-the-art solutions to our customers. We offer a broad portfolio of products and services in business aviation; ship construction and repair; land combat vehicles, weapon systems and munitions; and technology products and services. Our leadership positions in attractive business aviation and defense markets enable us to deliver superior and enduring capabilities to our customers and returns to our shareholders.\n\nOur company consists of 10 business units, which are organized into four operating segments: Aerospace, Marine Systems, Combat Systems and Technologies. We refer to the latter three collectively as our defense segments. To ensure market focus, customer intimacy, agility and operating expertise, each business unit is responsible for the development and execution of its strategy and operating results. This structure allows for a lean corporate function, which sets the overall strategy and governance for the company and is responsible for allocating and deploying capital.\n\nOur business units seek to deliver superior operating results by building industry-leading franchises. To achieve this goal, we invest in advanced technologies, focus on execution, pursue a culture of continuous improvement, and strive to be the low-cost, high-quality provider i",
+  "description_source": "edgar",
+  "fetch_timestamp": "2026-06-16T22:23:20.390428+00:00"
+}

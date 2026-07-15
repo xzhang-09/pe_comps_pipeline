@@ -1,0 +1,17 @@
+{
+  "ticker": "MSM",
+  "company_name": "MSC INDUSTRIAL DIRECT CO INC",
+  "market_cap_usd_mm": null,
+  "revenue_ttm_usd_mm": 3769.521,
+  "ebitda_margin": 0.1040423968987041,
+  "gross_margin": 0.40751464178074615,
+  "revenue_cagr_3yr": -0.03036165539110358,
+  "net_debt_ebitda": 1.0950585175552665,
+  "capex_revenue": 0.02462912396561791,
+  "ev_ebitda": null,
+  "ev_revenue": null,
+  "gics_sector": null,
+  "business_description": "Table of Contents\n\nITEM 1. BUSINESS.\n\nGeneral\n\nMSC is a leading North American distributor of a broad range of metalworking and maintenance, repair and operations (\u201cMRO\u201d) products and services. With a history of driving innovation in industrial product distribution for more than 80 years, we help solve our manufacturing customers\u2019 metalworking and MRO challenges. Through our technical metalworking expertise and inventory management and other supply chain solutions, our team of more than 7,000 associates helps to keep our customers\u2019 manufacturing operations up and running and to improve their efficiency, productivity and profitability.\n\nWe serve a broad range of customers throughout the United States, Canada, Mexico and the United Kingdom, from individual machine shops to Fortune 1000 manufacturing companies to government agencies such as the United States General Services Administration and the United States Department of Defense. We operate a sophisticated network of five customer fulfillment centers, nine regional inventory centers, 38 warehouses (36 in North America and two in other foreign countries) and five manufacturing locations. Our customer fulfillment centers are located in or near Harrisburg, Pennsylvania; Atlanta, Georgia; Elkhart, Indiana; Reno, Nevada; and Hanover Park, Illinois. \n\nWe offer approximately 2.5 million active, saleable stock-keeping units (\u201cSKUs\u201d) through our E-commerce channels, including our website, https://www.mscdirect.com (the \u201cMSC website\u201d)",
+  "description_source": "edgar",
+  "fetch_timestamp": "2026-06-16T22:26:34.150879+00:00"
+}

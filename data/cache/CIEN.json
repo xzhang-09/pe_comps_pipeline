@@ -1,0 +1,17 @@
+{
+  "ticker": "CIEN",
+  "company_name": "CIENA CORP",
+  "market_cap_usd_mm": null,
+  "revenue_ttm_usd_mm": 4769.507,
+  "ebitda_margin": 0.06324846572192891,
+  "gross_margin": 0.42036147551518427,
+  "revenue_cagr_3yr": 0.0427381251837986,
+  "net_debt_ebitda": 1.471126816590644,
+  "capex_revenue": 0.029521080480645064,
+  "ev_ebitda": null,
+  "ev_revenue": null,
+  "gics_sector": null,
+  "business_description": "Item\u00a01. Business\n\nOverview\n\nWe are a network technology company, providing hardware, software, and services to a wide range of network operators and enabling enhanced network capacity, service delivery, and automation. Our solutions support network traffic across a wide range of applications, including cloud, voice, video, data, and artificial intelligence (\u201cAI\u201d). Our network solutions are used globally by cloud providers, service providers, and other network operators across multiple industry verticals. \n\nOur Networking Platforms, including our Optical Networking portfolio and Routing and Switching portfolio, are solutions applied from the network core to end user access points and allow network operators to scale capacity, increase transmission speeds, allocate traffic efficiently, and adapt dynamically to changing end-user service demands. Complementing our Networking Platforms, we offer Platform Software, which delivers multi-layer domain control and operations for network operators, and Blue Planet\u00ae Automation Software, which enables service lifecycle management automation with productized operational support systems (\u201cOSS\u201d) across domains and vendors. In addition to our hardware and software, we offer a broad range of complementary services that help our customers build, operate, and transform their networks and associated operational environments. \n\nIndustry and Market\n\nCustomers\n\nWe sell our product and service solutions through direct and indirect sales channels to t",
+  "description_source": "edgar",
+  "fetch_timestamp": "2026-06-16T22:34:08.406662+00:00"
+}

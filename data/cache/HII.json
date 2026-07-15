@@ -1,0 +1,17 @@
+{
+  "ticker": "HII",
+  "company_name": "HUNTINGTON INGALLS INDUSTRIES, INC.",
+  "market_cap_usd_mm": 11762.48804,
+  "revenue_ttm_usd_mm": 12484.0,
+  "ebitda_margin": 0.0706504325536687,
+  "gross_margin": 0.1269625120153797,
+  "revenue_cagr_3yr": 0.04399469206483153,
+  "net_debt_ebitda": 3.631519274376417,
+  "capex_revenue": 0.03220121755847485,
+  "ev_ebitda": 16.96767351473923,
+  "ev_revenue": 1.1987734732457547,
+  "gics_sector": "Industrials",
+  "business_description": "ITEM 1. BUSINESS\n\nHistory and Organization\n\nHuntington Ingalls Industries, Inc. (\"HII\", the \"Company\", \"we\", \"us\", or \"our\") is a global, all-domain defense partner, building and delivering the world's most powerful, survivable naval ships and technologies that safeguard America\u2019s seas, sky, land, space, and cyber. For more than a century, our Ingalls Shipbuilding segment (\"Ingalls\") in Mississippi and Newport News Shipbuilding segment (\"Newport News\") in Virginia have built more ships in more ship classes than any other U.S. naval shipbuilder, making us America's largest shipbuilder. Our Mission Technologies segment develops integrated technology solutions and products that enable today's connected, all-domain force. Headquartered in Newport News, Virginia, we employ over 44,000 people domestically and internationally.\n\nWe conduct most of our business with the U.S. Government, primarily the Department of War (the \"Department\"). As prime contractor, principal subcontractor, team member, or partner, we participate in many high-priority U.S. defense programs. Ingalls includes our non-nuclear ship design, construction, repair, and maintenance businesses. Newport News includes all of our nuclear ship design, construction, overhaul, refueling, and repair and maintenance businesses. Our Mission Technologies segment provides a wide range of services and products, including command, control, computers, communications, cyber, intelligence, surveillance, and reconnaissance (\"C5ISR\") sy",
+  "description_source": "edgar",
+  "fetch_timestamp": "2026-06-16T22:23:41.222578+00:00"
+}

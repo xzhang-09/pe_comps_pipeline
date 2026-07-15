@@ -1,0 +1,17 @@
+{
+  "ticker": "GFF",
+  "company_name": "GRIFFON CORP",
+  "market_cap_usd_mm": 4311.92198,
+  "revenue_ttm_usd_mm": 2519.926,
+  "ebitda_margin": 0.1068646460253198,
+  "gross_margin": 0.4198555830607724,
+  "revenue_cagr_3yr": -0.03126063169240856,
+  "net_debt_ebitda": 4.877418851725457,
+  "capex_revenue": 0.020808150715536884,
+  "ev_ebitda": 20.889546921360164,
+  "ev_revenue": 2.2323540373804627,
+  "gics_sector": "Industrials",
+  "business_description": "Item 1. Business\n\nOverview\n\nGriffon Corporation (the \u201cCompany,\u201d \u201cGriffon,\u201d \"we,\" or \"us\") is a diversified management and holding company that conducts business through wholly-owned subsidiaries. The Company, founded in 1959, is a Delaware corporation headquartered in New York, N.Y. and is listed on the New York Stock Exchange (NYSE:GFF).\n\nBusiness Strategy\n\nOur strategic objective is to maintain leading positions in the markets we serve by providing innovative, branded products with superior quality and industry-leading service. We place emphasis on our iconic and well-respected brands, which helps to differentiate us and our offerings from our competitors and strengthens our relationship with our customers and those who ultimately use our products.\n\nThrough operating a diverse portfolio of businesses, we expect to reduce variability caused by external factors such as market cyclicality, seasonality, and weather. We achieve diversity by providing various product offerings and brands through multiple sales and distribution channels and conducting business across multiple countries which we consider our home markets. \n\nGriffon oversees the operations of its subsidiaries, allocates resources among them and manages their capital structures. Griffon provides direction and assistance to its subsidiaries with acquisition and growth opportunities as well as divestitures. As long-term investors, we intend to continue to grow and strengthen our existing businesses, and to diversify fu",
+  "description_source": "edgar",
+  "fetch_timestamp": "2026-06-16T22:24:30.573127+00:00"
+}

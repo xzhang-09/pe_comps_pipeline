@@ -1,0 +1,17 @@
+{
+  "ticker": "WDC",
+  "company_name": "WESTERN DIGITAL CORP",
+  "market_cap_usd_mm": null,
+  "revenue_ttm_usd_mm": 9520.0,
+  "ebitda_margin": 0.2925420168067227,
+  "gross_margin": 0.3878151260504202,
+  "revenue_cagr_3yr": 0.23368651369330662,
+  "net_debt_ebitda": 0.9324955116696589,
+  "capex_revenue": 0.04327731092436975,
+  "ev_ebitda": null,
+  "ev_revenue": null,
+  "gics_sector": null,
+  "business_description": "Item 1.\u00a0\u00a0\u00a0\u00a0Business \n\nGeneral\n\nWestern Digital was founded in 1970 and is a Standard & Poor\u2019s 500 (\u201cS&P 500\u201d) company headquartered in San Jose, California. We are a leading developer, manufacturer, and provider of data storage devices and solutions based on hard disk drive (\u201cHDD\u201d) technology. HDDs are critical components in the worldwide data infrastructure market, powering the digital economy. HDDs provide reliable, cost-effective, high-capacity storage needs for a wide range of applications, ranging from cloud data centers, enterprise storage systems, edge computing, and video surveillance to client and consumer devices.\n\nOn February 21, 2025 (the \u201cSeparation Date\u201d), we completed the separation of our HDD and Flash business units (the \u201cSeparation\u201d) to create two independent public companies, with Western Digital focusing on our existing HDD business and Sandisk Corporation (\u201cSandisk\u201d), formerly a wholly-owned subsidiary of the Company, holding the Flash business. We believe the Separation better positions each business unit to execute innovative technology and product development, capitalize on unique growth opportunities, extend respective leadership positions, operate more efficiently with distinct capital structures, and pursue capital allocation strategies that maximize long-term shareholder value.\n\nAs global data creation continues to accelerate, particularly in the age of AI, and as the need to store and retain data also grows, we believe HDDs will continue to remain",
+  "description_source": "edgar",
+  "fetch_timestamp": "2026-06-16T22:33:40.687803+00:00"
+}

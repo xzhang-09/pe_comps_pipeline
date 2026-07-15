@@ -1,0 +1,17 @@
+{
+  "ticker": "VRTX",
+  "company_name": "VERTEX PHARMACEUTICALS INC / MA",
+  "market_cap_usd_mm": null,
+  "revenue_ttm_usd_mm": 12001.3,
+  "ebitda_margin": 0.3652187679668036,
+  "gross_margin": 0.8624065726212994,
+  "revenue_cagr_3yr": 0.10274010881001527,
+  "net_debt_ebitda": -1.1600921722068855,
+  "capex_revenue": 0.0364627165390416,
+  "ev_ebitda": null,
+  "ev_revenue": null,
+  "gics_sector": null,
+  "business_description": "ITEM 1.BUSINESS\n\nOVERVIEW\n\nWe are a global biotechnology company that invests in scientific innovation to create transformative medicines for \n\npeople with serious diseases, with a focus on specialty markets. We have approved medicines for cystic fibrosis (\u201cCF\u201d), \n\nsickle cell disease (\u201cSCD\u201d), transfusion dependent beta thalassemia (\u201cTDT\u201d), and acute pain, and we continue to serially \n\ninnovate and advance next-generation clinical and research programs in these areas. Our mid- and late-stage clinical pipeline \n\nincludes programs across a range of modalities in additional serious diseases, including IgA nephropathy, APOL1-mediated \n\nkidney disease, neuropathic pain, type 1 diabetes, primary membranous nephropathy, autosomal dominant polycystic kidney \n\ndisease, and myotonic dystrophy type 1.\n\nThe following chart sets forth our approved products, clinical-stage programs, and select pre-clinical programs:\n\nWe are advancing five pivotal programs across multiple disease areas: \n\n\u2022IgA Nephropathy. We are developing povetacicept, a dual inhibitor of the B cell activating factor (\u201cBAFF\u201d) and a \n\nproliferation-inducing ligand (\u201cAPRIL\u201d) pathways, as a potentially best-in-class approach to treat IgA nephropathy \n\n(\u201cIgAN\u201d), a serious, progressive, life-threatening kidney disease that often progresses to end-stage renal disease. We \n\ncompleted enrollment in the IgAN Phase 3 clinical trial and submitted the first module of the rolling Biologics \n\nLicensing Application (\u201cBLA\u201d) for povetacic",
+  "description_source": "edgar",
+  "fetch_timestamp": "2026-06-16T22:32:38.561311+00:00"
+}

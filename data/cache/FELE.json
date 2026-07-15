@@ -1,0 +1,17 @@
+{
+  "ticker": "FELE",
+  "company_name": "FRANKLIN ELECTRIC CO INC",
+  "market_cap_usd_mm": 4574.186479,
+  "revenue_ttm_usd_mm": 2131.25,
+  "ebitda_margin": 0.15570815249266862,
+  "gross_margin": 0.35468621700879766,
+  "revenue_cagr_3yr": 0.015881811844953297,
+  "net_debt_ebitda": 0.20294829337085998,
+  "capex_revenue": 0.0212724926686217,
+  "ev_ebitda": 13.986721467035103,
+  "ev_revenue": 2.1778465590615834,
+  "gics_sector": "Industrials",
+  "business_description": "ITEM 1. BUSINESS\n\nDescription of the Business\n\nFranklin Electric Co., Inc. (\u201cFranklin Electric\u201d or the \u201cCompany\u201d) is an Indiana corporation founded in 1944 and incorporated in 1946. Named after America\u2019s pioneer electrical engineer, Benjamin Franklin, Franklin Electric manufactured the first water-lubricated submersible motor for water systems and the first submersible motor for fueling systems. With 2025 revenue of approximately $2.1 billion, the Company designs, manufactures and distributes water and fuel pumping systems, composed primarily of submersible motors, pumps, electronic controls, water treatment systems, and related parts and equipment.\n\nThe Company\u2019s water pumping systems move fresh and wastewater for the residential, agricultural and other industrial end markets. The Company also sells various groundwater equipment products to well installation contractors, including water pumping systems, through its and third-party distribution branches located in the U.S. With a growing global footprint, the Company has also evolved into a top supplier of submersible fueling systems at gas stations, making pumps, pipes, electronic controls and monitoring devices.\n\nThe Company\u2019s products are sold worldwide by its employee sales force and independent manufacturing representatives. The Company offers normal and customary trade terms to its customers, no significant part of which is of an extended nature. Special inventory requirements are not necessary, and customer merchandise",
+  "description_source": "edgar",
+  "fetch_timestamp": "2026-06-16T22:22:44.008509+00:00"
+}

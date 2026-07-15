@@ -1,0 +1,17 @@
+{
+  "ticker": "GE",
+  "company_name": "GENERAL ELECTRIC CO",
+  "market_cap_usd_mm": 367497.946864,
+  "revenue_ttm_usd_mm": 42322.0,
+  "ebitda_margin": null,
+  "gross_margin": 0.3155332923774869,
+  "revenue_cagr_3yr": 0.15076461846422284,
+  "net_debt_ebitda": null,
+  "capex_revenue": 0.030078918765653797,
+  "ev_ebitda": null,
+  "ev_revenue": null,
+  "gics_sector": "Industrials",
+  "business_description": "<div style=\"min-height:36pt;width:100%\"><div><span><br/></span></div></div><div><span style=\"color:#000000;font-family:'Arial',sans-serif;font-size:11pt;font-weight:700;line-height:118%\">ABOUT GE AEROSPACE.</span><span style=\"color:#000000;font-family:'Arial',sans-serif;font-size:9pt;font-weight:400;line-height:118%\"> General Electric Company operates as GE Aerospace (GE Aerospace or the Company). GE Aerospace is a global aerospace leader with the industry's largest and growing commercial propulsion fleet. The Company&#8217;s installed base of approximately 50,000 commercial and 30,000 military engines, including parked aircraft in addition to fleet in service, supports our aftermarket services business, which represents approximately 70% of revenue, reflecting the strength of customer demand across our business. Through FLIGHT DECK, the Company's proprietary lean operating model, GE Aerospace is prioritizing safety, quality, delivery and cost, to drive focused execution and bridge strategy to results. We are focused on delivering against our strategic priorities for today (ramping services and equipment), tomorrow (expanding capacity and capabilities) and the future (inventing the future of flight). Our global team is building on more than a century of innovation and learning, as we invent the future of flight, lift people up and bring them home safely.</span></div><div><span><br/></span></div><div><span style=\"color:#000000;font-family:'Arial',sans-serif;font-size:9pt;font-",
+  "description_source": "edgar",
+  "fetch_timestamp": "2026-06-16T22:21:44.112128+00:00"
+}

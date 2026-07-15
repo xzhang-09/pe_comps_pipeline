@@ -1,0 +1,17 @@
+{
+  "ticker": "BLDR",
+  "company_name": "Builders FirstSource, Inc.",
+  "market_cap_usd_mm": null,
+  "revenue_ttm_usd_mm": 15190.638,
+  "ebitda_margin": 0.09069454489008295,
+  "gross_margin": 0.30385669120678144,
+  "revenue_cagr_3yr": -0.05740775989392388,
+  "net_debt_ebitda": 3.0918119078934,
+  "capex_revenue": 0.023870096832009295,
+  "ev_ebitda": null,
+  "ev_revenue": null,
+  "gics_sector": null,
+  "business_description": "Item 1. Business \n\nCAUTIONARY STATEMENT \n\nStatements in this report and the schedules hereto that are not purely historical facts or that necessarily depend upon future events, including statements about expected market share gains, forecasted financial performance, industry and business outlook or other statements about anticipations, beliefs, expectations, hopes, intentions or strategies for the future, may be forward-looking statements within the meaning of Section 21E of the Securities Exchange Act of 1934, as amended (the \u201cExchange Act\u201d). Readers are cautioned not to place undue reliance on forward-looking statements. In addition, oral statements made by the Company\u2019s directors, officers and employees to the investor and analyst communities, media representatives and others, depending upon their nature, may also constitute forward-looking statements. All forward-looking statements are based upon currently available information and the Company\u2019s current assumptions, expectations and projections about future events. Forward-looking statements are by nature inherently uncertain, and actual results or events may differ materially from the results or events described in the forward-looking statements as a result of many factors. The Company undertakes no obligation to publicly update or revise any forward-looking statements, whether as a result of new information, future events or otherwise. Forward-looking statements involve risks and uncertainties, many of which are beyond ",
+  "description_source": "edgar",
+  "fetch_timestamp": "2026-06-16T22:26:43.206996+00:00"
+}

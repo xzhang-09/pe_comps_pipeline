@@ -1,0 +1,17 @@
+{
+  "ticker": "HEI",
+  "company_name": "HEICO CORP",
+  "market_cap_usd_mm": 46745.928875,
+  "revenue_ttm_usd_mm": 4485.044,
+  "ebitda_margin": 0.27091685165184554,
+  "gross_margin": 0.3983158247722876,
+  "revenue_cagr_3yr": 0.22925992579395404,
+  "net_debt_ebitda": 1.7842082046031764,
+  "capex_revenue": 0.016250899656725777,
+  "ev_ebitda": 40.25588060891765,
+  "ev_revenue": 10.905996435040548,
+  "gics_sector": "Industrials",
+  "business_description": "Index\n\nPART I\n\nItem 1.\u00a0\u00a0\u00a0\u00a0BUSINESS\n\nThe Company\n\n\u00a0\u00a0\u00a0\u00a0HEICO Corporation through its subsidiaries (collectively, \u201cHEICO,\u201d \u201cwe,\u201d \u201cus,\u201d \u201cour\u201d or the \u201cCompany\u201d) believes it is the world\u2019s largest manufacturer of Federal Aviation Administration (\u201cFAA\u201d)-approved jet engine and aircraft component replacement parts, other than the original equipment manufacturers (\u201cOEMs\u201d) and their subcontractors.  HEICO also believes it is a leading manufacturer of various types of electronic equipment for the aviation, defense, space, medical, telecommunications and electronics industries.\n\nThe Company was originally organized in 1957 as a holding company known as HEICO Corporation.  As part of a reorganization completed in 1993, the original holding company (formerly known as HEICO Corporation) was renamed as HEICO Aerospace Corporation and a new holding corporation known as HEICO Corporation was created.  The reorganization did not result in any change in the business of the Company, its consolidated assets or liabilities or the relative interests of its shareholders.\n\n\u00a0\u00a0\u00a0\u00a0Our business is comprised of two operating segments:\n\n\u00a0\u00a0\u00a0\u00a0The Flight Support Group.  Our Flight Support Group (\u201cFSG\u201d), consisting of HEICO Aerospace Holdings Corp. and HEICO Flight Support Corp. and their collective subsidiaries, accounted for 70%, 68% and 60% of our net sales in fiscal 2025, 2024 and 2023, respectively.  The FSG uses proprietary technology to design and manufacture jet engine and aircraft component replacement ",
+  "description_source": "edgar",
+  "fetch_timestamp": "2026-06-16T22:23:54.974274+00:00"
+}

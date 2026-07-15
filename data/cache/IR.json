@@ -1,0 +1,17 @@
+{
+  "ticker": "IR",
+  "company_name": "Ingersoll Rand Inc.",
+  "market_cap_usd_mm": 30727.78124,
+  "revenue_ttm_usd_mm": 7650.9,
+  "ebitda_margin": 0.16506554784404448,
+  "gross_margin": 0.4360663451358664,
+  "revenue_cagr_3yr": 0.054836552738718236,
+  "net_debt_ebitda": 2.799825797767044,
+  "capex_revenue": 0.017723405089597303,
+  "ev_ebitda": 27.130953551350068,
+  "ev_revenue": 4.478385711484924,
+  "gics_sector": "Industrials",
+  "business_description": "ITEM 1. BUSINESS\n\nIngersoll Rand Inc. is a diversified, global provider of mission-critical flow creation products, and industrial and life science solutions. The accompanying consolidated financial statements include the accounts of Ingersoll Rand Inc. and its majority-owned subsidiaries (collectively referred to herein as \u201cIngersoll Rand,\u201d \u201cCompany,\u201d \u201cwe,\u201d \u201cus,\u201d \u201cour,\u201d or \u201courselves\u201d).\n\nOur Company\n\nWe are a global market leader with a broad flow creation and industrial product portfolio across air, gas, powder, and liquid handling applications, providing services and solutions to increase industrial and life science productivity, efficiency, and sustainability. We manufacture one of the broadest and most complete ranges of compressor, pump, vacuum and blower products in our markets, which, when combined with our global geographic footprint and application expertise, allows us to provide differentiated product and service offerings to our customers. Our products are sold under more than 90 market-leading brands, including Ingersoll Rand and Gardner Denver, which we believe are globally recognized in their respective end-markets and known for product quality, reliability, efficiency and superior customer service. We are driven by an entrepreneurial spirit and ownership mindset, dedicated to helping make life better for our employees, customers, the planet, and our shareholders.\n\nThese attributes, along with over 165 years of engineering heritage, generate strong brand loyalt",
+  "description_source": "edgar",
+  "fetch_timestamp": "2026-06-16T22:22:54.002027+00:00"
+}

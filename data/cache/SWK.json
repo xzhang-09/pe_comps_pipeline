@@ -1,0 +1,17 @@
+{
+  "ticker": "SWK",
+  "company_name": "STANLEY BLACK & DECKER, INC.",
+  "market_cap_usd_mm": 13154.649826,
+  "revenue_ttm_usd_mm": 15130.4,
+  "ebitda_margin": null,
+  "gross_margin": 0.30325040977105694,
+  "revenue_cagr_3yr": -0.020833449899296252,
+  "net_debt_ebitda": null,
+  "capex_revenue": 0.018723893618146248,
+  "ev_ebitda": null,
+  "ev_revenue": null,
+  "gics_sector": "Industrials",
+  "business_description": "ITEM\u00a01.\u00a0BUSINESS\n\nStanley Black & Decker, Inc. (\"the Company\") was founded in 1843 by Frederick T. Stanley and incorporated in Connecticut in 1852. In March 2010, the Company completed a merger with The Black & Decker Corporation (\u201cBlack & Decker\u201d), a company founded by S. Duncan Black and Alonzo G. Decker and incorporated in Maryland in 1910. At that time, the Company changed its name from The Stanley Works to Stanley Black & Decker, Inc. The Company\u2019s principal executive office is located at 1000 Stanley Drive, New Britain, Connecticut 06053 and its telephone number is (860)\u00a0225-5111.\n\nThe Company is a global provider of hand tools, power tools, outdoor products and related accessories, as well as a leading provider of engineered fastening solutions, with 2025 consolidated annual revenues of $15.1 billion. Approximately 62% of the Company\u2019s 2025 revenues were generated in the United States, with the remainder largely from Europe (16%), emerging markets (13%) and Canada (4%).   \n\nIn recent years, the Company has re-shaped its portfolio through a series of divestitures. In July 2022, the Company sold its Convergent Security Solutions (\"CSS\") business comprised of the commercial electronic security and healthcare businesses for net proceeds of $3.1 billion and its Mechanical Access Solutions (\"MAS\") business comprised of the automatic doors business for net proceeds of $916 million. In August 2022, the Company sold its Oil & Gas business comprised of the pipeline services and ",
+  "description_source": "edgar",
+  "fetch_timestamp": "2026-06-16T22:22:23.841330+00:00"
+}

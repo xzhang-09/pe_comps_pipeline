@@ -1,0 +1,17 @@
+{
+  "ticker": "SPXC",
+  "company_name": "SPX Technologies, Inc.",
+  "market_cap_usd_mm": null,
+  "revenue_ttm_usd_mm": 2265.1,
+  "ebitda_margin": 0.20882080261357114,
+  "gross_margin": 0.4051476755993113,
+  "revenue_cagr_3yr": 0.14056321504222913,
+  "net_debt_ebitda": 0.2909090909090909,
+  "capex_revenue": 0.04066045649198711,
+  "ev_ebitda": null,
+  "ev_revenue": null,
+  "gics_sector": null,
+  "business_description": "ITEM 1. Business\n\n(All currency and share, except per share, amounts are in millions)\n\nForward-Looking Information\n\nSome of the statements in this document and any documents incorporated by reference, including any statements as to operational and financial projections, constitute \u201cforward-looking statements\u201d within the meaning of Section\u00a021E of the Securities Exchange Act of 1934, as amended (the \u201cExchange Act\u201d) and Section 27A of the Securities Act of 1933, as amended. These statements relate to future events or our future financial performance and involve known and unknown risks, uncertainties and other factors that may cause our businesses\u2019 or our industries\u2019 actual results, levels of activity, performance or achievements to be materially different from those expressed or implied by any forward-looking statements. Such statements may address our plans, our strategies, our prospects, changes and trends in our business and the markets in which we operate under the heading \u201cManagement\u2019s Discussion and Analysis of Financial Condition and Results of Operations\u201d (\u201cMD&A\u201d) or in other sections of this document. In some cases, you can identify forward-looking statements by terminology such as \u201cmay,\u201d \u201ccould,\u201d \u201cwould,\u201d \u201cshould,\u201d \u201cexpect,\u201d \u201cplan,\u201d \u201canticipate,\u201d \u201cintend,\u201d \u201cbelieve,\u201d \u201cestimate,\u201d \u201cpredict,\u201d \u201cproject,\u201d \u201cpotential\u201d or \u201ccontinue\u201d or the negative of those terms or other comparable terminology. Particular risks and uncertainties that could cause actual results to differ from",
+  "description_source": "edgar",
+  "fetch_timestamp": "2026-06-16T22:29:15.718795+00:00"
+}

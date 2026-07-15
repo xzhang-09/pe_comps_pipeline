@@ -1,0 +1,17 @@
+{
+  "ticker": "EMR",
+  "company_name": "EMERSON ELECTRIC CO",
+  "market_cap_usd_mm": 83354.082,
+  "revenue_ttm_usd_mm": 18016.0,
+  "ebitda_margin": null,
+  "gross_margin": 0.528363676731794,
+  "revenue_cagr_3yr": 0.0899535224833008,
+  "net_debt_ebitda": null,
+  "capex_revenue": 0.023923179396092363,
+  "ev_ebitda": null,
+  "ev_revenue": null,
+  "gics_sector": "Industrials",
+  "business_description": "PART I\n\nITEM 1 -\u00a0BUSINESS\n\nEmerson Electric Co. (\"Emerson\", \"we\", \"us\", \"our\" or the \"Company\u201d) is a global technology and software company that provides innovative solutions for customers in a wide range of end markets around the world. Through its leading automation portfolio, Emerson helps process, hybrid and discrete manufacturers optimize operations, protect personnel, reduce emissions and achieve their sustainability goals. Sales by geographic destination in 2025 were: the Americas, 51 percent; Asia, Middle East & Africa, 30 percent (China, 10 percent); and Europe, 19 percent. \n\nPortfolio management is an integral component of Emerson's growth and value creation strategy. Over the past three years, the Company has taken significant actions to accelerate the transformation of its portfolio through the completion of strategic acquisitions and divestitures of non-core businesses. These actions were undertaken to create a cohesive, higher growth, higher margin industrial technology portfolio, and the Company is now a global automation leader serving a diversified set of end markets. The Company\u2019s recent portfolio actions include the following transactions (note that all dollars in Item 1 are in millions, except where noted):\n\n\u2022On March 12, 2025, Emerson completed its purchase of the remaining outstanding shares of common stock of AspenTech not already owned by the Company for approximately $7.2 billion. As a result of the transaction, AspenTech is now a wholly owned subsidi",
+  "description_source": "edgar",
+  "fetch_timestamp": "2026-06-16T22:21:49.122826+00:00"
+}

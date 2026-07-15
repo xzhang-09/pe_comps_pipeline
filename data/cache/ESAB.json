@@ -1,0 +1,17 @@
+{
+  "ticker": "ESAB",
+  "company_name": "ESAB Corp",
+  "market_cap_usd_mm": 6240.37548,
+  "revenue_ttm_usd_mm": 2842.555,
+  "ebitda_margin": 0.1745876508985754,
+  "gross_margin": 0.3688027144593508,
+  "revenue_cagr_3yr": 0.012141555592043662,
+  "net_debt_ebitda": 2.1139267543196816,
+  "capex_revenue": 0.016635386122695956,
+  "ev_ebitda": 14.688357221298677,
+  "ev_revenue": 2.5644057828256623,
+  "gics_sector": "Industrials",
+  "business_description": "Item 1. Business\n\nGeneral\n\nFounded in 1904, ESAB Corporation (\u201cESAB,\u201d \u201cwe\u201d or the \u201cCompany\u201d), is a focused premier industrial compounder. ESAB provides its partners with fabrication technology advanced equipment, consumables, gas control equipment, robotics and digital solutions. The Company\u2019s rich history of innovative products and workflow solutions and our business management system, ESAB Business Excellence (\u201cEBXai\u201d), enables the Company\u2019s purpose of Shaping the world we imagineTM. We formulate, develop, manufacture and supply consumable products and equipment, including cutting, joining and welding robotics, as well as gas control equipment. Our products are marketed under several brand names, most notably ESAB, providing a wide range of products with innovative technologies to solve challenges in virtually any industry. Our sales channels include both independent distributors and direct salespeople that, depending on geography and end market, sell our products to our end users. ESAB is based in North Bethesda, Maryland and employs approximately 10,300 associates and serves customers in approximately 150 countries.\n\nWe believe our Company, which competes in a market expected to be approximately $45\u00a0billion by the end of 2028, is one of the prominent industry players with a substantial position in every major market in the world, combining global scale with regional agility to maximize growth and profits. We define our addressable market as established fabrication technol",
+  "description_source": "edgar",
+  "fetch_timestamp": "2026-06-16T22:23:59.076126+00:00"
+}

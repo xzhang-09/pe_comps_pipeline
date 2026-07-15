@@ -1,0 +1,17 @@
+{
+  "ticker": "OSIS",
+  "company_name": "OSI SYSTEMS INC",
+  "market_cap_usd_mm": null,
+  "revenue_ttm_usd_mm": 1713.166,
+  "ebitda_margin": 0.15241021593937773,
+  "gross_margin": 0.34274670405553226,
+  "revenue_cagr_3yr": 0.15760863111654944,
+  "net_debt_ebitda": 2.0805081500091918,
+  "capex_revenue": 0.013911086257840747,
+  "ev_ebitda": null,
+  "ev_revenue": null,
+  "gics_sector": null,
+  "business_description": "ITEM\u00a01. BUSINESS\n\nGeneral\n\nOSI Systems,\u00a0Inc., together with our subsidiaries, is a vertically integrated designer and manufacturer of specialized electronic systems and components for critical applications. We sell our products and provide related services in diversified markets, including homeland security, healthcare, defense and aerospace. Our company is incorporated in the State of Delaware and our principal office is located at 12525 Chadron Avenue, Hawthorne, California 90250.\n\nWe have three operating divisions: (a) Security, providing security and inspection systems and turnkey security screening solutions; (b) Optoelectronics and Manufacturing, providing specialized electronic components for our Security and Healthcare divisions, as well as to third parties for applications in the defense and aerospace markets, among others; and (c) Healthcare, providing patient monitoring, cardiology and remote monitoring, and connected care systems and associated accessories.\n\nWe sell our security and inspection solutions and healthcare products primarily to end\u2011users, while we design and manufacture our optoelectronic devices and value\u2011added subsystems and provide electronics manufacturing services primarily for original equipment manufacturer (OEM) customers.\n\nSecurity Division. A variety of technologies are currently used globally in non-intrusive security and inspection systems, including transmission and backscatter X-ray interrogation, 3-D computed tomography, radiation monito",
+  "description_source": "edgar",
+  "fetch_timestamp": "2026-06-16T22:32:00.060877+00:00"
+}

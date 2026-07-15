@@ -1,0 +1,17 @@
+{
+  "ticker": "NTAP",
+  "company_name": "NetApp, Inc.",
+  "market_cap_usd_mm": null,
+  "revenue_ttm_usd_mm": 6925.0,
+  "ebitda_margin": 0.27061371841155235,
+  "gross_margin": 0.7074368231046931,
+  "revenue_cagr_3yr": 0.05110328883675663,
+  "net_debt_ebitda": 0.2225186766275347,
+  "capex_revenue": 0.02859205776173285,
+  "ev_ebitda": null,
+  "ev_revenue": null,
+  "gics_sector": null,
+  "business_description": "Item 1.  Business\n\nOverview\n\nNetApp, Inc. (NetApp, we, us, or the Company), headquartered in San Jose, California, is a global leader in Intelligent Data Infrastructure. Since our founding in 1992, we have transformed from a pioneering storage hardware provider into a software-driven, cloud-centric data infrastructure company. Our flagship ONTAP\u00ae data management software, together with a comprehensive portfolio of all-flash, hybrid-flash, and cloud-native solutions, forms the backbone of digital transformation for thousands of enterprises worldwide. NetApp empowers organizations to manage, protect, and leverage data across on-premises, hybrid, and multi-cloud environments. We are well positioned to enable Intelligent Data Infrastructure for our customers and help them realize the full promise of artificial intelligence (AI) providing solutions that connect, protect, and activate data across every data environment\u2014on-premises, in the cloud, and at the edge.\n\nMarket Position & Strategic Focus\n\nNetApp operates at the intersection of major industry megatrends\u2014rapid data growth, multi-cloud adoption, and the rise of AI\u2014which are creating unprecedented challenges and opportunities for organizations as they seek to securely manage and leverage growing data estates. Well positioned to address these complexities, NetApp empowers Intelligent Data Infrastructure for our customers through our solutions, which seamlessly connect, manage and protect data across any environment. Our first-p",
+  "description_source": "edgar",
+  "fetch_timestamp": "2026-06-16T22:33:31.365395+00:00"
+}

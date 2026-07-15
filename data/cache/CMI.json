@@ -1,0 +1,17 @@
+{
+  "ticker": "CMI",
+  "company_name": "CUMMINS INC",
+  "market_cap_usd_mm": 96588.207228,
+  "revenue_ttm_usd_mm": 33670.0,
+  "ebitda_margin": 0.15236115236115236,
+  "gross_margin": 0.25292545292545293,
+  "revenue_cagr_3yr": -0.0058146446617119985,
+  "net_debt_ebitda": 0.6998050682261209,
+  "capex_revenue": 0.03667953667953668,
+  "ev_ebitda": 19.527915638986354,
+  "ev_revenue": 2.97529572996733,
+  "gics_sector": "Industrials",
+  "business_description": "ITEM 1.\u00a0\u00a0\u00a0\u00a0Business\n\nOVERVIEW \n\nWe were founded in 1919 as Cummins Engine Company, a corporation in Columbus, Indiana, and one of the first diesel engine manufacturers. In 2001, we changed our name to Cummins Inc. We are a global power leader committed to powering a more prosperous world. Since 1919, we have delivered innovative solutions that move people, goods and economies forward. Our five reportable segments - Engine, Components, Distribution, Power Systems and Accelera - offer a broad portfolio, including advanced diesel, electric and hybrid powertrains; integrated power generation systems; critical components such as aftertreatment, turbochargers, fuel systems, controls, transmissions, axles and brakes; and zero emissions technologies like battery and electric powertrain systems. With a global footprint, deep technical expertise and an extensive service network, we deliver dependable, cutting-edge solutions tailored to our customers' needs, supporting them through the energy transition with our Destination Zero strategy. We sell our products to original equipment manufacturers (OEMs), distributors, dealers and other customers worldwide. We serve our customers through a service network of approximately 640 wholly-owned, joint venture and independent distributor locations and more than 13,000 Cummins certified dealer locations in approximately 190 countries and territories. \n\nDivestiture of Atmus\n\nOn March 18, 2024, we completed the divestiture of our remaining 80.5 perc",
+  "description_source": "edgar",
+  "fetch_timestamp": "2026-06-16T22:25:42.352629+00:00"
+}

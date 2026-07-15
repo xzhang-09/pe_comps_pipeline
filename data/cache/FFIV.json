@@ -1,0 +1,17 @@
+{
+  "ticker": "FFIV",
+  "company_name": "F5, INC.",
+  "market_cap_usd_mm": null,
+  "revenue_ttm_usd_mm": 3088.072,
+  "ebitda_margin": 0.2779559543948457,
+  "gross_margin": 0.8141306290785966,
+  "revenue_cagr_3yr": 0.047721358256872515,
+  "net_debt_ebitda": -1.5661165401445567,
+  "capex_revenue": 0.01400874072884311,
+  "ev_ebitda": null,
+  "ev_revenue": null,
+  "gics_sector": null,
+  "business_description": "Item 1.Business\n\nGeneral\n\nF5 is a multicloud application delivery and security provider committed to bringing a better digital world to life. F5 partners with the world\u2019s largest, most advanced organizations to optimize and secure every application and Application Programming Interface (\"API\") anywhere, including on-premises, in the cloud, and at the network edge. F5 enables businesses to continuously stay ahead of threats while delivering exceptional, secure digital experiences for their customers.\n\nOur application delivery and security solutions are available in a range of deployment and consumption models. We sell packaged software in perpetual, subscription, and usage-based consumption models. We also sell our solutions in software-as-a-service (\"SaaS\") and managed services deployment models with subscription and usage-based consumption models. In addition, we sell high-performance systems, or hardware, as well as a broad range of global services including maintenance, consulting, training and other technical support services.\n\nOur customers include large enterprise businesses, public sector institutions, governments, and service providers. We conduct our business globally and manage our business by geography. Our business is organized into three primary geographic regions: Americas; Europe, the Middle East, and Africa (\"EMEA\"); and the Asia Pacific region (\"APAC\"). \n\nF5 was incorporated in 1996 and is headquartered in Seattle, Washington. Our website is www.f5.com and th",
+  "description_source": "edgar",
+  "fetch_timestamp": "2026-06-16T22:35:09.447713+00:00"
+}

@@ -1,0 +1,17 @@
+{
+  "ticker": "GGG",
+  "company_name": "GRACO INC",
+  "market_cap_usd_mm": null,
+  "revenue_ttm_usd_mm": 2236.604,
+  "ebitda_margin": 0.32738473149471253,
+  "gross_margin": 0.5245376472544984,
+  "revenue_cagr_3yr": 0.009293192842402487,
+  "net_debt_ebitda": -0.8185774961419227,
+  "capex_revenue": 0.02041890294392749,
+  "ev_ebitda": null,
+  "ev_revenue": null,
+  "gics_sector": null,
+  "business_description": "Item 1. Business\n\nGraco Inc., together with its subsidiaries (\u201cGraco,\u201d \u201cus,\u201d \u201cwe,\u201d or \u201cour Company\u201d), is a multi-national manufacturing company. We supply technology and expertise for the management of fluids and coatings in industrial and commercial applications. We design, manufacture and market systems and equipment used to move, measure, mix, control, dispense and spray fluid and powder materials. Our equipment is used in manufacturing, processing, construction and maintenance industries. Graco is a Minnesota corporation and was incorporated in 1926.\n\nWe specialize in providing equipment solutions for difficult-to-handle materials with high viscosities, abrasive or corrosive properties, and multiple component materials that require precise ratio control. We aim to serve niche markets, providing high customer value through product differentiation. Our products enable customers to reduce their use of labor, material and energy, improve quality and environmental performance.\n\nWe make significant investments in developing innovative, high-quality products. We strive to grow into new geographic markets by strategically adding commercial and technical resources and third-party distribution in growing and emerging markets. We have grown our third-party distribution to have specialized experience in particular end-user applications. We leverage our product technologies for new applications and industries.\n\nWe also make targeted acquisitions to broaden our product offerings, enhan",
+  "description_source": "edgar",
+  "fetch_timestamp": "2026-06-16T22:29:09.977296+00:00"
+}

@@ -1,0 +1,17 @@
+{
+  "ticker": "WCC",
+  "company_name": "WESCO INTERNATIONAL INC",
+  "market_cap_usd_mm": null,
+  "revenue_ttm_usd_mm": 23510.9,
+  "ebitda_margin": 0.06084837245703057,
+  "gross_margin": 0.21147637904121067,
+  "revenue_cagr_3yr": 0.024835445367180187,
+  "net_debt_ebitda": 4.041241437159234,
+  "capex_revenue": 0.004244839627576996,
+  "ev_ebitda": null,
+  "ev_revenue": null,
+  "gics_sector": null,
+  "business_description": "Item\u00a01. Business.\n\nIn this Annual Report on Form 10-K, \u201cWesco\u201d refers to WESCO International, Inc., and its subsidiaries and its predecessors unless the context otherwise requires. References to \u201cwe,\u201d \u201cus,\u201d \u201cour\u201d and the \u201cCompany\u201d refer to Wesco and its subsidiaries.\n\nThe Company\n\nWESCO International, Inc. (\u201cWesco International\u201d) and its subsidiaries (collectively, \u201cWesco\u201d or the \u201cCompany\u201d), headquartered in Pittsburgh, Pennsylvania, is a leading provider of business-to-business distribution, logistics services and supply chain solutions.\n\nWe employ approximately 21,000 people, maintain relationships with more than 35,000 suppliers, and serve nearly 130,000 customers worldwide. With millions of products, end-to-end supply chain services and significant digital capabilities, Wesco provides innovative solutions to meet customer needs across commercial and industrial businesses, technology companies, telecommunications providers, and utilities. Our innovative solutions include supply chain management, logistics and transportation, procurement, warehousing and inventory management, as well as kitting and labeling, limited assembly of products and installation enhancement. Wesco operates more than 700 sites, including distribution centers, fulfillment centers and sales offices in approximately 50 countries, providing a local presence for customers and a global network to serve multi-location businesses and global corporations.\n\nBusiness Segments and Industry Overview\n\nWesco has op",
+  "description_source": "edgar",
+  "fetch_timestamp": "2026-06-16T22:28:33.302466+00:00"
+}
