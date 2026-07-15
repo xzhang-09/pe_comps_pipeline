@@ -1,6 +1,8 @@
+import json
 import time
+from pathlib import Path
 
-from src import fmp_client, get_logger
+from src import fmp_client, get_logger, sic_universe_builder
 
 logger = get_logger(__name__)
 
@@ -8,41 +10,28 @@ logger = get_logger(__name__)
 # market-cap filtering loop.
 MARKET_CAP_REQUEST_DELAY_SECONDS = 1
 
-MIN_MARKET_CAP_USD = 200_000_000
+# Lowered from $200M so SIC-discovered small caps near the target's own
+# scale aren't filtered out before they ever reach comp selection — a $200M
+# floor defeats the purpose of widening the universe toward smaller peers.
+MIN_MARKET_CAP_USD = 30_000_000
 
-# Real US-listed tickers per GICS sector. FMP's screener/stock-list endpoints
-# are premium-only on the free tier (402), so candidate discovery is purely
-# this hardcoded list rather than a dynamic sector lookup.
-FALLBACK_TICKERS_BY_SECTOR = {
-    # Industrials
-    "20": [
-        "MMM", "HON", "GE", "EMR", "ITW", "PH", "ROK", "AME", "IEX", "GNRC",
-        "SWK", "PNR", "RRX", "XYL", "FELE", "TT", "IR", "CARR", "OTIS", "LMT",
-        "RTX", "GD", "NOC", "LHX", "TDG", "HII", "MOG.A", "HEI", "ESAB", "ITT",
-        "WTS", "RXN", "ACCO", "KBAL", "GFF", "ASTE", "HI", "CSWI",
-        "NVT", "DXPE", "CAT", "DE", "PCAR", "CMI", "DOV", "AOS", "ALLE",
-        "JCI", "LII", "PWR", "FAST", "GWW", "WSO", "AIT", "MSM", "SITE",
-        "BLDR", "EXP", "VMC", "MLM", "NUE", "STLD", "X", "CLF", "RS", "ATI",
-        "CRS", "KMT", "FLS", "CR", "DCI", "GTLS", "CFX", "HEES", "TKR", "ROLL",
-        "B", "WCC", "AYI", "HUBB", "POWL", "THR", "MWA", "AWI", "JBT", "GGG",
-        "SPXC", "CIR", "CSL", "EME", "MTZ", "BMI", "NDSN", "AAON", "LECO",
-        "KAMN", "CW", "HXL", "TXT", "SPR", "WAB", "J", "URI", "FTV",
-    ],
-    # Healthcare Equipment
-    "35": [
-        "ABT", "MDT", "SYK", "BSX", "ZBH", "EW", "HOLX", "DXCM", "ISRG", "RMD",
-        "BAX", "BDX", "HAE", "ICUI", "AMED", "NVCR", "RGEN", "IART", "MMSI", "PEN",
-        "OSIS", "ATRC", "NTRA", "INSP", "SWAV", "AXNX", "TNDM", "NVST", "ALGN", "VRTX",
-        "GMED", "CNMD", "STE", "TFX", "XRAY",
-    ],
-    # Technology Hardware
-    "45": [
-        "AAPL", "DELL", "HPQ", "HPE", "NTAP", "STX", "WDC", "PSTG", "SMCI",
-        "CSCO", "ANET", "CIEN", "VIAV", "CLFD", "ATEN", "ARLO", "CALX", "DIGI", "LIQT",
-        "PCTI", "SIFY", "SMSI", "SPOK", "SYNA", "TTEC", "UTSI", "VNET",
-        "GLW", "TEL", "APH", "KEYS", "FFIV", "MSI",
-    ],
-}
+# Successful market-cap lookups are cached indefinitely (same philosophy as
+# fetcher.py's per-ticker cache) so a repeat run of build() doesn't re-spend
+# FMP quota re-checking ~170 tickers every single time.
+MARKET_CAP_CACHE_PATH = Path("data/cache/universe_market_cap.json")
+
+
+def _load_market_cap_cache() -> dict:
+    if not MARKET_CAP_CACHE_PATH.exists():
+        return {}
+    with open(MARKET_CAP_CACHE_PATH, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def _save_market_cap_cache(cache: dict) -> None:
+    MARKET_CAP_CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with open(MARKET_CAP_CACHE_PATH, "w", encoding="utf-8") as f:
+        json.dump(cache, f, indent=2)
 
 
 def _filter_by_market_cap(tickers: list[str]) -> list[str]:
@@ -51,19 +40,33 @@ def _filter_by_market_cap(tickers: list[str]) -> list[str]:
     it's below MIN_MARKET_CAP_USD. Lookup failures (rate limiting, missing
     data, etc.) are not treated as disqualifying — we'd rather keep a few
     small caps than lose large swaths of the universe to a flaky API.
+    Successful lookups (including a legitimately missing marketCap field)
+    are cached indefinitely; failures are not, so they get retried next run.
     """
-    filtered = []
-    for i, ticker in enumerate(tickers):
-        if i > 0:
-            time.sleep(MARKET_CAP_REQUEST_DELAY_SECONDS)
+    cache = _load_market_cap_cache()
+    cache_dirty = False
+    made_a_call = False
 
-        try:
-            profile = fmp_client.get_profile(ticker)
+    filtered = []
+    for ticker in tickers:
+        if ticker in cache:
+            market_cap = cache[ticker]
+            logger.info(f"{ticker} — market cap loaded from cache")
+        else:
+            if made_a_call:
+                time.sleep(MARKET_CAP_REQUEST_DELAY_SECONDS)
+            made_a_call = True
+
+            try:
+                profile = fmp_client.get_profile(ticker)
+            except Exception as e:
+                logger.warning(f"{ticker} — failed to fetch market cap: {e}. Keeping ticker.")
+                filtered.append(ticker)
+                continue
+
             market_cap = profile.get("marketCap") if profile else None
-        except Exception as e:
-            logger.warning(f"{ticker} — failed to fetch market cap: {e}. Keeping ticker.")
-            filtered.append(ticker)
-            continue
+            cache[ticker] = market_cap
+            cache_dirty = True
 
         if market_cap is None:
             logger.warning(f"{ticker} — market cap not available. Keeping ticker.")
@@ -73,44 +76,67 @@ def _filter_by_market_cap(tickers: list[str]) -> list[str]:
         else:
             filtered.append(ticker)
 
+    if cache_dirty:
+        _save_market_cap_cache(cache)
+
     return filtered
+
+
+def _dedup(tickers: list[str]) -> list[str]:
+    seen = set()
+    out = []
+    for ticker in tickers:
+        if ticker not in seen:
+            seen.add(ticker)
+            out.append(ticker)
+    return out
 
 
 def build(config: dict) -> list[str]:
     """
-    Return list of candidate ticker symbols across all configured industries.
-    Uses the hardcoded fallback list per industry (FMP has no free dynamic
-    sector-screener endpoint). Merges and deduplicates across industries,
-    filters out micro-caps below $200M market cap via FMP, and respects
-    config['universe']['max_candidates'].
+    Return a list of candidate ticker symbols sourced entirely from the
+    target company's own SIC codes — no hardcoded ticker list. The universe
+    should reflect what this specific target actually competes with, not a
+    fixed set of GICS sectors or a memory-curated company list (which has
+    no way to stay accurate as tickers change and can't cover small caps
+    the way an exhaustive SEC registry query can).
+
+    Candidates come from two buckets:
+    - primary: companies discovered via target_company['primary_sic_codes']
+      — expected to actually surface as comps
+    - adjacent: companies discovered via target_company['adjacent_sic_codes']
+      only — included purely to add training-data volume/diversity, not
+      because they're expected to surface as comps
+
+    Each bucket is market-cap filtered and capped according to
+    universe['primary_allocation_pct'] of universe['max_candidates'], so a
+    SIC code with a much larger company count can't crowd out the target's
+    actual industry.
     """
-    industries = config["universe"]["industries"]
+    target = config["target_company"]
+    primary_sics = target["primary_sic_codes"]
+    adjacent_sics = target.get("adjacent_sic_codes", [])
 
-    merged = []
-    seen = set()
+    primary_candidates = _dedup(sic_universe_builder.discover_tickers_by_sic(primary_sics))
+    logger.info(f"Primary bucket — {len(primary_candidates)} candidates (SIC {primary_sics})")
 
-    for industry in industries:
-        gics_sector = industry["gics_sector"]
-        label = industry.get("label", gics_sector)
-
-        candidates = list(FALLBACK_TICKERS_BY_SECTOR.get(gics_sector, []))
-
-        added = 0
-        for ticker in candidates:
-            if ticker not in seen:
-                seen.add(ticker)
-                merged.append(ticker)
-                added += 1
-
-        logger.info(
-            f"{label} ({gics_sector}) — {len(candidates)} candidates found, "
-            f"{added} new tickers added after de-dup"
-        )
-
-    logger.info(f"Merged universe before market cap filter: {len(merged)} tickers across {len(industries)} industries")
-
-    filtered = _filter_by_market_cap(merged)
-    logger.info(f"{len(filtered)} candidates remain after market cap filter")
+    primary_set = set(primary_candidates)
+    adjacent_candidates = [
+        t for t in _dedup(sic_universe_builder.discover_tickers_by_sic(adjacent_sics))
+        if t not in primary_set
+    ]
+    logger.info(f"Adjacent bucket — {len(adjacent_candidates)} candidates (SIC {adjacent_sics})")
 
     max_candidates = config["universe"]["max_candidates"]
-    return filtered[:max_candidates]
+    primary_allocation_pct = config["universe"]["primary_allocation_pct"]
+    primary_quota = round(max_candidates * primary_allocation_pct)
+    adjacent_quota = max_candidates - primary_quota
+
+    filtered_primary = _filter_by_market_cap(primary_candidates)[:primary_quota]
+    filtered_adjacent = _filter_by_market_cap(adjacent_candidates)[:adjacent_quota]
+    logger.info(
+        f"After market cap filter — primary: {len(filtered_primary)}/{primary_quota}, "
+        f"adjacent: {len(filtered_adjacent)}/{adjacent_quota}"
+    )
+
+    return filtered_primary + filtered_adjacent

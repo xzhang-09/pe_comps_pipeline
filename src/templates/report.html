@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Comparable Company Analysis — {{ target_name }}</title>
+<style>
+  body {
+    background: #ffffff;
+    color: #333333;
+    font-family: Arial, Helvetica, sans-serif;
+    margin: 40px auto;
+    max-width: 1100px;
+    line-height: 1.5;
+  }
+  h1 {
+    color: #1a3a5c;
+    border-bottom: 2px solid #1a3a5c;
+    padding-bottom: 8px;
+  }
+  h2 {
+    color: #1a3a5c;
+    margin-top: 36px;
+  }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 12px 0 24px 0;
+    font-size: 14px;
+  }
+  th, td {
+    text-align: left;
+    padding: 8px 10px;
+    border: 1px solid #dddddd;
+  }
+  th {
+    background: #1a3a5c;
+    color: #ffffff;
+  }
+  tr.row-odd { background: #f9f9f9; }
+  tr.row-even { background: #ffffff; }
+  tr.top-rank { background: #e8f4f8 !important; }
+  tr.low-confidence td { font-style: italic; color: #888888; }
+  td.median-row, tr.median-row td { font-weight: bold; }
+  .summary-box {
+    background: #f9f9f9;
+    border: 1px solid #dddddd;
+    border-radius: 4px;
+    padding: 16px 20px;
+    margin: 16px 0;
+  }
+  .disclaimer {
+    font-size: 12px;
+    color: #888888;
+    margin-top: 8px;
+  }
+  .footer {
+    font-size: 12px;
+    color: #888888;
+    margin-top: 40px;
+    border-top: 1px solid #dddddd;
+    padding-top: 12px;
+  }
+</style>
+</head>
+<body>
+
+<h1>Comparable Company Analysis</h1>
+
+<!-- Section 1: Target Company Summary -->
+<h2>1. Target Company Summary</h2>
+<div class="summary-box">
+  <p><strong>{{ target_name }}</strong></p>
+  <p>{{ target_description }}</p>
+  <p><strong>Predicted EV/EBITDA range:</strong>
+    {{ "%.1f"|format(target_prediction.range_low) }}x — {{ "%.1f"|format(target_prediction.range_high) }}x
+    (center: {{ "%.1f"|format(target_prediction.predicted_ev_ebitda) }}x)</p>
+  <p><strong>Comparable companies analyzed:</strong> {{ n_comps }}</p>
+  <p><strong>Pipeline run:</strong> {{ generated_at }}</p>
+</div>
+
+<!-- Section 2: Valuation Multiple Distribution -->
+<h2>2. Valuation Multiple Distribution</h2>
+<table>
+  <tr><th>Metric</th><th>25th pct</th><th>Median</th><th>75th pct</th><th>Mean</th></tr>
+  <tr class="row-odd">
+    <td>EV/EBITDA</td>
+    <td>{{ "%.1f"|format(valuation_multiples.ev_ebitda.p25) }}x</td>
+    <td class="median-row">{{ "%.1f"|format(valuation_multiples.ev_ebitda.median) }}x</td>
+    <td>{{ "%.1f"|format(valuation_multiples.ev_ebitda.p75) }}x</td>
+    <td>{{ "%.1f"|format(valuation_multiples.ev_ebitda.mean) }}x</td>
+  </tr>
+  <tr class="row-even">
+    <td>EV/Revenue</td>
+    <td>{{ "%.1f"|format(valuation_multiples.ev_revenue.p25) }}x</td>
+    <td class="median-row">{{ "%.1f"|format(valuation_multiples.ev_revenue.median) }}x</td>
+    <td>{{ "%.1f"|format(valuation_multiples.ev_revenue.p75) }}x</td>
+    <td>{{ "%.1f"|format(valuation_multiples.ev_revenue.mean) }}x</td>
+  </tr>
+</table>
+
+<!-- Section 3: Financial Benchmarks -->
+<h2>3. Financial Benchmarks</h2>
+<table>
+  <tr><th>Metric</th><th>Target Est.</th><th>P25</th><th>Median</th><th>P75</th><th>Target Percentile</th></tr>
+  {% for row in financial_benchmarks %}
+  <tr class="{{ 'row-odd' if loop.index is odd else 'row-even' }}">
+    <td>{{ row.metric }}</td>
+    {% if row.format == 'percent' %}
+    <td>{{ "%.1f"|format(row.target_est * 100) }}%</td>
+    <td>{{ "%.1f"|format(row.p25 * 100) }}%</td>
+    <td class="median-row">{{ "%.1f"|format(row.median * 100) }}%</td>
+    <td>{{ "%.1f"|format(row.p75 * 100) }}%</td>
+    {% else %}
+    <td>{{ "%.1f"|format(row.target_est) }}x</td>
+    <td>{{ "%.1f"|format(row.p25) }}x</td>
+    <td class="median-row">{{ "%.1f"|format(row.median) }}x</td>
+    <td>{{ "%.1f"|format(row.p75) }}x</td>
+    {% endif %}
+    <td>{{ "%.0f"|format(row.target_percentile) }}th{% if row.target_percentile is none %}N/A{% endif %}</td>
+  </tr>
+  {% endfor %}
+</table>
+
+<!-- Section 4: Top 15 Comparable Companies -->
+<h2>4. Top {{ n_comps }} Comparable Companies</h2>
+<table>
+  <tr>
+    <th>Rank</th><th>Ticker</th><th>Company</th><th>EV/EBITDA</th><th>EBITDA Margin</th>
+    <th>Revenue ($M)</th><th>Rev Growth</th><th>Business Model</th><th>Sub-sector</th><th>Judge Score</th>
+  </tr>
+  {% for c in top15 %}
+  <tr class="{{ 'top-rank' if c.rank == 1 else ('row-odd' if loop.index is odd else 'row-even') }}{{ ' low-confidence' if c.low_confidence_flag else '' }}">
+    <td>{{ c.rank }}</td>
+    <td>{{ c.ticker }}</td>
+    <td>{{ c.company_name }}</td>
+    <td>{{ "%.1f"|format(c.ev_ebitda_actual) if c.ev_ebitda_actual is not none else "N/A" }}x</td>
+    <td>{{ "%.1f"|format(c.ebitda_margin * 100) if c.ebitda_margin is not none else "N/A" }}%</td>
+    <td>{{ "%.0f"|format(c.revenue_ttm_usd_mm) if c.revenue_ttm_usd_mm is not none else "N/A" }}</td>
+    <td>{{ "%.1f"|format(c.revenue_cagr_3yr * 100) if c.revenue_cagr_3yr is not none else "N/A" }}%</td>
+    <td>{{ c.business_model or "N/A" }}</td>
+    <td>{{ c.sub_sector_description or "N/A" }}</td>
+    <td>{{ c.judge_score if c.judge_score is not none else "N/A" }}{{ " (low confidence)" if c.low_confidence_flag else "" }}</td>
+  </tr>
+  {% endfor %}
+</table>
+
+<!-- Section 5: Model Diagnostics -->
+<h2>5. Model Diagnostics</h2>
+<div class="summary-box">
+  <p><strong>Cross-validation error:</strong> ±{{ "%.1f"|format(model_diagnostics.cv_mae_median) }}x EV/EBITDA turns</p>
+  <p><strong>Training companies:</strong> {{ model_diagnostics.n_training_companies }}</p>
+  <p><strong>Top 5 features by SHAP importance:</strong></p>
+  <table>
+    <tr><th>Feature</th><th>Mean SHAP value</th></tr>
+    {% for f in model_diagnostics.top_features %}
+    <tr class="{{ 'row-odd' if loop.index is odd else 'row-even' }}">
+      <td>{{ f.label }}</td>
+      <td>{{ "%.3f"|format(f.mean_abs_shap) }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+
+<!-- Section 6: Data Notes -->
+<h2>6. Data Notes</h2>
+<div class="summary-box">
+  <p>{{ data_notes.low_confidence_count }} companies had low LLM confidence and were excluded.</p>
+  <p>{{ data_notes.failed_fetch_count }} tickers failed data fetch (see outputs/failed_tickers.csv).</p>
+  <p class="disclaimer">{{ data_notes.disclaimer }}</p>
+</div>
+
+<div class="footer">Generated by PE Comps Pipeline — {{ generated_at }}</div>
+
+</body>
+</html>
