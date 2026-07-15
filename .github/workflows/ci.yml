@@ -15,11 +15,18 @@ jobs:
         with:
           python-version: "3.11"
 
+      # Locked versions first (reproducible builds — see requirements.lock),
+      # then the package itself without re-resolving its loose ranges.
       - name: Install dependencies
-        run: pip install -e ".[dev]"
+        run: |
+          pip install -r requirements.lock
+          pip install -e . --no-deps
 
       - name: Lint
         run: ruff check .
+
+      - name: Type check
+        run: mypy
 
       - name: Run tests
         run: pytest tests/ -v --cov --cov-fail-under=70
