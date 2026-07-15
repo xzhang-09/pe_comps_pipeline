@@ -3,14 +3,12 @@
 ## Overview
 
 PE Comps Pipeline helps private equity analysts build a ranked set of public
-company comparables for benchmarking a private target company. Given the
-target's business description, financial profile, and relevant SIC codes, the
-pipeline discovers public peers, enriches them with financial and business-model
-features, and produces CSV/HTML comps reports with valuation multiples,
-benchmark distributions, and a ranked Top-N comp list selected by business-model
-fit and financial-feature similarity to the target.
+company comparables for benchmarking a private target company, producing
+CSV/HTML comps reports with valuation multiples, benchmark distributions, and
+a ranked Top-N comp list.
 
-At a high level, the pipeline:
+Given the target's business description, financial profile, and relevant SIC
+codes, the pipeline:
 
 - discovers candidate tickers dynamically from SEC EDGAR SIC-code filings;
 - separates directly relevant SIC codes from adjacent codes used to add
@@ -44,13 +42,7 @@ A full sample run (synthetic target, non-confidential) is committed under
 
 - Multi-source financial-data ingestion with caching, retries, and failure
   reporting.
-- LLM-assisted structured extraction with confidence scoring and checkpointed
-  batch processing.
-- Feature engineering across financial metrics and categorical business-model
-  attributes.
-- Comp selection via LLM-derived hard/soft business-attribute filters combined
-  with nearest-neighbor distance on standardized financial features (rationale
-  under [5] Scorer below).
+- Checkpointed, resumable LLM extraction batch processing.
 - A reproducible CLI workflow with pytest coverage, Ruff linting, targeted
   mypy checks on core typed modules, and GitHub Actions CI.
 
@@ -164,69 +156,62 @@ config.yaml
                                                    [6] Reporter
 ```
 
-1. **Universe Builder** (`src/universe_builder.py`) — discovers candidate
-   tickers by SIC code via SEC EDGAR (`src/sic_universe_builder.py`), split
-   into primary/adjacent buckets per `primary_allocation_pct`, then applies
-   seed ticker expansion and `must_include_tickers` / `exclude_tickers`
-   analyst overrides.
-2. **Fetcher** (`src/fetcher.py`) — financials + business description from
-   SEC EDGAR (via `edgartools`); market cap, sector, and a description
-   fallback from FMP's `/profile` endpoint — the only FMP endpoint this
-   pipeline calls, by design. EV/EBITDA and EV/Revenue are derived from that
-   market cap plus an EDGAR-sourced enterprise-value bridge (the bridge and
-   FMP-endpoint choice are detailed in
-   [`docs/data_layer.md`](docs/data_layer.md)). Caches every company to
-   `data/cache/{ticker}.json` (layered TTLs: quarterly for fundamentals,
-   daily for market data). After fetching, `pipeline.py` applies the
-   market-cap floor and the configured revenue/EBITDA-margin bands — no
-   additional FMP calls, and missing values never disqualify a company.
-3. **LLM Analyzer** (`src/llm_analyzer.py`) — OpenAI extracts business-model
-   fields per company, citing a verbatim `evidence_quote` from the source
-   description, then a second model pass judges extraction quality against a
-   behaviorally-anchored rubric (concrete pass/fail criteria and worked
-   examples per score band, not bare adjectives — the earlier version had
-   collapsed almost every score to 4-5 with no discriminative power). The
-   quote is checked programmatically (substring match, whitespace-normalized)
-   rather than trusted. Two distinct signals are kept separate:
-   `low_confidence_flag` (unverifiable evidence or a failing judge score)
-   hard-excludes a candidate from the eligible pool, since the extraction
-   itself may be wrong; `profile_incomplete` (one or more core fields came
-   back null — common for terser small-cap filings) keeps the candidate in
-   the pool with unknown fields exempted from mismatch penalties, only
-   blocking it from the Core tier. A targeted one-field-at-a-time follow-up
-   call (`FOLLOWUP_FIELDS`) re-asks just the missing fields, with an explicit
-   "unknown" option per field, before falling back to `profile_incomplete`.
-   Checkpoints to
-   `data/checkpoints/llm_checkpoint.json` for resumable runs; entries are
-   invalidated by content (description hash + extraction model), not just
-   ticker. `suggest_sic_codes()` is a separate, advisory-only entry point
-   whose suggestions are validated against `src/sec_sic_codes.csv`, a
-   vendored copy of SEC's official SIC list.
+1. **Universe Builder** (`src/universe_builder.py`) — discovers and assembles
+   the candidate ticker list.
+   - Discovers tickers by SIC code via SEC EDGAR (`src/sic_universe_builder.py`).
+   - Splits results into primary/adjacent buckets per `primary_allocation_pct`.
+   - Applies seed ticker expansion and `must_include_tickers` /
+     `exclude_tickers` analyst overrides.
+2. **Fetcher** (`src/fetcher.py`) — pulls and caches per-company data.
+   - Financials + business description from SEC EDGAR (via `edgartools`).
+   - Market cap, sector, and a description fallback from FMP's `/profile`
+     endpoint — the only FMP endpoint this pipeline calls, by design.
+   - Derives EV/EBITDA and EV/Revenue from that market cap plus an
+     EDGAR-sourced enterprise-value bridge (details in
+     [`docs/data_layer.md`](docs/data_layer.md)).
+   - Caches every company to `data/cache/{ticker}.json` (layered TTLs:
+     quarterly for fundamentals, daily for market data).
+   - After fetching, `pipeline.py` applies the market-cap floor and configured
+     revenue/EBITDA-margin bands with no additional FMP calls; missing values
+     never disqualify a company.
+3. **LLM Analyzer** (`src/llm_analyzer.py`) — extracts and quality-checks
+   business-model fields per company.
+   - OpenAI extracts each field with a verbatim `evidence_quote`, verified
+     programmatically (not trusted) against the source text.
+   - A second model pass judges extraction quality against a
+     behaviorally-anchored rubric.
+   - `low_confidence_flag` (unverifiable evidence or a failing judge score)
+     hard-excludes a candidate; `profile_incomplete` (a null core field)
+     only blocks the Core tier and exempts that field from mismatch
+     penalties, after a targeted one-field follow-up call.
+   - Checkpoints to `data/checkpoints/llm_checkpoint.json`, invalidated by
+     content hash rather than ticker alone.
+   - `suggest_sic_codes()` is a separate, advisory-only entry point validated
+     against `src/sec_sic_codes.csv`, a vendored copy of SEC's official SIC
+     list.
 4. **Feature Builder** (`src/feature_builder.py`) — builds the 6-column
    financial-feature matrix (revenue scale, margins, growth, leverage, capex
-   intensity) used
-   for distance scoring, with the target's `ev_ebitda` as a label column
-   (kept for reference; no regression is fit against it).
+   intensity) used for distance scoring, with the target's `ev_ebitda` kept
+   as a reference label column (no regression is fit against it).
 5. **Scorer** (`src/scorer.py`) — standardizes each company's financial
-   features and computes its (optionally weighted — see
-   `scorer.feature_weights`) Euclidean distance to the target's standardized
-   profile. This distance-to-target is what the report ranks comps by; it's
-   directly interpretable per company and doesn't depend on fitting a model
-   to a sub-100-row training pool.
+   features and computes its (optionally weighted via `scorer.feature_weights`)
+   Euclidean distance to the target's standardized profile. This
+   distance-to-target is what the report ranks comps by; it's directly
+   interpretable per company and doesn't depend on fitting a model to a
+   sub-100-row training pool.
 6. **Reporter** (`src/reporter.py`) — assembles and renders the CSV/HTML
-   report. Selection semantics (soft penalties, tiering, audit trail) live
-   in `src/report_selection.py`, valuation math (implied-EV ranges, size
-   screens, dispersion diagnostics) in `src/report_valuation.py`, and the
-   SVG charts in `src/report_charts.py`; `reporter.py` composes them into
-   the report context and writes the outputs. A finished Top-N's borderline
-   rows get one more check from `src/end_market_reviewer.py`: an LLM verdict
-   on end-market alignment corrects both directions — a would-be Core row
-   whose embedding-similarity score cleared the threshold on generic
-   language (e.g. two "highly engineered products" companies in unrelated
-   end markets) gets demoted, and a row blocked only by a marginal
-   similarity shortfall can get promoted. Tier moves stay within
-   core/secondary; the underlying score is untouched, and an API failure
-   changes nothing.
+   report.
+   - Selection semantics (soft penalties, tiering, audit trail) live in
+     `src/report_selection.py`.
+   - Valuation math (implied-EV ranges, size screens, dispersion
+     diagnostics) lives in `src/report_valuation.py`.
+   - SVG charts live in `src/report_charts.py`.
+   - A finished Top-N's borderline rows get one more check from
+     `src/end_market_reviewer.py`: an LLM verdict on end-market alignment
+     can demote or promote a row across the core/secondary boundary (e.g.
+     two generically-worded but unrelated "highly engineered products"
+     companies). The underlying score is untouched, and an API failure
+     changes nothing.
 
 `src/fmp_client.py` and `src/sic_universe_builder.py` aren't numbered above —
 they're thin data-source clients called *by* the numbered stage modules, not
@@ -250,19 +235,21 @@ industry clusters — for measuring comp-selection quality against real
 banker-selected comps, not synthetic checks. The harness shares the
 production ranking core (`src/report_selection.py`), so evaluation can't
 drift from what the report actually does, and regressions are caught by a
-baseline gate (`scripts/check_eval_regression.py`).
+baseline gate (`scripts/check_eval_regression.py`) that fails CI on any
+drop against the committed dev/holdout baseline.
 
-Current confirmed result (`single-sic` discovery, the config default): mean
-Precision@15 is **9.3%** on the full 16-deal benchmark — a modest number
-with real caveats (small candidate pools for most deals, single-advisor
-ground truth). Three additional discovery modes are implemented and showed
-meaningfully higher precision on an earlier, smaller benchmark revision, but
-have not yet been re-confirmed on the current one.
+Current confirmed result (`sic` discovery — labeled `single-sic` in the eval
+docs, the config default): mean Precision@15 is **9.3%** on the full 16-deal
+benchmark (dev/holdout splits agree closely, so this isn't overfit to the
+dev set). The number is low mainly because most of the benchmark's
+candidate pools are smaller than the K=15 cutoff, which caps precision
+structurally regardless of ranking quality — pool-widening discovery modes
+that address this are implemented but not yet re-confirmed on this
+benchmark version.
 
 **Full methodology, all measured results, caveats, and the improvement
 roadmap are in
-[`docs/known_limitations_and_roadmap.md`](docs/known_limitations_and_roadmap.md)
-— read that before drawing conclusions from the number above.**
+[`docs/known_limitations_and_roadmap.md`](docs/known_limitations_and_roadmap.md).**
 
 ```bash
 python -m scripts.evaluate_manual_deals      # run the benchmark, writes results.json
@@ -281,12 +268,17 @@ python -m scripts.data_quality
 ```
 
 `scripts/prefill_manual_deal.py` and `scripts/evaluate_manual_deals.py`
-support the evaluation workflow below:
+support the evaluation workflow above:
 
 ```bash
 python -m scripts.prefill_manual_deal <edgar-filing-url>
 python -m scripts.evaluate_manual_deals
 ```
+
+`scripts/merge_manual_deal_batches.py` combines `--deals`-split
+`evaluate_manual_deals` batch runs (needed when a full run doesn't fit in one
+FMP quota window) into a single `results.json` / `results.md`, indistinguishable
+from a one-shot full run.
 
 ## Data Layer and Costs
 
@@ -299,12 +291,14 @@ coverage-by-source table are in [`docs/data_layer.md`](docs/data_layer.md).
 
 ## Scope and Tradeoffs
 
-- **Discovery model**: SIC-code based with optional LLM-suggested-SIC and
-  embedding channels (`universe.discovery_mode`) — explainable and
-  reproducible, but hybrid manufacturing/services targets can need adjacent
-  SIC codes or seed tickers. Guardrails catch zero-yield and over-broad SIC
-  choices before the run burns API calls. The embedding channel is measured
-  but experimental — see
+- **Discovery model**: SIC-code based (`universe.discovery_mode: sic`, the
+  default) — explainable and reproducible, but hybrid manufacturing/services
+  targets can need adjacent SIC codes or seed tickers. Guardrails catch
+  zero-yield and over-broad SIC choices before the run burns API calls. An
+  embedding channel (`sic+embedding` / `suggest-sic+embedding`) and an
+  LLM-suggested-SIC mode are also implemented and measured — the latter
+  scored highest in evaluation but, like the embedding channel, is not yet
+  re-confirmed on the current benchmark; see
   [`docs/known_limitations_and_roadmap.md`](docs/known_limitations_and_roadmap.md).
 - **Data coverage**: US public companies with EDGAR 10-K filings — reproducible
   on public data, but non-US comps are excluded upstream by the domicile
