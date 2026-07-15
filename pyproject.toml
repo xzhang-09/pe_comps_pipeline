@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pe-comps-pipeline"
+version = "0.1.0"
+description = "PE comparable-company analysis pipeline: SEC EDGAR + FMP data, LLM business-model extraction, hard-filter + nearest-neighbor comp selection."
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.10,<3.14"
+dependencies = [
+    "edgartools>=4.0.0",
+    "openai>=1.30.0",
+    "python-dotenv>=1.0.0",
+    "pandas>=2.0.0",
+    "numpy>=1.26.0",
+    "scipy>=1.11.0",
+    "requests>=2.31.0",
+    "tenacity>=8.2.0",
+    "pyyaml>=6.0.1",
+    "jinja2>=3.1.0",
+    "pydantic>=2.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-mock>=3.12.0",
+    "ruff>=0.6.0",
+]
+
+[project.scripts]
+pe-comps = "src.pipeline:main"
+
+[tool.setuptools.packages.find]
+include = ["src*", "eval*", "scripts*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+# Calibrated to this codebase's existing style (longest line is 156 chars,
+# mostly multi-parameter function signatures) rather than an arbitrary
+# default that would force reformatting otherwise-fine, reviewed code.
+line-length = 160
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]

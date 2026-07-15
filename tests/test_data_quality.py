@@ -1,4 +1,4 @@
-import src.data_quality as data_quality
+import scripts.data_quality as data_quality
 
 
 def _company(ticker, **overrides):
@@ -64,3 +64,43 @@ def test_short_description_count():
     report = data_quality.generate_report(companies)
 
     assert "Short (<200 chars): 2 companies" in report
+
+
+def test_report_includes_candidate_eligibility_counts():
+    companies = [
+        _company("A", ev_ebitda=12.0, business_description="A" * 300),
+        _company("B", ev_ebitda=None, business_description="B" * 300),
+        _company("C", ev_ebitda=None, business_description=None),
+    ]
+
+    report = data_quality.generate_report(companies)
+
+    assert "Similarity candidates: 2" in report
+    assert "Model training rows: 1" in report
+
+
+def test_report_breaks_down_valuation_source_and_source_bucket():
+    companies = [
+        _company("A", valuation_source="sec_xbrl_derived", source_bucket="primary"),
+        _company("B", valuation_source="sec_xbrl_derived", source_bucket="adjacent"),
+        _company("C", valuation_source=None, source_bucket="primary"),
+    ]
+
+    report = data_quality.generate_report(companies)
+
+    assert "sec_xbrl_derived" in report
+    assert "primary" in report
+    assert "adjacent" in report
+
+
+def test_report_separates_comps_and_training_only_candidates():
+    companies = [
+        _company("A", source_bucket="primary"),
+        _company("B", source_bucket="adjacent"),
+        _company("C", source_bucket="training"),
+    ]
+
+    report = data_quality.generate_report(companies)
+
+    assert "Comps universe candidates: 2" in report
+    assert "Training-only candidates: 1" in report
