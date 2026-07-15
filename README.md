@@ -84,14 +84,12 @@ mypy
 pytest tests/ -v --cov --cov-fail-under=70
 ```
 
-To run the full pipeline, put API keys in a `.env` file in the project root
-(gitignored — never commit keys). `SEC_IDENTITY` is used as the SEC EDGAR
-User-Agent / contact identity:
+To run the full pipeline, copy [`.env.example`](.env.example) to `.env` in the
+project root and fill in your API keys (`.env` is gitignored — never commit
+keys). `SEC_IDENTITY` is used as the SEC EDGAR User-Agent / contact identity:
 
 ```bash
-OPENAI_API_KEY=...
-FMP_API_KEY=...
-SEC_IDENTITY="Your Name your.email@example.com"
+cp .env.example .env
 ```
 
 python-dotenv loads `.env` automatically; no manual `export` needed.
