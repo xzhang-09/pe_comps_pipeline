@@ -61,13 +61,21 @@ def _save_cache(ticker: str, record: dict) -> None:
         json.dump(record, f, indent=2)
 
 
-def _record_failed_ticker(ticker: str, error_type: str, error_message: str) -> None:
+def _reset_failed_tickers_csv() -> None:
+    """
+    Start each fetch_batch() run with a clean file. Without this, failures
+    from past runs (including ones from since-removed code paths, e.g. the
+    old Yahoo Finance fetcher) accumulate indefinitely and get double-counted
+    by reporter.py's failed_fetch_count, which just counts rows in this file.
+    """
     OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
-    file_exists = FAILED_TICKERS_CSV.exists()
+    with open(FAILED_TICKERS_CSV, "w", newline="", encoding="utf-8") as f:
+        csv.writer(f).writerow(["ticker", "error_type", "error_message", "timestamp"])
+
+
+def _record_failed_ticker(ticker: str, error_type: str, error_message: str) -> None:
     with open(FAILED_TICKERS_CSV, "a", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
-        if not file_exists:
-            writer.writerow(["ticker", "error_type", "error_message", "timestamp"])
         writer.writerow([
             ticker, error_type, error_message,
             datetime.now(timezone.utc).isoformat(),
@@ -382,6 +390,8 @@ def fetch_batch(tickers: list[str], config: dict) -> list[dict]:
     results = []
     total = len(tickers)
     fmp_calls_made = 0
+
+    _reset_failed_tickers_csv()
 
     for i, ticker in enumerate(tickers, start=1):
         logger.info(f"Processing {i}/{total}: {ticker}")

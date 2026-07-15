@@ -138,9 +138,20 @@ def generate_report(companies: list[dict]) -> str:
     return report
 
 
+# data/cache/ also holds non-company cache files written by other modules
+# — sic_universe_builder's sic_universe_{sic}.json (a list, not a dict) and
+# universe_builder's universe_market_cap.json, and ground_truth_builder's
+# peer_group_{ticker}.json (a dict, but not a company record). A bare
+# glob("*.json") would either crash on the list or silently pollute the
+# stats with the dict.
+NON_COMPANY_CACHE_PREFIXES = ("sic_universe_", "peer_group_")
+NON_COMPANY_CACHE_FILES = ("universe_market_cap.json",)
+
 if __name__ == "__main__":
     companies = []
     for cache_file in sorted(CACHE_DIR.glob("*.json")):
+        if cache_file.name in NON_COMPANY_CACHE_FILES or cache_file.name.startswith(NON_COMPANY_CACHE_PREFIXES):
+            continue
         with open(cache_file, "r", encoding="utf-8") as f:
             companies.append(json.load(f))
 
